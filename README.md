@@ -47,8 +47,15 @@ List<SomeType> someTypes = responseHandler.orElse(Collections.emptyList());
 Send simple http request.
 ```java
 Perform a GET request and get the status of the response
-HttpRequest<?> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/");
+HttpRequest<?> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/").build();
 int responseCode = httpRequest.execute().getStatusCode()
+```
+
+```java
+Perform a POST request and get the body of the response without deserialize
+HttpRequest<?> httpRequest = HttpRequestBuilder.createPost("https://www.jsunsoft.com/", String.class);
+                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
+String responseBody = httpRequest.execute().get(); // see documentation of get method
 ```
 
 ```java
