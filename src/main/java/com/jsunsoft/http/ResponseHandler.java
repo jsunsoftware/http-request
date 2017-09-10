@@ -188,7 +188,7 @@ public final class ResponseHandler<T> {
      *     if(responseHandler.hasContent()){
      *         responseHandler.get()
      *     }
-     * <pre>
+     * </pre>
      * @return Deserialized content from response.
      * @throws NoSuchElementException        If content is not present
      * @throws UnsupportedOperationException if generic type is a Void
