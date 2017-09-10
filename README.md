@@ -53,7 +53,7 @@ int responseCode = httpRequest.execute().getStatusCode()
 
 ```java
 Perform request and get the body of the response without deserialize
-HttpRequest<?> httpRequest = HttpRequestBuilder.create(someHttpMethod, "https://www.jsunsoft.com/", String.class);
+HttpRequest<String> httpRequest = HttpRequestBuilder.create(someHttpMethod, "https://www.jsunsoft.com/", String.class);
                                                 .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
 String responseBody = httpRequest.execute().get(); // see documentation of get method
 ```
