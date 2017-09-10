@@ -16,11 +16,37 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
 
 import java.nio.charset.Charset;
 
 public class ContentType {
+    public static final ContentType APPLICATION_ATOM_XML = create(
+            "application/atom+xml", Consts.ISO_8859_1);
+    public static final ContentType APPLICATION_FORM_URLENCODED = create(
+            "application/x-www-form-urlencoded", Consts.ISO_8859_1);
+    public static final ContentType APPLICATION_JSON = create(
+            "application/json", Consts.UTF_8);
+    public static final ContentType APPLICATION_OCTET_STREAM = create(
+            "application/octet-stream", (Charset) null);
+    public static final ContentType APPLICATION_SVG_XML = create(
+            "application/svg+xml", Consts.ISO_8859_1);
+    public static final ContentType APPLICATION_XHTML_XML = create(
+            "application/xhtml+xml", Consts.ISO_8859_1);
+    public static final ContentType APPLICATION_XML = create(
+            "application/xml", Consts.ISO_8859_1);
+    public static final ContentType MULTIPART_FORM_DATA = create(
+            "multipart/form-data", Consts.ISO_8859_1);
+    public static final ContentType TEXT_HTML = create(
+            "text/html", Consts.ISO_8859_1);
+    public static final ContentType TEXT_PLAIN = create(
+            "text/plain", Consts.ISO_8859_1);
+    public static final ContentType TEXT_XML = create(
+            "text/xml", Consts.ISO_8859_1);
+    public static final ContentType WILDCARD = create(
+            "*/*", (Charset) null);
+
     private final String mimeType;
     private final Charset charset;
 
@@ -43,6 +69,14 @@ public class ContentType {
 
     public static ContentType create(String mimeType) {
         return new ContentType(mimeType, null);
+    }
+
+    @Override
+    public String toString() {
+        return "ContentType{" +
+                "mimeType='" + mimeType + '\'' +
+                ", charset=" + charset +
+                '}';
     }
 
     static ContentType create(org.apache.http.entity.ContentType ct) {
