@@ -21,7 +21,7 @@ import org.apache.http.HttpEntity;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-public class ContentType {
+public final class ContentType {
     public static final ContentType APPLICATION_ATOM_XML = create(
             "application/atom+xml", StandardCharsets.ISO_8859_1);
     public static final ContentType APPLICATION_FORM_URLENCODED = create(
