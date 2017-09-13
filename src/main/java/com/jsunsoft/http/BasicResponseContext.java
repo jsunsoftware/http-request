@@ -48,20 +48,17 @@ final class BasicResponseContext implements ResponseContext {
             byte[] buffer = new byte[contentLength];
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream(contentLength);
-            int length;
 
+            int length;
 
             while ((length = inputStream.read(buffer)) != -1) {
                 outputStream.write(buffer, 0, length);
             }
 
             Charset charset = getContentType().getCharset();
-            if (charset == null) {
-                result = outputStream.toString();
-            } else {
-                result = outputStream.toString(getContentType().getCharset().name());
-            }
 
+            result = charset == null ?
+                    outputStream.toString() : outputStream.toString(getContentType().getCharset().name());
         }
 
         LOGGER.trace("Content type is: " + result);
