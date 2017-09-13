@@ -1,18 +1,19 @@
 # http-request
 
-This lib built on apache http client for sending rest requests.
+This lib is built on apache http client for sending rest requests.
 
 **http-request** Features: 
-To build your HttpRequest requires no more than 5 minutes. <br/>
+Building your HttpRequest requires no more than 5 minutes. <br/>
 Used builder pattern to create HttpRequest. <br/>
-HttpRequest design as one instance to one URI. <br/>
-HttpRequest is an immutable (thread safe after build). <br/>
-Overloaded methods execute() for sending request. <br/>
-Wrapped all exceptions, If connection failure -> status code is a 503(SC_SERVICE_UNAVAILABLE),
-                                                If failed deserialization  of response body -> status code is a 502(SC_BAD_GATEWAY). <br/>
-After request provide ResponseHandler instance by many methods to manipulate response data. <br/>
+HttpRequest is designed as one instance to one URI. <br/>
+HttpRequest is immutable (thread safe after build). <br/>
+There are overloaded methods of execute() for sending request. <br/>
+All exceptions are wrapped: <br/>
+If connection failure -> status code is a 503(SC_SERVICE_UNAVAILABLE),
+If failed deserialization  of response body -> status code is a 502(SC_BAD_GATEWAY). <br/>
+After request ResponseHandler instance is provided to manipulate response data. <br/>
 Supported converting response to the type which you want. <br/>
-Supported ignore response body if you interested only status code. <br/>
+Supported ignore response body if you interested in only status code. <br/>
 Supported converting from Json. <br/>
 Supported converting from Xml. <br/>
 Optimized performance. <br/>
@@ -24,16 +25,16 @@ Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.ht
 
 ### How to use
 
-For build HttpRequest by default options
+For building HttpRequest by default options
 
 ```java
 HttpRequest<SomeTypeToConvertResponseBody> httpRequest = RestClient.createGet(uriString,  SomeTypeToConvertResponseBody.class).build();
 ```
-If you want ignore the convert of response body, you must build so:
+If you want to ignore the convert of response body, you must build it so:
 ```java
 HttpRequest<?> httpRequest = RestClient.createGet(uri).build();
 ```
-If you want convert response body to Generic class (example List<T>) by some type you must build so:
+If you want to convert response body to Generic class (example List<T>) by some type you must build it so:
 
 ```java
 HttpRequest<List<SomeType>> httpRequest = RestClient.createGet(uri,  new TypeReference<List<SomeType>>(){}).build();
@@ -52,7 +53,7 @@ int responseCode = httpRequest.execute().getStatusCode()
 ```
 
 ```java
-Perform request and get the body of the response without deserialize
+Perform request and get the body of the response without deserialization
 HttpRequest<String> httpRequest = HttpRequestBuilder.create(someHttpMethod, "https://www.jsunsoft.com/", String.class);
                                                 .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
 String responseBody = httpRequest.execute().get(); // see documentation of get method
@@ -66,7 +67,7 @@ HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaul
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(headerName, headerValue).build();
 ```
 
-By default connection pool size of apache http client is 2. I changed the parameter to default value 128. For set custom value you can:
+By default connection pool size of apache http client is 2. I changed the parameter to default value to 128. To set custom value you can:
 ```java
 HttpRequestBuilder.create(someHttpMethod, someUri).maxPoolPerRoute(someIntValue).build();
 or
@@ -106,6 +107,7 @@ No try/catch, No if/else
 import com.jsunsoft.http.*;
 import java.util.List;
 import java.nio.charset.Charset;
+import org.apache.http.entity.ContentType;
 
 public static class Rest{
     private static final HttpRequest<List<String>> httpRequest =
