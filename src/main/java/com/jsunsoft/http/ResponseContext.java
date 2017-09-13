@@ -16,6 +16,8 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.entity.ContentType;
+
 import java.io.IOException;
 import java.io.InputStream;
 

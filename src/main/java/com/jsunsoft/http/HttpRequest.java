@@ -17,9 +17,10 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.Args;
 
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Collection;
@@ -65,37 +66,6 @@ public interface HttpRequest<T> {
     ResponseHandler<T> execute(NameValuePair... params);
 
     /**
-     * @param newUri the new uri to request. Should not be null.
-     * @return Returns a copy of this BasicHttpRequest instance with the specified uri of newUri.
-     */
-    BasicHttpRequest<T> changeUri(URI newUri);
-
-    /**
-     * @param newUri the new uri to request. Should not be null.
-     * @return Returns a copy of this BasicHttpRequest instance with the specified uri of newUri.
-     */
-    default BasicHttpRequest<T> changeUri(String newUri) {
-        ArgsCheck.notNull(newUri, "newUri");
-        return changeUri(URI.create(newUri));
-    }
-
-    /**
-     * @param postfix postfix to add to uri. Should not be null.
-     * @return Returns a copy of this instance with the uri by added postfix.
-     */
-    BasicHttpRequest<T> addUriPostfix(String postfix);
-
-    /**
-     * @return http method of request
-     */
-    HttpMethod getHttpMethod();
-
-    /**
-     * @return request uri
-     */
-    URI getUri();
-
-    /**
      * Sends request by queryString of request. {@code httpServletRequest.getQueryString()}. Default Char encoding "UTF-8".
      *
      * @param queryString queryString
@@ -119,7 +89,7 @@ public interface HttpRequest<T> {
      */
     default ResponseHandler<T> execute(String name, String value) {
         ArgsCheck.notNull(name, "name");
-        return execute(new NameValuePairImpl(name, value));
+        return execute(new BasicNameValuePair(name, value));
     }
 
     /**
@@ -152,7 +122,7 @@ public interface HttpRequest<T> {
 
         int k = 0;
         for (int i = 0; i <= end; i += 2) {
-            nameValuePairs[k++] = new NameValuePairImpl(nameValues[i], nameValues[i + 1]);
+            nameValuePairs[k++] = new BasicNameValuePair(nameValues[i], nameValues[i + 1]);
         }
 
         return execute(nameValuePairs);
@@ -181,6 +151,8 @@ public interface HttpRequest<T> {
      */
     default ResponseHandler<T> execute(Map<String, String> params) {
         ArgsCheck.notNull(params, "params");
-        return execute(params.entrySet().stream().map(NameValuePairImpl::new).toArray(NameValuePair[]::new));
+        return execute(params.entrySet().stream()
+                .map(entry -> new BasicNameValuePair(entry.getKey(), entry.getValue()))
+                .toArray(NameValuePair[]::new));
     }
 }

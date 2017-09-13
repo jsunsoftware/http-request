@@ -16,6 +16,8 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.entity.ContentType;
+
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.NoSuchElementException;
@@ -24,10 +26,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
-import static org.apache.http.HttpStatus.SC_SERVICE_UNAVAILABLE;
-
-//import org.apache.http.entity.ContentType;
 
 /**
  * ResponseHandler objects are immutable they can be shared.
@@ -46,15 +44,11 @@ public final class ResponseHandler<T> {
     private final boolean success;
     private final ConnectionFailureType connectionFailureType;
 
-    ResponseHandler(BasicHttpRequest<T> httpRequest, ConnectionFailureType connectionFailureType) {
-        this(null, SC_SERVICE_UNAVAILABLE, "Connection was aborted", httpRequest.getType(), null, httpRequest.getUri(), connectionFailureType);
-    }
-
     ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri) {
         this(content, statusCode, errorText, type, contentType, uri, BasicConnectionFailureType.NONE);
     }
 
-    private ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
+    ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
         this.statusCode = statusCode;
         this.content = content;
         this.errorText = errorText;
@@ -189,6 +183,7 @@ public final class ResponseHandler<T> {
      *         responseHandler.get()
      *     }
      * </pre>
+     *
      * @return Deserialized content from response.
      * @throws NoSuchElementException        If content is not present
      * @throws UnsupportedOperationException if generic type is a Void
@@ -234,7 +229,8 @@ public final class ResponseHandler<T> {
     /**
      * @return Content type of response
      */
-    public ContentType getContentType() {
+    //todo make public
+    ContentType getContentType() {
         return contentType;
     }
 

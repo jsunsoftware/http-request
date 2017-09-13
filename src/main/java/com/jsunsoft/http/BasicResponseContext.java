@@ -17,6 +17,7 @@
 package com.jsunsoft.http;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +68,7 @@ final class BasicResponseContext implements ResponseContext {
 
     @Override
     public ContentType getContentType() {
-        return ContentType.create(httpEntity);
+        return ContentType.get(httpEntity);
     }
 
     @Override

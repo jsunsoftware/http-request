@@ -107,7 +107,7 @@ public final class HttpRequestBuilder<T> {
      * @param contentTypeOfBody Content type for executing with body. By default APPLICATION_JSON
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> contentTypeOfBody(com.jsunsoft.http.ContentType contentTypeOfBody) {
+    public HttpRequestBuilder<T> contentTypeOfBody(ContentType contentTypeOfBody) {
         ArgsCheck.notNull(contentTypeOfBody, "contentTypeOfBody");
         this.contentTypeOfBody = ContentType.create(contentTypeOfBody.getMimeType(), contentTypeOfBody.getCharset());
         return this;
@@ -263,7 +263,7 @@ public final class HttpRequestBuilder<T> {
      */
     public HttpRequestBuilder<T> addDefaultHeader(String name, String value) {
         ArgsCheck.notNull(name, "name");
-        addDefaultHeader(new HeaderImpl(name, value));
+        addDefaultHeader(new BasicHeader(name, value));
         return this;
     }
 
@@ -273,7 +273,7 @@ public final class HttpRequestBuilder<T> {
      * @param header header instance
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> addDefaultHeader(com.jsunsoft.http.Header header) {
+    public HttpRequestBuilder<T> addDefaultHeader(Header header) {
         if (headers == null) {
             headers = new ArrayList<>();
         }
@@ -287,7 +287,7 @@ public final class HttpRequestBuilder<T> {
      * @param headers varargs of headers
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> addDefaultHeader(com.jsunsoft.http.Header... headers) {
+    public HttpRequestBuilder<T> addDefaultHeader(Header... headers) {
         Arrays.stream(headers).forEach(this::addDefaultHeader);
         return this;
     }
@@ -298,7 +298,7 @@ public final class HttpRequestBuilder<T> {
      * @param headers collections of headers
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> addDefaultHeader(Collection<? extends com.jsunsoft.http.Header> headers) {
+    public HttpRequestBuilder<T> addDefaultHeader(Collection<? extends Header> headers) {
         headers.forEach(this::addDefaultHeader);
         return this;
     }
@@ -382,7 +382,7 @@ public final class HttpRequestBuilder<T> {
      */
     public HttpRequestBuilder<T> addDefaultRequestParameter(String name, String value) {
         ArgsCheck.notNull(name, "name");
-        return addDefaultRequestParameter(new NameValuePairImpl(name, value));
+        return addDefaultRequestParameter(new BasicNameValuePair(name, value));
     }
 
     /**
@@ -391,7 +391,7 @@ public final class HttpRequestBuilder<T> {
      * @param nameValues nameValues
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> addDefaultRequestParameter(com.jsunsoft.http.NameValuePair... nameValues) {
+    public HttpRequestBuilder<T> addDefaultRequestParameter(NameValuePair... nameValues) {
         int nameValuesLength = ArgsCheck.notNull(nameValues, "nameValues").length;
         Args.check(nameValuesLength != 0, "Length of parameter can't be ZERO");
 
@@ -407,8 +407,8 @@ public final class HttpRequestBuilder<T> {
     public HttpRequestBuilder<T> addDefaultRequestParameter(Map<String, String> defaultParameters) {
         ArgsCheck.notNull(defaultParameters, "defaultParameters");
 
-        Collection<com.jsunsoft.http.NameValuePair> parameters = defaultParameters.entrySet().stream()
-                .map(entry -> new NameValuePairImpl(entry.getKey(), entry.getValue()))
+        Collection<NameValuePair> parameters = defaultParameters.entrySet().stream()
+                .map(entry -> new BasicNameValuePair(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
 
         return addDefaultRequestParameter(parameters);
@@ -420,7 +420,7 @@ public final class HttpRequestBuilder<T> {
      * @param defaultRequestParameters defaultRequestParameters
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> addDefaultRequestParameter(Collection<? extends com.jsunsoft.http.NameValuePair> defaultRequestParameters) {
+    public HttpRequestBuilder<T> addDefaultRequestParameter(Collection<? extends NameValuePair> defaultRequestParameters) {
         ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters");
 
         if (this.defaultRequestParameters == null) {

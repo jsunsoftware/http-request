@@ -30,7 +30,6 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.Args;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +45,10 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.function.Supplier;
 
+import static com.jsunsoft.http.BasicConnectionFailureType.*;
+import static com.jsunsoft.http.Constants.CONNECTION_WAS_ABORTED;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 import static org.apache.http.HttpStatus.*;
 
@@ -61,7 +61,6 @@ import static org.apache.http.HttpStatus.*;
  */
 final class BasicHttpRequest<T> implements HttpRequest<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(BasicHttpRequest.class);
-    private static final org.apache.http.NameValuePair[] EMPTY_APACHE_NAME_VALUE_PAIRS = new org.apache.http.NameValuePair[0];
     private static final String COOKIE = "Cookie";
 
     private final String httpMethod;
@@ -101,6 +100,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
     /**
      * {@inheritDoc}
      */
+    @Override
     public ResponseHandler<T> executeWithBody(String payload) {
         LOGGER.debug("Started executing with body. Uri: {}", uri);
         ArgsCheck.notNull(payload, "payload");
@@ -114,6 +114,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
     /**
      * {@inheritDoc}
      */
+    @Override
     public ResponseHandler<T> executeWithQuery(String queryString, String characterEncoding) {
         ArgsCheck.notNull(queryString, "queryString");
         ArgsCheck.notNull(characterEncoding, "characterEncoding");
@@ -126,7 +127,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
         LOGGER.trace("Query string to uri: [{}]: is: [{}]", uri, queryString);
         NameValuePair[] params = Arrays.stream(queryString.split("&"))
                 .map(s -> s.split("=")).filter(s -> s.length == 2)
-                .map(s -> new NameValuePairImpl(s[0], s[1]))
+                .map(s -> new BasicNameValuePair(s[0], s[1]))
                 .toArray(NameValuePair[]::new);
         return execute(params);
     }
@@ -134,69 +135,12 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
     /**
      * {@inheritDoc}
      */
-    public ResponseHandler<T> execute(String name, String value) {
-        ArgsCheck.notNull(name, "name");
-        return execute(new BasicNameValuePair(name, value));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public ResponseHandler<T> execute() {
-        return execute(EMPTY_APACHE_NAME_VALUE_PAIRS);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public ResponseHandler<T> execute(String... nameValues) {
-        int nameValuesLength = ArgsCheck.notNull(nameValues, "nameValues").length;
-        Args.check(nameValuesLength != 0, "Length of parameter can't be ZERO");
-        Args.check(nameValuesLength % 2 != 0, "Length of nameValues can't be odd");
-
-        int end = nameValuesLength - 2;
-        NameValuePair[] nameValuePairs = new NameValuePair[nameValuesLength / 2];
-
-        int k = 0;
-        for (int i = 0; i <= end; i += 2) {
-            nameValuePairs[k++] = new BasicNameValuePair(nameValues[i], nameValues[i + 1]);
-        }
-
-        return execute(nameValuePairs);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public ResponseHandler<T> execute(com.jsunsoft.http.NameValuePair... params) {
-        ArgsCheck.notNull(params, "params");
-        return execute((NameValuePair[]) Arrays.stream(params).map(nvp -> new BasicNameValuePair(nvp.getName(), nvp.getValue())).toArray());
-    }
-
-    /**
-     * Sends request
-     *
-     * @param params parameters to send
-     * @return Instance of {@link ResponseHandler}. If connection failure status code is a <b>503</b>.
-     * If failed deserialization of response body status code is a <b>502</b>
-     * @throws NullPointerException when param params is null
-     */
-    private ResponseHandler<T> execute(NameValuePair... params) {
+    @Override
+    public ResponseHandler<T> execute(NameValuePair... params) {
         LOGGER.debug("Started executing. Uri: {}", uri);
         ArgsCheck.notNull(params, "params");
         RequestBuilder requestBuilder = RequestBuilder.create(httpMethod).setUri(uri).addParameters(params);
         return execute(requestBuilder);
-    }
-
-
-    /**
-     * {@inheritDoc}
-     */
-    public ResponseHandler<T> execute(Map<String, String> params) {
-        ArgsCheck.notNull(params, "params");
-        return execute(params.entrySet().stream()
-                .map(entry -> new BasicNameValuePair(entry.getKey(), entry.getValue()))
-                .toArray(NameValuePair[]::new));
     }
 
     private ResponseHandler<T> execute(RequestBuilder requestBuilder) {
@@ -242,26 +186,26 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
                     responseCode = SC_SERVICE_UNAVAILABLE;
                 }
             }
-            com.jsunsoft.http.ContentType responseContentType = com.jsunsoft.http.ContentType.create(httpEntity);
+            ContentType responseContentType = ContentType.get(httpEntity);
             EntityUtils.consumeQuietly(httpEntity);
 
             result = new ResponseHandler<>(content, responseCode, failedMessage, type, responseContentType, uri);
 
         } catch (ConnectionPoolTimeoutException e) {
-            result = new ResponseHandler<>(this, BasicConnectionFailureType.CONNECTION_POOL_IS_EMPTY);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, CONNECTION_POOL_IS_EMPTY);
             LOGGER.debug("Connection pool is empty for request on uri: [" + uri + "]. Status code: " + result.getStatusCode(), e);
         } catch (SocketTimeoutException | NoHttpResponseException e) {
             //todo support retry when NoHttpResponseException
-            result = new ResponseHandler<>(this, BasicConnectionFailureType.REMOTE_SERVER_HIGH_LOADED);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, REMOTE_SERVER_HIGH_LOADED);
             LOGGER.debug("Server on uri: [" + uri + "] is high loaded. Status code: " + result.getStatusCode(), e);
         } catch (ConnectTimeoutException e) {
-            result = new ResponseHandler<>(this, BasicConnectionFailureType.CONNECT_TIMEOUT_EXPIRED);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, CONNECT_TIMEOUT_EXPIRED);
             LOGGER.debug("HttpRequest is unable to establish a connection with the: [" + uri + "] within the given period of time. Status code: " + result.getStatusCode(), e);
         } catch (HttpHostConnectException e) {
-            result = new ResponseHandler<>(this, BasicConnectionFailureType.REMOTE_SERVER_IS_DOWN);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, REMOTE_SERVER_IS_DOWN);
             LOGGER.debug("Server on uri: [" + uri + "] is down. Status code: " + result.getStatusCode(), e);
         } catch (IOException e) {
-            result = new ResponseHandler<>(this, BasicConnectionFailureType.IO);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, IO);
             LOGGER.debug("Connection was aborted for request on uri: [" + uri + "]. Status code: " + result.getStatusCode(), e);
         }
 
@@ -286,11 +230,11 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
         return requestBuilder.build();
     }
 
-    public HttpMethod getHttpMethod() {
+    HttpMethod getHttpMethod() {
         return HttpMethod.valueOf(httpMethod);
     }
 
-    public URI getUri() {
+    URI getUri() {
         return uri;
     }
 
@@ -302,7 +246,8 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
      * @param postfix postfix to add to uri. Should not be null.
      * @return Returns a copy of this instance with the uri by added postfix.
      */
-    public BasicHttpRequest<T> addUriPostfix(String postfix) {
+    //todo
+    BasicHttpRequest<T> addUriPostfix(String postfix) {
         return changeUri(URI.create(uri.toString() + postfix));
     }
 
@@ -310,7 +255,8 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
      * @param newUri the new uri to request. Should not be null.
      * @return Returns a copy of this BasicHttpRequest instance with the specified uri of newUri.
      */
-    public BasicHttpRequest<T> changeUri(URI newUri) {
+    //todo
+    BasicHttpRequest<T> changeUri(URI newUri) {
         ArgsCheck.notNull(newUri, "newUri");
         return new BasicHttpRequest<>(
                 httpMethod,
@@ -324,6 +270,16 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
                 defaultRequestParameters,
                 connectionManager
         );
+    }
+
+    /**
+     * @param newUri the new uri to request. Should not be null.
+     * @return Returns a copy of this BasicHttpRequest instance with the specified uri of newUri.
+     */
+    //todo
+    BasicHttpRequest<T> changeUri(String newUri) {
+        ArgsCheck.notNull(newUri, "newUri");
+        return changeUri(URI.create(newUri));
     }
 
     PoolingHttpClientConnectionManager getConnectionManager() {
