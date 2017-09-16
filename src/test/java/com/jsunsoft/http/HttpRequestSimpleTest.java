@@ -16,11 +16,9 @@
 
 package com.jsunsoft.http;
 
-import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.apache.http.HttpHeaders;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
@@ -30,7 +28,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class HttpRequestSimpleTest {
-    private final WireMockRule wireMockRule = new WireMockRule(8080);
+    @Rule
+    public final WireMockRule wireMockRule = new WireMockRule(8080);
     private final String userAgent = "JsunSoftAgent/1.0";
 
     private final HttpRequest<?> httpRequestUserAgent = HttpRequestBuilder.createGet("http://localhost:8080/userAgent")
@@ -40,16 +39,6 @@ public class HttpRequestSimpleTest {
             .contentTypeOfBody(APPLICATION_XML)
             .build();
 
-    @Before
-    public void setup() {
-        wireMockRule.start();
-    }
-
-    @After
-    public void cleanup() {
-        WireMock.reset();
-        wireMockRule.stop();
-    }
 
     @Test
     public void userAgentTest() {
