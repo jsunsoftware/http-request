@@ -21,6 +21,7 @@ import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.Args;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Collection;
@@ -64,6 +65,10 @@ public interface HttpRequest<T> {
      * @throws NullPointerException when param params is null
      */
     ResponseHandler<T> execute(NameValuePair... params);
+
+    HttpMethod getHttpMethod();
+
+    URI getUri();
 
     /**
      * Sends request by queryString of request. {@code httpServletRequest.getQueryString()}. Default Char encoding "UTF-8".

@@ -23,8 +23,14 @@ import org.apache.http.client.RedirectStrategy;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.routing.HttpRoute;
 import org.apache.http.conn.routing.HttpRoutePlanner;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
@@ -35,12 +41,18 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.Args;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
 import java.lang.reflect.Type;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -76,6 +88,8 @@ public final class HttpRequestBuilder<T> {
     private HttpHost proxy;
     private boolean useDefaultProxy;
     private List<NameValuePair> defaultRequestParameters;
+    private SSLContext sslContext;
+    private HostnameVerifier hostnameVerifier;
 
     private HttpRequestBuilder(String httpMethod, String uri) {
         this(httpMethod, uri, Void.class);
@@ -255,6 +269,18 @@ public final class HttpRequestBuilder<T> {
     }
 
     /**
+     * <p>By default disabled.
+     *
+     * @param redirectStrategy RedirectStrategy instance
+     * @return HttpRequestBuilder instance
+     * @see RedirectStrategy
+     */
+    public HttpRequestBuilder<T> redirectStrategy(RedirectStrategy redirectStrategy) {
+        this.redirectStrategy = DefaultRedirectStrategy.INSTANCE;
+        return this;
+    }
+
+    /**
      * Header needs to be the same for all requests
      *
      * @param name  name of header. Can't be null
@@ -346,8 +372,8 @@ public final class HttpRequestBuilder<T> {
      * @param proxy {@link HttpHost} instance to proxy
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> proxy(Proxy proxy) {
-        this.proxy = new HttpHost(proxy.getHost(), proxy.getPort(), proxy.getScheme());
+    public HttpRequestBuilder<T> proxy(HttpHost proxy) {
+        this.proxy = proxy;
         return this;
     }
 
@@ -359,9 +385,18 @@ public final class HttpRequestBuilder<T> {
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder<T> proxy(URI proxyUri) {
-        proxy(new Proxy(proxyUri));
-        return this;
+        return proxy(new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme()));
     }
+
+    /**
+     * @param host host of proxy
+     * @param port port of proxy
+     * @return HttpRequestBuilder instance
+     */
+    public HttpRequestBuilder<T> proxy(String host, int port) {
+        return proxy(new HttpHost(host, port));
+    }
+
 
     /**
      * Instruct HttpClient to use the standard JRE proxy selector to obtain proxy.
@@ -435,6 +470,54 @@ public final class HttpRequestBuilder<T> {
     }
 
     /**
+     * Sets {@link SSLContext}
+     *
+     * @param sslContext SSLContext instance
+     * @return HttpRequestBuilder instance
+     */
+    public HttpRequestBuilder<T> sslContext(SSLContext sslContext) {
+        this.sslContext = sslContext;
+        return this;
+    }
+
+    /**
+     * Sets {@link HostnameVerifier}
+     *
+     * @param hostnameVerifier HostnameVerifier instance
+     * @return HttpRequestBuilder instance
+     */
+    public HttpRequestBuilder<T> hostnameVerifier(HostnameVerifier hostnameVerifier) {
+        this.hostnameVerifier = hostnameVerifier;
+        return this;
+    }
+
+    /**
+     * Accept all certificates
+     *
+     * @return HttpRequestBuilder instance
+     * @throws HttpRequestBuildException when can't build ssl.
+     */
+    public HttpRequestBuilder<T> trustAllCertificates() {
+        try {
+            sslContext = SSLContexts.custom()
+                    .loadTrustMaterial(null, (certificate, authType) -> true).build();
+        } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
+            throw new HttpRequestBuildException(e);
+        }
+        return this;
+    }
+
+    /**
+     * Accept all hosts
+     *
+     * @return HttpRequestBuilder instance
+     */
+    public HttpRequestBuilder<T> trustAllHosts() {
+        hostnameVerifier = NoopHostnameVerifier.INSTANCE;
+        return this;
+    }
+
+    /**
      * Build Http request
      *
      * @return {@link HttpRequest} instance by build parameters
@@ -447,7 +530,25 @@ public final class HttpRequestBuilder<T> {
                 .setConnectionRequestTimeout(connectionConfig.getConnectionRequestTimeout())
                 .build();
 
-        PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+        Registry<ConnectionSocketFactory> socketFactoryRegistry = null;
+        HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+
+        if (sslContext != null) {
+            clientBuilder.setSSLContext(sslContext);
+            SSLConnectionSocketFactory sslSocketFactory = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
+            socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
+                    .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                    .register("https", sslSocketFactory)
+                    .build();
+        }
+
+        if (hostnameVerifier != null) {
+            clientBuilder.setSSLHostnameVerifier(hostnameVerifier);
+        }
+
+        PoolingHttpClientConnectionManager connectionManager = socketFactoryRegistry == null ?
+                new PoolingHttpClientConnectionManager() : new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+
         HttpHost httpHost = new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme());
         HttpRoute httpRoute = new HttpRoute(httpHost);
 
@@ -463,7 +564,7 @@ public final class HttpRequestBuilder<T> {
             routePlanner = new SystemDefaultRoutePlanner(ProxySelector.getDefault());
         }
 
-        HttpClientBuilder clientBuilder = HttpClientBuilder.create()
+        clientBuilder
                 .setDefaultRequestConfig(requestConfig)
                 .setConnectionManager(connectionManager)
                 .disableCookieManagement()
@@ -484,6 +585,8 @@ public final class HttpRequestBuilder<T> {
         } else {
             clientBuilder.setRedirectStrategy(redirectStrategy);
         }
+
+
         CloseableHttpClient closeableHttpClient = clientBuilder.build();
 
         if (responseDeserializer == null) {

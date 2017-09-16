@@ -16,36 +16,20 @@
 
 package com.jsunsoft.http;
 
-import java.net.URI;
+class HttpRequestThread<T> extends Thread {
+    private final HttpRequest<T> httpRequest;
+    private ResponseHandler<T> responseHandler;
 
-public class Proxy {
-    private final String host;
-    private final int port;
-    private final String scheme;
-
-    public Proxy(String host, int port, String scheme) {
-        this.host = host;
-        this.port = port;
-        this.scheme = scheme;
+    HttpRequestThread(HttpRequest<T> httpRequest) {
+        this.httpRequest = httpRequest;
     }
 
-    public Proxy(String host, int port) {
-        this(host, port, null);
+    @Override
+    public void run() {
+        responseHandler = httpRequest.execute();
     }
 
-    public Proxy(URI uri) {
-        this(uri.getHost(), uri.getPort(), uri.getScheme());
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public String getScheme() {
-        return scheme;
+    ResponseHandler<T> getResponseHandler() {
+        return responseHandler;
     }
 }

@@ -56,7 +56,8 @@ final class BasicResponseContext implements ResponseContext {
                 outputStream.write(buffer, 0, length);
             }
 
-            Charset charset = getContentType().getCharset();
+            ContentType contentType = getContentType();
+            Charset charset = contentType == null ? null : contentType.getCharset();
 
             result = charset == null ?
                     outputStream.toString() : outputStream.toString(getContentType().getCharset().name());

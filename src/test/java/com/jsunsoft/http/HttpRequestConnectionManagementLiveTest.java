@@ -21,7 +21,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
-public class HttpClientConnectionManagementLiveTest {
+public class HttpRequestConnectionManagementLiveTest {
     private static final String SERVER1 = "https://www.jsunsoft.com/";
     private static final String SERVER7 = "http://www.youtube.com/";
 
@@ -32,17 +32,17 @@ public class HttpClientConnectionManagementLiveTest {
                         ConnectionConfig.create().connectionRequestTimeout(5)
                 ).build();
         int validThreadSize = 128;
-        final HttpClientThread[] threads = new HttpClientThread[validThreadSize];
+        final HttpRequestThread[] threads = new HttpRequestThread[validThreadSize];
 
         for (int i = 0; i < threads.length; i++) {
-            threads[i] = new HttpClientThread<>(httpRequest);
+            threads[i] = new HttpRequestThread<>(httpRequest);
         }
 
-        for (HttpClientThread<?> thread : threads) {
+        for (HttpRequestThread<?> thread : threads) {
             thread.start();
         }
 
-        for (HttpClientThread<?> thread : threads) {
+        for (HttpRequestThread<?> thread : threads) {
             thread.join();
             assertTrue(!thread.getResponseHandler().getConnectionFailureType().isConnectionPoolEmpty());
         }
@@ -53,8 +53,8 @@ public class HttpClientConnectionManagementLiveTest {
         HttpRequest<?> httpRequest1 = HttpRequestBuilder.createGet(SERVER1).build();
         HttpRequest<?> httpRequest2 = HttpRequestBuilder.createGet(SERVER7).build();
 
-        HttpClientThread thread1 = new HttpClientThread<>(httpRequest1);
-        HttpClientThread thread2 = new HttpClientThread<>(httpRequest2);
+        HttpRequestThread thread1 = new HttpRequestThread<>(httpRequest1);
+        HttpRequestThread thread2 = new HttpRequestThread<>(httpRequest2);
 
         thread1.start();
         thread2.start();
@@ -74,9 +74,9 @@ public class HttpClientConnectionManagementLiveTest {
     @Test
     public final void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeased() throws InterruptedException {
         BasicHttpRequest<?> httpRequest1 = (BasicHttpRequest<?>) HttpRequestBuilder.createGet(SERVER1).build();
-        final HttpClientThread thread1 = new HttpClientThread<>(httpRequest1);
-        final HttpClientThread thread2 = new HttpClientThread<>(httpRequest1.changeUri(SERVER7));
-        final HttpClientThread thread3 = new HttpClientThread<>(httpRequest1.changeUri("http://www.google.com/"));
+        final HttpRequestThread thread1 = new HttpRequestThread<>(httpRequest1);
+        final HttpRequestThread thread2 = new HttpRequestThread<>(httpRequest1.changeUri(SERVER7));
+        final HttpRequestThread thread3 = new HttpRequestThread<>(httpRequest1.changeUri("http://www.google.com/"));
         thread1.start();
         thread2.start();
         thread3.start();

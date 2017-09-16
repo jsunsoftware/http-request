@@ -25,7 +25,16 @@ Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.ht
 
 ### How to use
 
-For building HttpRequest by default options
+**Retrieve the Status Code from the Http Response**
+After sending the Http request – we get back an instance of com.jsunsoft.http.ResponseHandler – <br/>
+which allows us to access the status line of the response, and implicitly the Status Code:
+```java
+HttpRequest<?> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/").build();
+ResponseHandler responseHandler = httpRequest.execute();
+int statusCode = responseHandler.getStatusCode();
+```
+
+**Building HttpRequest by default options**
 
 ```java
 HttpRequest<SomeTypeToConvertResponseBody> httpRequest = RestClient.createGet(uriString,  SomeTypeToConvertResponseBody.class).build();
@@ -45,12 +54,7 @@ or
 List<SomeType> someTypes = responseHandler.orElse(Collections.emptyList());
 ```
 
-Send simple http request.
-```java
-Perform a GET request and get the status of the response
-HttpRequest<?> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/").build();
-int responseCode = httpRequest.execute().getStatusCode()
-```
+**Send simple http request**
 
 ```java
 Perform request and get the body of the response without deserialization
@@ -61,6 +65,7 @@ String responseBody = httpRequest.execute().get(); // see documentation of get m
 
 ```java
 Build HttpRequest and  add HEADERS which should be send always. Example:
+
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(someHeader).build();
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(someHeaderCollection).build();
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(someHeaderArray).build();
@@ -75,16 +80,18 @@ ConnectionConfig connectionConfigInstance = ConnectionConfig.create().maxPoolPer
 HttpRequestBuilder.create(someHttpMethod, someUri).connectionConfig(connectionConfigInstance).build();
 ```
 
-How to set proxy. Example:
+**How to set proxy** <br/>
+Example:
 
 ```java
-Proxy proxy = new Proxy(host, port)
-HttpRequest httpRequest = HttpRequestBuilder.create(someHttpMethod, someUri).proxy(proxy).build()
+HttpRequest httpRequest = HttpRequestBuilder.create(someHttpMethod, someUri).proxy(host, port).build()
 ```
-Default timeouts.
+
+**Timeouts**
 ```text
 socketTimeOut is 30000ms
 connectionRequestTimeout is 30000ms
+connectTimeout is 5000ms;
 ```
 For more information see (https://hc.apache.org/httpcomponents-client-ga/tutorial/html/connmgmt.html)
 or (http://www.baeldung.com/httpclient-timeout)
@@ -97,7 +104,30 @@ HttpRequestBuilder.create(someHttpMethod, someUri)
                                 .connectionRequestTimeout(intValue).build();
 ```
 
+**Following redirects**
 
+```text
+By default redirecting are disabled.
+to enable you can:
+```
+```java
+HttpRequestBuilder.createGet(someUri).enableLaxRedirectStrategy().build();
+or
+HttpRequestBuilder.createGet(someUri).enableDefaultRedirectStrategy().build();
+or set custom redirect strategy
+HttpRequestBuilder.createGet(someUri).setRedirectStrategy(yourRedirectStrategyInstance).build();
+```
+**Ignore SSL certificate**
+
+```java
+HttpRequest<?> httpRequest = HttpRequestBuilder.createGet("https://mms.nw.ru/")
+            .trustAllCertificates()
+            .trustAllHosts()
+            .addDefaultHeader("accept", "application/json")
+            .build();
+
+int statusCode = httpRequest.execute().getStatusCode() // 200
+```
 
 **Real world example how http-request simple and useful**.
 

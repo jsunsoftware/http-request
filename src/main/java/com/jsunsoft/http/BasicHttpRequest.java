@@ -230,11 +230,13 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
         return requestBuilder.build();
     }
 
-    HttpMethod getHttpMethod() {
+    @Override
+    public HttpMethod getHttpMethod() {
         return HttpMethod.valueOf(httpMethod);
     }
 
-    URI getUri() {
+    @Override
+    public URI getUri() {
         return uri;
     }
 

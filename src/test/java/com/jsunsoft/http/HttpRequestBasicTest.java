@@ -16,20 +16,16 @@
 
 package com.jsunsoft.http;
 
-class HttpClientThread<T> extends Thread {
-    private final HttpRequest<T> httpRequest;
-    private ResponseHandler<T> responseHandler;
+import org.apache.http.HttpStatus;
+import org.junit.Assert;
+import org.junit.Test;
 
-    HttpClientThread(HttpRequest<T> httpRequest) {
-        this.httpRequest = httpRequest;
-    }
+public class HttpRequestBasicTest {
 
-    @Override
-    public void run() {
-        responseHandler = httpRequest.execute();
-    }
+    private final HttpRequest<?> httpRequestToGetResponseCode = HttpRequestBuilder.createGet("https://www.jsunsoft.com/").build();
 
-    ResponseHandler<T> getResponseHandler() {
-        return responseHandler;
+    @Test
+    public void getResponseCode() {
+        Assert.assertEquals(HttpStatus.SC_OK, httpRequestToGetResponseCode.execute().getStatusCode());
     }
 }
