@@ -61,16 +61,17 @@ class DefaultResponseDeserializer<T> extends AbstractResponseDeserializer<T> {
     @SuppressWarnings("unchecked")
     public T deserialize(ResponseContext responseContext) throws IOException, ResponseDeserializeException {
         ContentType contentType = responseContext.getContentType();
+        String mimeType = contentType == null ? null : contentType.getMimeType();
         T result;
 
-        if (APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
+        if (APPLICATION_JSON.getMimeType().equals(mimeType)) {
             result = deserialize(responseContext, jsonSerializer);
-        } else if (APPLICATION_XML.getMimeType().equals(contentType.getMimeType())) {
+        } else if (APPLICATION_XML.getMimeType().equals(mimeType)) {
             result = deserialize(responseContext, xmlSerializer);
         } else if (type == String.class) {
             result = (T) responseContext.getContentAsString();
         } else {
-            throw new InvalidMimeTypeException(contentType.getMimeType(), "Deserialization content type: " + contentType + " doesn't supported for type: " + type);
+            throw new InvalidMimeTypeException(mimeType, "Deserialization content type: " + contentType + " doesn't supported for type: " + type);
         }
         return result;
 
