@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.StatusLine;
 import org.apache.http.entity.ContentType;
 
 import java.lang.reflect.Type;
@@ -43,12 +44,17 @@ public final class ResponseHandler<T> {
     private final URI uri;
     private final boolean success;
     private final ConnectionFailureType connectionFailureType;
-
-    ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri) {
-        this(content, statusCode, errorText, type, contentType, uri, BasicConnectionFailureType.NONE);
-    }
+    private final StatusLine statusLine;
 
     ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
+        this(content, statusCode, errorText, type, contentType, uri, connectionFailureType, null);
+    }
+
+    ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, StatusLine statusLine) {
+        this(content, statusCode, errorText, type, contentType, uri, BasicConnectionFailureType.NONE, statusLine);
+    }
+
+    private ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, StatusLine statusLine) {
         this.statusCode = statusCode;
         this.content = content;
         this.errorText = errorText;
@@ -57,6 +63,7 @@ public final class ResponseHandler<T> {
         this.uri = ArgsCheck.notNull(uri, "uri");
         this.success = HttpRequestUtils.isSuccess(statusCode);
         this.connectionFailureType = ArgsCheck.notNull(connectionFailureType, "connectionFailureType");
+        this.statusLine = statusLine;
     }
 
     /**
@@ -227,10 +234,18 @@ public final class ResponseHandler<T> {
     }
 
     /**
+     * Obtains the status line of this response.
+     *
+     * @return the status line, or {@code null} if not yet set
+     */
+    public StatusLine getStatusLine() {
+        return statusLine;
+    }
+
+    /**
      * @return Content type of response
      */
-    //todo make public
-    ContentType getContentType() {
+    public ContentType getContentType() {
         return contentType;
     }
 
@@ -303,6 +318,7 @@ public final class ResponseHandler<T> {
                 ", errorText='" + errorText + '\'' +
                 ", uri=" + uri +
                 ", connectionFailureType=" + connectionFailureType +
+                ", statusLine=" + statusLine +
                 '}';
     }
 

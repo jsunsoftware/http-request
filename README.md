@@ -67,8 +67,8 @@ String responseBody = httpRequest.execute().get(); // see documentation of get m
 Build HttpRequest and  add HEADERS which should be send always. Example:
 
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(someHeader).build();
-HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(someHeaderCollection).build();
-HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(someHeaderArray).build();
+HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeaders(someHeaderCollection).build();
+HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeaders(someHeaderArray).build();
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(headerName, headerValue).build();
 ```
 
@@ -126,7 +126,16 @@ HttpRequest<?> httpRequest = HttpRequestBuilder.createGet("https://mms.nw.ru/")
             .addDefaultHeader("accept", "application/json")
             .build();
 
-int statusCode = httpRequest.execute().getStatusCode() // 200
+int statusCode = httpRequest.execute().getStatusCode(); // 200
+```
+
+**Basic Authentication**
+
+```java
+HttpRequestBuilder.createGet(someUri)
+            .basicAuth("username_admin", "secret_password").build();
+
+int statusCode = httpRequest.execute().getStatusCode(); //200
 ```
 
 **Real world example how http-request simple and useful**.

@@ -188,8 +188,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
             }
             ContentType responseContentType = ContentType.get(httpEntity);
             EntityUtils.consumeQuietly(httpEntity);
-
-            result = new ResponseHandler<>(content, responseCode, failedMessage, type, responseContentType, uri);
+            result = new ResponseHandler<>(content, responseCode, failedMessage, type, responseContentType, uri, response.getStatusLine());
 
         } catch (ConnectionPoolTimeoutException e) {
             result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, CONNECTION_POOL_IS_EMPTY);

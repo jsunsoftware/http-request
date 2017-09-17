@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.NameValuePair;
@@ -60,6 +61,7 @@ import java.util.stream.Collectors;
 
 import static com.jsunsoft.http.ArgsCheck.notNull;
 import static java.util.Objects.requireNonNull;
+import static org.apache.http.HttpHeaders.AUTHORIZATION;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 
 /**
@@ -313,7 +315,7 @@ public final class HttpRequestBuilder<T> {
      * @param headers varargs of headers
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> addDefaultHeader(Header... headers) {
+    public HttpRequestBuilder<T> addDefaultHeaders(Header... headers) {
         Arrays.stream(headers).forEach(this::addDefaultHeader);
         return this;
     }
@@ -324,7 +326,7 @@ public final class HttpRequestBuilder<T> {
      * @param headers collections of headers
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> addDefaultHeader(Collection<? extends Header> headers) {
+    public HttpRequestBuilder<T> addDefaultHeaders(Collection<? extends Header> headers) {
         headers.forEach(this::addDefaultHeader);
         return this;
     }
@@ -515,6 +517,20 @@ public final class HttpRequestBuilder<T> {
     public HttpRequestBuilder<T> trustAllHosts() {
         hostnameVerifier = NoopHostnameVerifier.INSTANCE;
         return this;
+    }
+
+    /**
+     * Basic Authentication - sending the Authorization header.
+     *
+     * @param username username
+     * @param password password
+     * @return HttpRequestBuilder instance
+     */
+    public HttpRequestBuilder<T> basicAuth(String username, String password) {
+        String auth = username + ":" + password;
+        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes());
+        String authHeader = "Basic " + new String(encodedAuth);
+        return addDefaultHeader(AUTHORIZATION, authHeader);
     }
 
     /**
