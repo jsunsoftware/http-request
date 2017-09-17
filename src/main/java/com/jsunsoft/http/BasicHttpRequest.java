@@ -16,6 +16,8 @@
 
 package com.jsunsoft.http;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.NoHttpResponseException;
@@ -31,8 +33,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -60,7 +60,7 @@ import static org.apache.http.HttpStatus.*;
  * @param <T> Type of expected successful response
  */
 final class BasicHttpRequest<T> implements HttpRequest<T> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BasicHttpRequest.class);
+    private static final Log LOGGER = LogFactory.getLog(BasicHttpRequest.class);
     private static final String COOKIE = "Cookie";
 
     private final String httpMethod;
@@ -102,7 +102,8 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
      */
     @Override
     public ResponseHandler<T> executeWithBody(String payload) {
-        LOGGER.debug("Started executing with body. Uri: {}", uri);
+        LOGGER.debug("Started executing with body. Uri: " + uri);
+
         ArgsCheck.notNull(payload, "payload");
         RequestBuilder requestBuilder = RequestBuilder.create(httpMethod)
                 .setUri(uri)
@@ -124,7 +125,8 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
             LOGGER.debug("Unsupported encoding [" + characterEncoding + "], for [" + queryString + ']', e);
             throw new UnsupportedCharsetException(characterEncoding);
         }
-        LOGGER.trace("Query string to uri: [{}]: is: [{}]", uri, queryString);
+        LOGGER.trace("Query string to uri: [" + uri + "]: is: [" + queryString + ']');
+
         NameValuePair[] params = Arrays.stream(queryString.split("&"))
                 .map(s -> s.split("=")).filter(s -> s.length == 2)
                 .map(s -> new BasicNameValuePair(s[0], s[1]))
@@ -137,7 +139,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
      */
     @Override
     public ResponseHandler<T> execute(NameValuePair... params) {
-        LOGGER.debug("Started executing. Uri: {}", uri);
+        LOGGER.debug("Started executing. Uri: " + uri);
         ArgsCheck.notNull(params, "params");
         RequestBuilder requestBuilder = RequestBuilder.create(httpMethod).setUri(uri).addParameters(params);
         return execute(requestBuilder);
@@ -153,27 +155,28 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
 
             int responseCode = response.getStatusLine().getStatusCode();
             HttpEntity httpEntity = response.getEntity();
-            LOGGER.info("Response code from uri: [{}] is {}", uri, responseCode);
+            LOGGER.info("Response code from uri: [" + uri + "] is " + responseCode);
+
             boolean hasBody = HttpRequestUtils.hasBody(responseCode);
 
             T content = null;
             String failedMessage = null;
             if (hasBody && httpEntity == null) {
                 failedMessage = "Response entity is null";
-                LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, uri, responseCode);
+                LOGGER.debug(failedMessage + " .Uri: [" + uri + "]. Status code: " + responseCode);
                 responseCode = SC_BAD_GATEWAY;
             } else {
                 try {
                     if (!HttpRequestUtils.isVoidType(type) && hasBody && HttpRequestUtils.isSuccess(responseCode)) {
                         content = responseDeserializer.deserialize(new BasicResponseContext(httpEntity));
-                        LOGGER.trace("Result of Uri: [{}] is {}", uri, content);
+                        LOGGER.trace("Result of Uri: [" + uri + "] is " + content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
                         failedMessage = responseDeserializer.deserializeFailure(new BasicResponseContext(httpEntity));
-                        String logMsg = "Unexpected Response. Url: [{}] Status code: {}, Error message: {}";
+                        String logMsg = "Unexpected Response. Url: [" + uri + "] Status code: " + responseCode + ", Error message: " + failedMessage;
                         if (responseCode == SC_BAD_REQUEST) {
-                            LOGGER.warn(logMsg, uri, responseCode, failedMessage);
+                            LOGGER.warn(logMsg);
                         } else {
-                            LOGGER.debug(logMsg, uri, responseCode, failedMessage);
+                            LOGGER.debug(logMsg);
                         }
                     }
                 } catch (ResponseDeserializeException e) {
@@ -208,8 +211,8 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
             LOGGER.debug("Connection was aborted for request on uri: [" + uri + "]. Status code: " + result.getStatusCode(), e);
         }
 
-        LOGGER.debug("Executing of uri: [{}] completed. Time {}", uri, HttpRequestUtils.humanTime(startTime));
-        LOGGER.trace("Executed result: {}", result);
+        LOGGER.debug("Executing of uri: [" + uri + "] completed. Time " + HttpRequestUtils.humanTime(startTime));
+        LOGGER.trace("Executed result: " + result);
         return result;
     }
 

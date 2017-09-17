@@ -16,10 +16,10 @@
 
 package com.jsunsoft.http;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -27,7 +27,7 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 
 final class BasicResponseContext implements ResponseContext {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BasicResponseContext.class);
+    private static final Log LOGGER = LogFactory.getLog(BasicResponseContext.class);
     private final HttpEntity httpEntity;
 
     BasicResponseContext(HttpEntity httpEntity) {
