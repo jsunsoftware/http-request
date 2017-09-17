@@ -533,17 +533,25 @@ public final class HttpRequestBuilder<T> {
         Registry<ConnectionSocketFactory> socketFactoryRegistry = null;
         HttpClientBuilder clientBuilder = HttpClientBuilder.create();
 
+        SSLConnectionSocketFactory sslSocketFactory = null;
+
         if (sslContext != null) {
             clientBuilder.setSSLContext(sslContext);
-            SSLConnectionSocketFactory sslSocketFactory = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
-            socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
-                    .register("http", PlainConnectionSocketFactory.getSocketFactory())
-                    .register("https", sslSocketFactory)
-                    .build();
+            sslSocketFactory = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
         }
 
         if (hostnameVerifier != null) {
             clientBuilder.setSSLHostnameVerifier(hostnameVerifier);
+            if (sslContext == null) {
+                sslSocketFactory = new SSLConnectionSocketFactory(SSLContexts.createDefault(), hostnameVerifier);
+            }
+        }
+
+        if (sslSocketFactory != null) {
+            socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
+                    .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                    .register("https", sslSocketFactory)
+                    .build();
         }
 
         PoolingHttpClientConnectionManager connectionManager = socketFactoryRegistry == null ?
