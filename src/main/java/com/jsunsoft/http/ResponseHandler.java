@@ -236,7 +236,7 @@ public final class ResponseHandler<T> {
     /**
      * Obtains the status line of this response.
      *
-     * @return the status line, or {@code null} if not yet set
+     * @return the status line.
      */
     public StatusLine getStatusLine() {
         return statusLine;

@@ -21,6 +21,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.NoHttpResponseException;
+import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -150,10 +151,15 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
 
         HttpUriRequest request = resolveRequest(requestBuilder);
         ResponseHandler<T> result;
+        StatusLine statusLine;
 
         try (CloseableHttpResponse response = closeableHttpClient.execute(request)) {
+            statusLine = response.getStatusLine();
+            if (statusLine == null) {
+                throw new IllegalStateException("StatusLine is null.");
+            }
 
-            int responseCode = response.getStatusLine().getStatusCode();
+            int responseCode = statusLine.getStatusCode();
             HttpEntity httpEntity = response.getEntity();
             LOGGER.info("Response code from uri: [" + uri + "] is " + responseCode);
 
@@ -191,7 +197,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
             }
             ContentType responseContentType = ContentType.get(httpEntity);
             EntityUtils.consumeQuietly(httpEntity);
-            result = new ResponseHandler<>(content, responseCode, failedMessage, type, responseContentType, uri, response.getStatusLine());
+            result = new ResponseHandler<>(content, responseCode, failedMessage, type, responseContentType, uri, statusLine);
 
         } catch (ConnectionPoolTimeoutException e) {
             result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, CONNECTION_POOL_IS_EMPTY);
