@@ -158,8 +158,8 @@ public static class Rest{
      }
      
      private void whenSuccess(ResponseHandler<List<String>> responseHandler){
-         //When predicate of filter returns true, calls whenHasResult else calls whenHasNotResult
-         responseHandler.filter(ResponseHandler::hasResult).ifPassed(this::whenHasResult).otherwise(this::whenHasNotResult);
+         //When predicate of filter returns true, calls whenHasContent else calls whenHasNotContent
+         responseHandler.filter(ResponseHandler::hasContent).ifPassed(this::whenHasContent).otherwise(this::whenHasNotContent);
      }
      
      private void whenNotSuccess(ResponseHandler<List<String>> responseHandler){
@@ -167,13 +167,13 @@ public static class Rest{
           System.err.println("Error code: " + responseHandler.getStatusCode() + ", error message: " + responseHandler.getErrorText());
      }
      
-     private void whenHasResult(ResponseHandler<List<String>> responseHandler){
+     private void whenHasContent(ResponseHandler<List<String>> responseHandler){
          //For demo. 
          List<String> responseBody = responseHandler.get();
          System.out.println(responseBody);
      }
      
-     private void whenHasNotResult(ResponseHandler<List<String>> responseHandler){
+     private void whenHasNotContent(ResponseHandler<List<String>> responseHandler){
          //For demo. 
            System.out.println("Response is success but body is missing. Response code: " + responseHandler.getStatusCode());
      }
