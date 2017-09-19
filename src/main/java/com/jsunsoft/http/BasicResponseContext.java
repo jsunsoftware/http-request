@@ -16,8 +16,6 @@
 
 package com.jsunsoft.http;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
@@ -28,7 +26,6 @@ import java.io.InputStream;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 final class BasicResponseContext implements ResponseContext {
-    private static final Log LOGGER = LogFactory.getLog(BasicResponseContext.class);
     private final HttpEntity httpEntity;
 
     BasicResponseContext(HttpEntity httpEntity) {
