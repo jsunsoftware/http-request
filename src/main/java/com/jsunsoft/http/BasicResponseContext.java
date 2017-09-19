@@ -20,11 +20,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
+import org.apache.http.util.EntityUtils;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 final class BasicResponseContext implements ResponseContext {
     private static final Log LOGGER = LogFactory.getLog(BasicResponseContext.class);
@@ -41,30 +42,7 @@ final class BasicResponseContext implements ResponseContext {
 
     @Override
     public String getContentAsString() throws IOException {
-        String result = null;
-        InputStream inputStream = httpEntity.getContent();
-
-        if (inputStream != null) {
-            int contentLength = contentLengthToInt(inputStream.available());
-            byte[] buffer = new byte[contentLength];
-
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream(contentLength);
-
-            int length;
-
-            while ((length = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, length);
-            }
-
-            ContentType contentType = getContentType();
-            Charset charset = contentType == null ? null : contentType.getCharset();
-
-            result = charset == null ?
-                    outputStream.toString() : outputStream.toString(getContentType().getCharset().name());
-        }
-
-        LOGGER.trace("Content type is: " + result);
-        return result;
+        return EntityUtils.toString(httpEntity, UTF_8);
     }
 
     @Override
@@ -75,14 +53,5 @@ final class BasicResponseContext implements ResponseContext {
     @Override
     public long getContentLength() {
         return httpEntity.getContentLength();
-    }
-
-    private int contentLengthToInt(int defaultValue) {
-        long contentLength = getContentLength();
-        if (contentLength > Integer.MAX_VALUE) {
-            throw new IllegalStateException("Content length is large. Content length greater than Integer.MAX_VALUE. ContentLength value: " + contentLength);
-        }
-        int integerContentLength = (int) contentLength;
-        return integerContentLength >= 0 ? integerContentLength : defaultValue;
     }
 }
