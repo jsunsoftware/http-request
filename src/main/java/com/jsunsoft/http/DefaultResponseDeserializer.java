@@ -71,7 +71,7 @@ class DefaultResponseDeserializer<T> extends AbstractResponseDeserializer<T> {
         } else if (type == String.class) {
             result = (T) responseContext.getContentAsString();
         } else {
-            throw new InvalidMimeTypeException(mimeType, "Deserialization content type: " + contentType + " doesn't supported for type: " + type);
+            throw new InvalidMimeTypeException(mimeType, "DefaultDeserializer doesn't supported mimeType " + mimeType + " for converting response content to: " + type);
         }
         return result;
 

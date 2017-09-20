@@ -49,7 +49,6 @@ import java.util.Collections;
 import java.util.function.Supplier;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
-import static com.jsunsoft.http.Constants.CONNECTION_WAS_ABORTED;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 import static org.apache.http.HttpStatus.*;
 
@@ -174,10 +173,10 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
             } else {
                 try {
                     if (!HttpRequestUtils.isVoidType(type) && hasBody && HttpRequestUtils.isSuccess(responseCode)) {
-                        content = responseDeserializer.deserialize(new BasicResponseContext(httpEntity));
+                        content = responseDeserializer.deserialize(new BasicResponseContext(response));
                         LOGGER.trace("Result of Uri: [" + uri + "] is " + content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
-                        failedMessage = responseDeserializer.deserializeFailure(new BasicResponseContext(httpEntity));
+                        failedMessage = responseDeserializer.deserializeFailure(new BasicResponseContext(response));
                         String logMsg = "Unexpected Response. Url: [" + uri + "] Status code: " + responseCode + ", Error message: " + failedMessage;
                         if (responseCode == SC_BAD_REQUEST) {
                             LOGGER.warn(logMsg);
@@ -186,11 +185,11 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
                         }
                     }
                 } catch (ResponseDeserializeException e) {
-                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + type + ']';
+                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + type + "]." + e;
                     LOGGER.debug(failedMessage + ". Uri: [" + uri + "]. Status code: " + responseCode, e);
                     responseCode = SC_BAD_GATEWAY;
                 } catch (IOException e) {
-                    failedMessage = "Get content from response failed";
+                    failedMessage = "Get content from response failed: " + e;
                     LOGGER.debug("Stream could not be created. Uri: [" + uri + "]. Status code: " + responseCode, e);
                     responseCode = SC_SERVICE_UNAVAILABLE;
                 }
@@ -200,20 +199,20 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
             result = new ResponseHandler<>(content, responseCode, failedMessage, type, responseContentType, uri, statusLine);
 
         } catch (ConnectionPoolTimeoutException e) {
-            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, CONNECTION_POOL_IS_EMPTY);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "Connection pool is empty. " + e, type, null, uri, CONNECTION_POOL_IS_EMPTY);
             LOGGER.debug("Connection pool is empty for request on uri: [" + uri + "]. Status code: " + result.getStatusCode(), e);
         } catch (SocketTimeoutException | NoHttpResponseException e) {
             //todo support retry when NoHttpResponseException
-            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, REMOTE_SERVER_HIGH_LOADED);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "Server is high loaded. " + e, type, null, uri, REMOTE_SERVER_HIGH_LOADED);
             LOGGER.debug("Server on uri: [" + uri + "] is high loaded. Status code: " + result.getStatusCode(), e);
         } catch (ConnectTimeoutException e) {
-            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, CONNECT_TIMEOUT_EXPIRED);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "HttpRequest is unable to establish a connection within the given period of time. " + e, type, null, uri, CONNECT_TIMEOUT_EXPIRED);
             LOGGER.debug("HttpRequest is unable to establish a connection with the: [" + uri + "] within the given period of time. Status code: " + result.getStatusCode(), e);
         } catch (HttpHostConnectException e) {
-            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, REMOTE_SERVER_IS_DOWN);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "Server is down. " + e, type, null, uri, REMOTE_SERVER_IS_DOWN);
             LOGGER.debug("Server on uri: [" + uri + "] is down. Status code: " + result.getStatusCode(), e);
         } catch (IOException e) {
-            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, CONNECTION_WAS_ABORTED, type, null, uri, IO);
+            result = new ResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "Connection was aborted. " + e, type, null, uri, IO);
             LOGGER.debug("Connection was aborted for request on uri: [" + uri + "]. Status code: " + result.getStatusCode(), e);
         }
 

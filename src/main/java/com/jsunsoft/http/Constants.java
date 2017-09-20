@@ -20,7 +20,6 @@ import org.apache.http.NameValuePair;
 
 final class Constants {
     static final NameValuePair[] EMPTY_NAME_VALUE_PAIRS = new NameValuePair[0];
-    static final String CONNECTION_WAS_ABORTED = "Connection was aborted";
 
     private Constants() {
         throw new AssertionError("No com.jsunsoft.http.Constants instances for you!");

@@ -16,20 +16,12 @@
 
 package com.jsunsoft.http;
 
-import java.io.IOException;
+import java.util.NoSuchElementException;
 
 @SuppressWarnings("serial")
-public class ResponseDeserializeException extends IOException {
+public class NoSuchContentException extends NoSuchElementException {
 
-    public ResponseDeserializeException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public ResponseDeserializeException(Throwable cause) {
-        super(cause);
-    }
-
-    public ResponseDeserializeException(String message) {
-        super(message);
+    NoSuchContentException(String s) {
+        super(s);
     }
 }

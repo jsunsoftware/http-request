@@ -17,29 +17,15 @@
 package com.jsunsoft.http;
 
 @SuppressWarnings("serial")
-public class InvalidMimeTypeException extends RuntimeException {
+public class InvalidContentLengthException extends ResponseDeserializeException {
+    private final long contentLength;
 
-    private final String mimeType;
-
-
-    /**
-     * Create a new InvalidContentTypeException for the given content type.
-     *
-     * @param mimeType the offending media type
-     * @param message  a detail message indicating the invalid part
-     */
-    public InvalidMimeTypeException(String mimeType, String message) {
-        super("Invalid mime type \"" + mimeType + "\": " + message);
-        this.mimeType = mimeType;
-
+    InvalidContentLengthException(long contentLength, String message) {
+        super("Invalid content length \"" + contentLength + "\": " + message);
+        this.contentLength = contentLength;
     }
 
-
-    /**
-     * @return The offending mime type.
-     */
-    public String getMimeType() {
-        return this.mimeType;
+    public long getContentLength() {
+        return contentLength;
     }
-
 }

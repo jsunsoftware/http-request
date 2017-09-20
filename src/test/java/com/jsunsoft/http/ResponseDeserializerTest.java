@@ -16,8 +16,12 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.ProtocolVersion;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.entity.ContentType;
+import org.apache.http.message.BasicHttpResponse;
+import org.apache.http.message.BasicStatusLine;
 import org.joda.time.LocalDate;
 import org.junit.Assert;
 import org.junit.Before;
@@ -56,7 +60,9 @@ public class ResponseDeserializerTest {
         basicHttpEntity.setContent(inputStream);
         basicHttpEntity.setContentLength(content.length());
         basicHttpEntity.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-        responseContext = new BasicResponseContext(basicHttpEntity);
+        HttpResponse httpResponse = new BasicHttpResponse(new BasicStatusLine(new ProtocolVersion("", 1, 1), 200, ""));
+        httpResponse.setEntity(basicHttpEntity);
+        responseContext = new BasicResponseContext(httpResponse);
     }
 
     @Test

@@ -17,9 +17,38 @@
 package com.jsunsoft.http;
 
 @SuppressWarnings("serial")
-public class UnexpectedResponseException extends ResponseException {
+public class UnexpectedResponseException extends RuntimeException {
+
+    private final int statusCode;
+    private final String uri;
 
     public UnexpectedResponseException(int statusCode, String message, String uri) {
-        super(statusCode, message, uri);
+        this(statusCode, message, uri, null);
+    }
+
+    public UnexpectedResponseException(int statusCode, String uri, Throwable cause) {
+        this(statusCode, null, uri, cause);
+    }
+
+    public UnexpectedResponseException(int statusCode, String msg, String uri, Throwable cause) {
+        super(msg, cause);
+        this.statusCode = statusCode;
+        this.uri = uri;
+    }
+
+    public int getStatusCode() {
+        return statusCode;
+    }
+
+    public String getUri() {
+        return uri;
+    }
+
+    @Override
+    public String toString() {
+        return "UnexpectedResponseException{" +
+                "statusCode=" + statusCode +
+                ", uri='" + uri + '\'' +
+                '}';
     }
 }

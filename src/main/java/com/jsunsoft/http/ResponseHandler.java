@@ -100,13 +100,13 @@ public final class ResponseHandler<T> {
     /**
      * @param defaultValue value to return if status code is success and hasn't body
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
-     * @throws ResponseException             If status code is not success
+     * @throws UnexpectedResponseException   If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     public T orElseThrow(T defaultValue) {
         check();
         if (isNonSuccess()) {
-            throw new ResponseException(statusCode, errorText, uri.toString());
+            throw new UnexpectedResponseException(statusCode, errorText, uri.toString());
         }
         return content == null ? defaultValue : content;
     }
@@ -171,7 +171,7 @@ public final class ResponseHandler<T> {
 
     /**
      * @return Content from response. Returns null if hasn't body
-     * @throws ResponseException             If response code is not success
+     * @throws UnexpectedResponseException   If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     public T orElseThrow() {
@@ -179,7 +179,7 @@ public final class ResponseHandler<T> {
         if (isSuccess()) {
             return content;
         }
-        throw new ResponseException(statusCode, errorText, uri.toString());
+        throw new UnexpectedResponseException(statusCode, errorText, uri.toString());
     }
 
     /**
@@ -192,7 +192,7 @@ public final class ResponseHandler<T> {
      * </pre>
      *
      * @return Deserialized content from response.
-     * @throws NoSuchElementException        If content is not present
+     * @throws NoSuchContentException        If content is not present
      * @throws UnsupportedOperationException if generic type is a Void
      * @see ResponseHandler#orElse(Object)
      * @see ResponseHandler#ifHasContent(Consumer)
@@ -200,7 +200,7 @@ public final class ResponseHandler<T> {
     public T get() {
         check();
         if (content == null) {
-            throw new NoSuchElementException("Content is not present: Response code: [" + statusCode + ']');
+            throw new NoSuchContentException("Content is not present: Response code: [" + statusCode + ']');
         }
         return content;
     }

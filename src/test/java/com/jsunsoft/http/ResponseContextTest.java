@@ -17,8 +17,12 @@
 package com.jsunsoft.http;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.ProtocolVersion;
 import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.entity.ContentType;
+import org.apache.http.message.BasicHttpResponse;
+import org.apache.http.message.BasicStatusLine;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -47,7 +51,9 @@ public class ResponseContextTest {
 
     @Test
     public void testBasicResponseContextMethods() throws IOException {
-        ResponseContext responseContext = new BasicResponseContext(httpEntity);
+        HttpResponse httpResponse = new BasicHttpResponse(new BasicStatusLine(new ProtocolVersion("", 1, 1), 200, ""));
+        httpResponse.setEntity(httpEntity);
+        ResponseContext responseContext = new BasicResponseContext(httpResponse);
         Assert.assertEquals(content.length(), responseContext.getContentLength());
         Assert.assertEquals(content, responseContext.getContentAsString());
         Assert.assertEquals(ContentType.APPLICATION_JSON.getMimeType(), responseContext.getContentType().getMimeType());
