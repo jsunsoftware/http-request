@@ -100,13 +100,13 @@ public final class ResponseHandler<T> {
     /**
      * @param defaultValue value to return if status code is success and hasn't body
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
-     * @throws UnexpectedResponseException   If status code is not success
+     * @throws UnexpectedStatusCodeException   If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     public T orElseThrow(T defaultValue) {
         check();
         if (isNonSuccess()) {
-            throw new UnexpectedResponseException(statusCode, errorText, uri.toString());
+            throw new UnexpectedStatusCodeException(statusCode, errorText, uri.toString());
         }
         return content == null ? defaultValue : content;
     }
@@ -171,7 +171,7 @@ public final class ResponseHandler<T> {
 
     /**
      * @return Content from response. Returns null if hasn't body
-     * @throws UnexpectedResponseException   If response code is not success
+     * @throws UnexpectedStatusCodeException   If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     public T orElseThrow() {
@@ -179,7 +179,7 @@ public final class ResponseHandler<T> {
         if (isSuccess()) {
             return content;
         }
-        throw new UnexpectedResponseException(statusCode, errorText, uri.toString());
+        throw new UnexpectedStatusCodeException(statusCode, errorText, uri.toString());
     }
 
     /**

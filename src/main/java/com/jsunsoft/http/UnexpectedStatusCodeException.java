@@ -17,13 +17,12 @@
 package com.jsunsoft.http;
 
 /**
- * Signals an unexpected HTTP response
+ * Signals a non 2xx HTTP response.
  */
-
 @SuppressWarnings("serial")
-public class UnexpectedResponseException extends ResponseException {
+public class UnexpectedStatusCodeException extends UnexpectedResponseException {
 
-    public UnexpectedResponseException(int statusCode, String message, String uri) {
+    public UnexpectedStatusCodeException(int statusCode, String message, String uri) {
         super(statusCode, message, uri);
     }
 }
