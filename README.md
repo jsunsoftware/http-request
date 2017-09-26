@@ -58,23 +58,23 @@ List<SomeType> someTypes = responseHandler.orElse(Collections.emptyList());
 Perform request and get the body of the response without deserialization
 
 ```java
-HttpRequest<String> httpRequest = HttpRequestBuilder.create(someHttpMethod, "https://www.jsunsoft.com/", String.class);
-                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
+HttpRequest<String> httpRequest = HttpRequestBuilder.create(someHttpMethod, "https://www.jsunsoft.com/", String.class)
+                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer()).build();
 String responseBody = httpRequest.execute().get(); // see javadoc of get method
 ```
 **Perform simple http get request**
 ```java
 HttpRequest<String> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/", String.class)
-                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
+                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer()).build();
 String responseBody = httpRequest.execute(requestParameters).get(); // see documentation of get method
 or
-String responseBody = httpRequest.executeWithQuery(queryString).get();
+String responseBody = httpRequest.executeWithQuery(queryString).get(); // //queryString example "param1=param1&param2=param2"
 ```
 
 **Perform simple http post request**
 ```java
 HttpRequest<String> httpRequest = HttpRequestBuilder.createPost("https://www.jsunsoft.com/", String.class)
-                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
+                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer()).build();
 String responseBody = httpRequest.execute(requestParameters).get(); // see javadoc of get method
 ```
 
@@ -98,7 +98,7 @@ HttpRequestBuilder.create(someHttpMethod, someUri).connectionConfig(connectionCo
 **How to set proxy** <br/>
 
 ```java
-HttpRequest httpRequest = HttpRequestBuilder.create(someHttpMethod, someUri).proxy(host, port).build()
+HttpRequest httpRequest = HttpRequestBuilder.create(someHttpMethod, someUri).proxy(host, port).build();
 ```
 
 **Timeouts**
