@@ -34,6 +34,8 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static com.jsunsoft.http.BasicDateDeserializeContext.DEFAULT;
+
 public class ResponseDeserializerTest {
     private ResponseContext responseContext;
 
@@ -68,7 +70,7 @@ public class ResponseDeserializerTest {
     @Test
     public void testDeserializeResponse() throws IOException {
         ResponseDeserializer<Result> responseDeserializer = new DefaultResponseDeserializer<>(new TypeReference<Result>() {
-        }.getType(), DateDeserializeContextImpl.DEFAULT);
+        }.getType(), DEFAULT);
         Result result = responseDeserializer.deserialize(responseContext);
         Assert.assertEquals(1L, result.value);
         Assert.assertEquals("Test message", result.message);

@@ -23,6 +23,6 @@ package com.jsunsoft.http;
 public class UnexpectedStatusCodeException extends UnexpectedResponseException {
 
     public UnexpectedStatusCodeException(int statusCode, String message, String uri) {
-        super(statusCode, message, uri);
+        super(statusCode, "Error code is: " + statusCode + ". " + message, uri);
     }
 }

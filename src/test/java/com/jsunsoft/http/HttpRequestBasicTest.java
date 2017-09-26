@@ -22,10 +22,21 @@ import org.junit.Test;
 
 public class HttpRequestBasicTest {
 
-    private final HttpRequest<?> httpRequestToGetResponseCode = HttpRequestBuilder.createGet("https://www.jsunsoft.com/").build();
+    private static final HttpRequest<?> HTTP_REQUEST_TO_GET_RESPONSE_CODE =
+            HttpRequestBuilder.createGet("https://www.jsunsoft.com/").build();
+
+    private static final HttpRequest<String> HTTP_REQUEST_TO_GET_LARGE_RESPONSE =
+            HttpRequestBuilder.createGet("https://en.wikipedia.org/wiki/List_of_least_concern_birds", String.class)
+                    .build();
 
     @Test
     public void getResponseCode() {
-        Assert.assertEquals(HttpStatus.SC_OK, httpRequestToGetResponseCode.execute().getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.execute().getStatusCode());
+    }
+
+    @Test
+    public void largeResponseTest() {
+        ResponseHandler<String> responseHandler = HTTP_REQUEST_TO_GET_LARGE_RESPONSE.execute();
+        Assert.assertTrue(responseHandler.orElse("").length() > 16348);
     }
 }

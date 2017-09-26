@@ -16,14 +16,14 @@
 
 package com.jsunsoft.http;
 
-public class DateDeserializeContextImpl implements DateDeserializeContext {
-    static final DateDeserializeContext DEFAULT = new DateDeserializeContextImpl("dd/MM/yyyy", "HH:mm:ss", "dd/MM/yyyy HH:mm:ss");
+public class BasicDateDeserializeContext implements DateDeserializeContext {
+    static final DateDeserializeContext DEFAULT = new BasicDateDeserializeContext("dd/MM/yyyy", "HH:mm:ss", "dd/MM/yyyy HH:mm:ss");
 
     private final String datePattern;
     private final String timePattern;
     private final String dateTimePattern;
 
-    public DateDeserializeContextImpl(String datePattern, String timePattern, String dateTimePattern) {
+    public BasicDateDeserializeContext(String datePattern, String timePattern, String dateTimePattern) {
         this.datePattern = ArgsCheck.notNull(datePattern, "datePattern");
         this.timePattern = ArgsCheck.notNull(timePattern, "timePattern");
         this.dateTimePattern = ArgsCheck.notNull(dateTimePattern, "dateTimePattern");

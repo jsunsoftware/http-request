@@ -54,24 +54,39 @@ or
 List<SomeType> someTypes = responseHandler.orElse(Collections.emptyList());
 ```
 
-**Send simple http request**
+**Perform simple http request**
+Perform request and get the body of the response without deserialization
 
 ```java
-Perform request and get the body of the response without deserialization
 HttpRequest<String> httpRequest = HttpRequestBuilder.create(someHttpMethod, "https://www.jsunsoft.com/", String.class);
                                                 .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
 String responseBody = httpRequest.execute().get(); // see documentation of get method
 ```
-
+**Perform simple http get request**
 ```java
-Build HttpRequest and  add HEADERS which should be send always. Example:
+HttpRequest<String> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/", String.class);
+                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
+String responseBody = httpRequest.execute(requestParameters).get(); // see documentation of get method
+or
+String responseBody = httpRequest.executeWithQuery(queryString).get();
+```
+
+**Perform simple http post request**
+```java
+HttpRequest<String> httpRequest = HttpRequestBuilder.createPost("https://www.jsunsoft.com/", String.class);
+                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
+String responseBody = httpRequest.execute(requestParameters).get(); // see documentation of get method
+```
+
+**Build HttpRequest and  add HEADERS which should be send always.**
+```java
 
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(someHeader).build();
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeaders(someHeaderCollection).build();
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeaders(someHeaderArray).build();
 HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(headerName, headerValue).build();
 ```
-
+**Configure connection pool**
 By default connection pool size of apache http client is 2. I changed the parameter to default value to 128. To set custom value you can:
 ```java
 HttpRequestBuilder.create(someHttpMethod, someUri).maxPoolPerRoute(someIntValue).build();
@@ -81,7 +96,6 @@ HttpRequestBuilder.create(someHttpMethod, someUri).connectionConfig(connectionCo
 ```
 
 **How to set proxy** <br/>
-Example:
 
 ```java
 HttpRequest httpRequest = HttpRequestBuilder.create(someHttpMethod, someUri).proxy(host, port).build()
@@ -151,7 +165,7 @@ import org.apache.http.entity.ContentType;
 public static class Rest{
     private static final HttpRequest<List<String>> httpRequest =
      HttpRequestBuilder.createGet("https://www.jsunsoft.com/", new TypeReference<java.util.List<String>>() {})
-     .contentTypeOfBody(ContentType.create("application/json", Charset.forName("UTF-8"))).build(); //it is used by default 
+     .contentTypeOfBody(ContentType.APPLICATION_JSON).build(); //it is used by default 
      
      public void send(String jsonData){
          httpRequest.executeWithBody(jsonData).ifSuccess(this::whenSuccess).otherwise(this::whenNotSuccess);

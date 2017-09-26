@@ -43,11 +43,13 @@ final class BasicResponseContext implements ResponseContext {
 
     @Override
     public String getContentAsString() throws IOException {
+        long startTime = System.currentTimeMillis();
+
         String result = null;
         InputStream inputStream = getContent();
 
         if (inputStream != null) {
-            int bufferInitialSize = resolveBufferInitialSize(inputStream.available());
+            int bufferInitialSize = resolveBufferInitialSize();
             byte[] buffer = new byte[bufferInitialSize];
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream(buffer.length);
@@ -65,6 +67,7 @@ final class BasicResponseContext implements ResponseContext {
         }
 
         LOGGER.trace("Content type is: " + result);
+        LOGGER.debug("Executed response body as string. Time: " + HttpRequestUtils.humanTime(startTime) + ", length of response body: " + (result == null ? 0 : result.length()));
         return result;
     }
 
@@ -83,7 +86,7 @@ final class BasicResponseContext implements ResponseContext {
         return httpResponse;
     }
 
-    private int resolveBufferInitialSize(int available) throws IOException {
+    private int resolveBufferInitialSize() throws IOException {
         int result;
         long contentLength = getContentLength();
         if (contentLength > Integer.MAX_VALUE) {
@@ -94,11 +97,7 @@ final class BasicResponseContext implements ResponseContext {
         if (integerContentLength >= 0) {
             result = integerContentLength;
         } else {
-            if (available <= 0) {
-                result = 1024;
-            } else {
-                result = available;
-            }
+            result = 1024;
         }
 
         return result;

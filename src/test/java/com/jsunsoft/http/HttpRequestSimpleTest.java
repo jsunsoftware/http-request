@@ -52,7 +52,7 @@ public class HttpRequestSimpleTest {
     }
 
     @Test
-    public void xmlTest() {
+    public void xmlParsingTest() {
         String xmlBody = "<xml><id>1</id></xml>";
         wireMockRule.stubFor(post(urlEqualTo("/xml"))
                 .withHeader(CONTENT_TYPE, equalTo(APPLICATION_XML.getMimeType()))

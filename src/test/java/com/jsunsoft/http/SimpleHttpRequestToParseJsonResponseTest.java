@@ -17,6 +17,7 @@
 package com.jsunsoft.http;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -85,7 +86,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                     .stream()
                     .filter(user -> "Test1".equals(user.getUserName()))
                     .findFirst();
-            foundedUser.ifPresent(user -> System.out.println(user.getId()));
+            foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
         });
     }
 

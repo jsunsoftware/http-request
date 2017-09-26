@@ -17,6 +17,7 @@
 package com.jsunsoft.http;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Implementation of this interface must provided deserialization of response body to type {@code T}
@@ -52,5 +53,14 @@ public interface ResponseDeserializer<T> {
      */
     static ResponseDeserializer<String> ignorableDeserializer() {
         return ResponseContext::getContentAsString;
+    }
+
+    /**
+     * For return content as {@link InputStream}
+     *
+     * @return ResponseDeserializer instance
+     */
+    static ResponseDeserializer<InputStream> inputStreamDeserializer() {
+        return ResponseContext::getContent;
     }
 }

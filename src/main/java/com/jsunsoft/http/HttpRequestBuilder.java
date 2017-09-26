@@ -616,7 +616,7 @@ public final class HttpRequestBuilder<T> {
         if (responseDeserializer == null) {
             responseDeserializer = new DefaultResponseDeserializer<>(
                     type,
-                    dateDeserializeContext == null ? DateDeserializeContextImpl.DEFAULT : dateDeserializeContext
+                    dateDeserializeContext == null ? BasicDateDeserializeContext.DEFAULT : dateDeserializeContext
             );
         }
         return new BasicHttpRequest<>(
