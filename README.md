@@ -64,7 +64,7 @@ String responseBody = httpRequest.execute().get(); // see documentation of get m
 ```
 **Perform simple http get request**
 ```java
-HttpRequest<String> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/", String.class);
+HttpRequest<String> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/", String.class)
                                                 .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
 String responseBody = httpRequest.execute(requestParameters).get(); // see documentation of get method
 or
@@ -73,7 +73,7 @@ String responseBody = httpRequest.executeWithQuery(queryString).get();
 
 **Perform simple http post request**
 ```java
-HttpRequest<String> httpRequest = HttpRequestBuilder.createPost("https://www.jsunsoft.com/", String.class);
+HttpRequest<String> httpRequest = HttpRequestBuilder.createPost("https://www.jsunsoft.com/", String.class)
                                                 .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
 String responseBody = httpRequest.execute(requestParameters).get(); // see documentation of get method
 ```
