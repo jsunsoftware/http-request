@@ -60,7 +60,7 @@ Perform request and get the body of the response without deserialization
 ```java
 HttpRequest<String> httpRequest = HttpRequestBuilder.create(someHttpMethod, "https://www.jsunsoft.com/", String.class);
                                                 .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
-String responseBody = httpRequest.execute().get(); // see documentation of get method
+String responseBody = httpRequest.execute().get(); // see javadoc of get method
 ```
 **Perform simple http get request**
 ```java
@@ -75,7 +75,7 @@ String responseBody = httpRequest.executeWithQuery(queryString).get();
 ```java
 HttpRequest<String> httpRequest = HttpRequestBuilder.createPost("https://www.jsunsoft.com/", String.class)
                                                 .responseDeserializer(ResponseDeserializer.ignorableDeserializer());
-String responseBody = httpRequest.execute(requestParameters).get(); // see documentation of get method
+String responseBody = httpRequest.execute(requestParameters).get(); // see javadoc of get method
 ```
 
 **Build HttpRequest and  add HEADERS which should be send always.**
@@ -120,10 +120,9 @@ HttpRequestBuilder.create(someHttpMethod, someUri)
 
 **Following redirects**
 
-```text
 By default redirecting are disabled.
 to enable you can:
-```
+
 ```java
 HttpRequestBuilder.createGet(someUri).enableLaxRedirectStrategy().build();
 or
