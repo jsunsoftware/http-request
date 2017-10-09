@@ -592,7 +592,6 @@ public final class HttpRequestBuilder<T> {
                 .setDefaultRequestConfig(requestConfig)
                 .setConnectionManager(connectionManager)
                 .disableCookieManagement()
-                .disableRedirectHandling()
                 .disableAutomaticRetries();
 
 
