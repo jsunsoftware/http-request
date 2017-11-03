@@ -10,7 +10,7 @@ HttpRequest is immutable (thread safe after build). <br/>
 There are overloaded methods of execute() for sending request. <br/>
 All exceptions are wrapped: <br/>
 If connection failure -> status code is a 503(SC_SERVICE_UNAVAILABLE),
-If failed deserialization  of response body -> status code is a 502(SC_BAD_GATEWAY). <br/>
+If deserialization  of response body is failed -> status code is a 502(SC_BAD_GATEWAY). <br/>
 After request ResponseHandler instance is provided to manipulate response data. <br/>
 Supported converting response to the type which you want. <br/>
 Supported ignore response body if you interested in only status code. <br/>

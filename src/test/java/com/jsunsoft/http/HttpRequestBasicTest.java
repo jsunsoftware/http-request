@@ -21,12 +21,13 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class HttpRequestBasicTest {
+    private static final String URI_STRING = "https://en.wikipedia.org/wiki/List_of_least_concern_birds";
 
     private static final HttpRequest<?> HTTP_REQUEST_TO_GET_RESPONSE_CODE =
-            HttpRequestBuilder.createGet("https://www.jsunsoft.com/").build();
+            HttpRequestBuilder.createGet(URI_STRING).build();
 
     private static final HttpRequest<String> HTTP_REQUEST_TO_GET_LARGE_RESPONSE =
-            HttpRequestBuilder.createGet("https://en.wikipedia.org/wiki/List_of_least_concern_birds", String.class)
+            HttpRequestBuilder.createGet(URI_STRING, String.class)
                     .build();
 
     @Test
