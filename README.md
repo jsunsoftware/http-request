@@ -164,7 +164,7 @@ import org.apache.http.entity.ContentType;
 public static class Rest{
     private static final HttpRequest<List<String>> httpRequest =
      HttpRequestBuilder.createGet("https://www.jsunsoft.com/", new TypeReference<java.util.List<String>>() {})
-     .contentTypeOfBody(ContentType.APPLICATION_JSON).build(); //it is used by default 
+     .addContentType(ContentType.APPLICATION_JSON).build(); //it is used by default 
      
      public void send(String jsonData){
          httpRequest.executeWithBody(jsonData).ifSuccess(this::whenSuccess).otherwise(this::whenNotSuccess);
