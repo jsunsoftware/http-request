@@ -36,7 +36,7 @@ public class HttpRequestSimpleTest {
             .addDefaultHeader(HttpHeaders.USER_AGENT, userAgent).build();
 
     private final HttpRequest<XmlWrapper> xmlHttpRequest = HttpRequestBuilder.createPost("http://localhost:8080/xml", XmlWrapper.class)
-            .contentTypeOfBody(APPLICATION_XML)
+            .addContentType(APPLICATION_XML)
             .build();
 
     private final HttpRequest<String> httpRequestWithoutParse = HttpRequestBuilder.createPost("http://localhost:8080/text", String.class)

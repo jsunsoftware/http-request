@@ -80,7 +80,6 @@ public final class HttpRequestBuilder<T> {
     private final Type type;
 
     private ConnectionConfig connectionConfig;
-    private ContentType contentTypeOfBody = ContentType.APPLICATION_JSON;
     private ResponseDeserializer<T> responseDeserializer;
     private DateDeserializeContext dateDeserializeContext;
     private RedirectStrategy redirectStrategy;
@@ -117,16 +116,6 @@ public final class HttpRequestBuilder<T> {
         this.httpMethod = notNull(httpMethod, "httpMethod");
         this.uri = notNull(uri, "uri").normalize();
         this.type = notNull(type, "type");
-    }
-
-    /**
-     * @param contentTypeOfBody Content type for executing with body. By default APPLICATION_JSON
-     * @return HttpRequestBuilder instance
-     */
-    public HttpRequestBuilder<T> contentTypeOfBody(ContentType contentTypeOfBody) {
-        ArgsCheck.notNull(contentTypeOfBody, "contentTypeOfBody");
-        this.contentTypeOfBody = ContentType.create(contentTypeOfBody.getMimeType(), contentTypeOfBody.getCharset());
-        return this;
     }
 
     /**
@@ -338,21 +327,9 @@ public final class HttpRequestBuilder<T> {
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder<T> addContentType(ContentType contentType) {
-        addDefaultHeader(CONTENT_TYPE, contentType.getMimeType());
+        addDefaultHeader(CONTENT_TYPE, contentType.toString());
         return this;
     }
-
-    /**
-     * Added charset to request
-     *
-     * @param charset {@link Charset} instance to request
-     * @return HttpRequestBuilder instance
-     */
-    public HttpRequestBuilder<T> charset(Charset charset) {
-        this.charset = charset;
-        return this;
-    }
-
 
     /**
      * Configured connection parameters by instance connectionConfig
@@ -622,7 +599,6 @@ public final class HttpRequestBuilder<T> {
                 httpMethod,
                 uri,
                 type,
-                contentTypeOfBody,
                 closeableHttpClient,
                 responseDeserializer,
                 charset,

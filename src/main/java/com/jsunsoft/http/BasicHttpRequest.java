@@ -25,6 +25,7 @@ import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
@@ -32,25 +33,20 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 import java.net.SocketTimeoutException;
 import java.net.URI;
-import java.net.URLDecoder;
 import java.nio.charset.Charset;
-import java.nio.charset.UnsupportedCharsetException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Supplier;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
-import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 import static org.apache.http.HttpStatus.*;
+import static org.apache.http.entity.ContentType.APPLICATION_JSON;
 
 /**
  * This class design one instance to one <b>URI</b>
@@ -66,7 +62,6 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
     private final String httpMethod;
     private final URI uri;
     private final Type type;
-    private final ContentType contentTypeOfBody;
     private final CloseableHttpClient closeableHttpClient;
     private final ResponseDeserializer<T> responseDeserializer;
     private final Charset charset;
@@ -77,7 +72,6 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
     BasicHttpRequest(String httpMethod,
                      URI uri,
                      Type type,
-                     ContentType contentTypeOfBody,
                      CloseableHttpClient closeableHttpClient,
                      ResponseDeserializer<T> responseDeserializer,
                      Charset charset,
@@ -88,7 +82,6 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
         this.httpMethod = ArgsCheck.notNull(httpMethod, "httpMethod");
         this.uri = ArgsCheck.notNull(uri, "uri");
         this.type = ArgsCheck.notNull(type, "type");
-        this.contentTypeOfBody = ArgsCheck.notNull(contentTypeOfBody, "contentTypeOfBody");
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
         this.responseDeserializer = ArgsCheck.notNull(responseDeserializer, "responseDeserializer");
         this.charset = charset;
@@ -107,8 +100,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
         ArgsCheck.notNull(payload, "payload");
         RequestBuilder requestBuilder = RequestBuilder.create(httpMethod)
                 .setUri(uri)
-                .addHeader(CONTENT_TYPE, contentTypeOfBody.getMimeType())
-                .setEntity(new StringEntity(payload, contentTypeOfBody));
+                .setEntity(new StringEntity(payload, APPLICATION_JSON));
         return execute(requestBuilder);
     }
 
@@ -116,22 +108,10 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
      * {@inheritDoc}
      */
     @Override
-    public ResponseHandler<T> executeWithQuery(String queryString, String characterEncoding) {
+    public ResponseHandler<T> executeWithQuery(String queryString, Charset charset) {
         ArgsCheck.notNull(queryString, "queryString");
-        ArgsCheck.notNull(characterEncoding, "characterEncoding");
-        try {
-            queryString = URLDecoder.decode(queryString, characterEncoding);
-        } catch (UnsupportedEncodingException e) {
-            LOGGER.debug("Unsupported encoding [" + characterEncoding + "], for [" + queryString + ']', e);
-            throw new UnsupportedCharsetException(characterEncoding);
-        }
-        LOGGER.trace("Query string to uri: [" + uri + "]: is: [" + queryString + ']');
-
-        NameValuePair[] params = Arrays.stream(queryString.split("&"))
-                .map(s -> s.split("=")).filter(s -> s.length == 2)
-                .map(s -> new BasicNameValuePair(s[0], s[1]))
-                .toArray(NameValuePair[]::new);
-        return execute(params);
+        ArgsCheck.notNull(charset, "charset");
+        return execute(URLEncodedUtils.parse(queryString, charset));
     }
 
     /**
@@ -271,7 +251,6 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
                 httpMethod,
                 newUri.normalize(),
                 type,
-                contentTypeOfBody,
                 closeableHttpClient,
                 responseDeserializer,
                 charset,

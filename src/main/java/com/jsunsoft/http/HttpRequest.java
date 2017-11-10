@@ -22,10 +22,12 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.Args;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Collection;
 import java.util.Map;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * HttpRequest objects are immutable they can be shared.
@@ -46,15 +48,15 @@ public interface HttpRequest<T> {
     /**
      * Sends request by queryString of request. {@code httpServletRequest.getQueryString()}
      *
-     * @param queryString       queryString
-     * @param characterEncoding characterEncoding
+     * @param queryString queryString
+     * @param charset     charset
      * @return Instance of {@link ResponseHandler}. If connection failure status code is a<b>503</b>.
      * If failed deserialization of response body status code is a <b>502</b>
      * @throws UnsupportedCharsetException Unchecked exception thrown when no support is available
      *                                     for a requested charset.
      * @throws NullPointerException        when one of arguments is null
      */
-    ResponseHandler<T> executeWithQuery(String queryString, String characterEncoding);
+    ResponseHandler<T> executeWithQuery(String queryString, Charset charset);
 
     /**
      * Sends request
@@ -78,9 +80,22 @@ public interface HttpRequest<T> {
      * If failed deserialization of response body status code is a <b>502</b>
      * @throws UnsupportedCharsetException Unchecked exception thrown when no support is available
      *                                     for a requested charset.
+     * @see HttpRequest#executeWithQuery(String, Charset)
      */
     default ResponseHandler<T> executeWithQuery(String queryString) {
-        return executeWithQuery(queryString, StandardCharsets.UTF_8.name());
+        return executeWithQuery(queryString, UTF_8);
+    }
+
+
+    /**
+     * @param queryString       queryString
+     * @param characterEncoding characterEncoding
+     * @return Instance of {@link ResponseHandler}. If connection failure status code is a<b>503</b>.
+     * If failed deserialization of response body status code is a <b>502</b>
+     * @see HttpRequest#executeWithQuery(String, Charset)
+     */
+    default ResponseHandler<T> executeWithQuery(String queryString, String characterEncoding) {
+        return executeWithQuery(queryString, Charset.forName(characterEncoding));
     }
 
     /**
