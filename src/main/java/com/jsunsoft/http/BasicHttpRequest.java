@@ -45,8 +45,8 @@ import java.util.Collections;
 import java.util.function.Supplier;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.http.HttpStatus.*;
-import static org.apache.http.entity.ContentType.APPLICATION_JSON;
 
 /**
  * This class design one instance to one <b>URI</b>
@@ -100,7 +100,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
         ArgsCheck.notNull(payload, "payload");
         RequestBuilder requestBuilder = RequestBuilder.create(httpMethod)
                 .setUri(uri)
-                .setEntity(new StringEntity(payload, APPLICATION_JSON));
+                .setEntity(new StringEntity(payload, UTF_8));
         return execute(requestBuilder);
     }
 

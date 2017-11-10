@@ -36,7 +36,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public interface HttpRequest<T> {
     /**
-     * Sends request with body. (Without params). By default contentType is APPLICATION_JSON
+     * Sends request with body. (Without params). The MIME type default
+     * same with MIME type of {@link org.apache.http.entity.StringEntity#StringEntity(String, String)} and the charset defaults to UTF-8.
      *
      * @param payload value of body
      * @return Instance of {@link ResponseHandler}. If connection failure status code is a<b>503</b>.
@@ -73,7 +74,7 @@ public interface HttpRequest<T> {
     URI getUri();
 
     /**
-     * Sends request by queryString of request. {@code httpServletRequest.getQueryString()}. Default Char encoding "UTF-8".
+     * Sends request by queryString of request. {@code httpServletRequest.getQueryString()}. Default charset is "UTF-8".
      *
      * @param queryString queryString
      * @return Instance of {@link ResponseHandler}. If connection failure status code is a<b>503</b>.

@@ -158,13 +158,12 @@ No try/catch, No if/else
 ```java
 import com.jsunsoft.http.*;
 import java.util.List;
-import java.nio.charset.Charset;
 import org.apache.http.entity.ContentType;
 
 public static class Rest{
     private static final HttpRequest<List<String>> httpRequest =
      HttpRequestBuilder.createGet("https://www.jsunsoft.com/", new TypeReference<java.util.List<String>>() {})
-     .addContentType(ContentType.APPLICATION_JSON).build(); //it is used by default 
+     .addContentType(ContentType.APPLICATION_JSON).build();
      
      public void send(String jsonData){
          httpRequest.executeWithBody(jsonData).ifSuccess(this::whenSuccess).otherwise(this::whenNotSuccess);
