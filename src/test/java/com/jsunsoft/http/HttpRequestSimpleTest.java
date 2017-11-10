@@ -17,6 +17,8 @@
 package com.jsunsoft.http;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpHeaders;
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,6 +30,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class HttpRequestSimpleTest {
+    private static final Log LOGGER = LogFactory.getLog(HttpRequestSimpleTest.class);
     @Rule
     public final WireMockRule wireMockRule = new WireMockRule(8080);
     private final String userAgent = "JsunSoftAgent/1.0";
@@ -55,18 +58,19 @@ public class HttpRequestSimpleTest {
     public void xmlParsingTest() {
         String xmlBody = "<xml><id>1</id></xml>";
         wireMockRule.stubFor(post(urlEqualTo("/xml"))
-                .withHeader(CONTENT_TYPE, equalTo(APPLICATION_XML.getMimeType()))
+                .withHeader(CONTENT_TYPE, equalTo(APPLICATION_XML.toString()))
                 .withRequestBody(equalTo(xmlBody))
                 .willReturn(
                         aResponse()
                                 .withBody(xmlBody)
-                                .withHeader(CONTENT_TYPE, APPLICATION_XML.getMimeType())
+                                .withHeader(CONTENT_TYPE, APPLICATION_XML.toString())
                                 .withStatus(200)
                 )
         );
 
         ResponseHandler<XmlWrapper> responseHandler = xmlHttpRequest.executeWithBody(xmlBody);
-
+        responseHandler.filter(ResponseHandler::hasNotContent).ifPassed(r -> LOGGER.info(r.getErrorText()));
+        
         assertTrue(responseHandler.isSuccess());
         assertTrue(responseHandler.hasContent());
 
