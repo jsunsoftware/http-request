@@ -163,7 +163,7 @@ import com.jsunsoft.http.*;
 import java.util.List;
 import org.apache.http.entity.ContentType;
 
-public static class Rest{
+public class Rest{
     private static final HttpRequest<List<String>> httpRequest =
      HttpRequestBuilder.createGet("https://www.jsunsoft.com/", new TypeReference<java.util.List<String>>() {})
      .addContentType(ContentType.APPLICATION_JSON).build();
