@@ -2,6 +2,8 @@
 
 This lib is built on apache http client for sending rest requests.
 
+Main purpose of the **http-request**, create simple rest client quickly, manage your response very simple and don't worry about Exceptions. 
+
 **http-request** Features: 
 Building your HttpRequest requires no more than 5 minutes. <br/>
 Used builder pattern to create HttpRequest. <br/>
@@ -12,10 +14,11 @@ All exceptions are wrapped: <br/>
 If connection failure -> status code is a 503(SC_SERVICE_UNAVAILABLE),
 If deserialization  of response body is failed -> status code is a 502(SC_BAD_GATEWAY). <br/>
 After request ResponseHandler instance is provided to manipulate response data. <br/>
-Supported converting response to the type which you want. <br/>
-Supported ignore response body if you interested in only status code. <br/>
-Supported converting from Json. <br/>
-Supported converting from Xml. <br/>
+Supported:
+* converting response to the type which you want. <br/>
+* ignore response body if you interested in only status code. <br/>
+* converting from Json. <br/>
+* converting from Xml. <br/>
 Optimized performance. <br/>
 
 Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.http/http-request).
@@ -160,7 +163,7 @@ import com.jsunsoft.http.*;
 import java.util.List;
 import org.apache.http.entity.ContentType;
 
-public static class Rest{
+public class Rest{
     private static final HttpRequest<List<String>> httpRequest =
      HttpRequestBuilder.createGet("https://www.jsunsoft.com/", new TypeReference<java.util.List<String>>() {})
      .addContentType(ContentType.APPLICATION_JSON).build();
