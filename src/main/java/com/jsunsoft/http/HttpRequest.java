@@ -136,7 +136,7 @@ public interface HttpRequest<T> {
     default ResponseHandler<T> execute(String... nameValues) {
         int nameValuesLength = ArgsCheck.notNull(nameValues, "nameValues").length;
         Args.check(nameValuesLength != 0, "Length of parameter can't be ZERO");
-        Args.check(nameValuesLength % 2 != 0, "Length of nameValues can't be odd");
+        Args.check(nameValuesLength % 2 == 0, "Length of nameValues can't be odd");
 
         int end = nameValuesLength - 2;
         NameValuePair[] nameValuePairs = new NameValuePair[nameValuesLength / 2];
