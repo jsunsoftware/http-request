@@ -22,7 +22,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 
 public class HttpRequestConnectionManagementLiveTest {
-    private static final String SERVER1 = "https://www.jsunsoft.com/";
+    private static final String SERVER1 = "https://www.google.com/";
     private static final String SERVER7 = "http://www.youtube.com/";
 
     @Test
