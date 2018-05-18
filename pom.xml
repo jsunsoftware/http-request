@@ -6,7 +6,7 @@
 
     <groupId>com.jsunsoft.http</groupId>
     <artifactId>http-request</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <name>http-request</name>
