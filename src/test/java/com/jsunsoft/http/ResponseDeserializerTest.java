@@ -69,12 +69,6 @@ public class ResponseDeserializerTest {
 
     @Test
     public void testDeserializeResponse() throws IOException {
-        HttpRequestBuilder.createGet("")
-                .addHttpClientCustomizer(httpClientBuilder -> httpClientBuilder.setKeepAliveStrategy((response, context) -> {
-                    //your code;
-                    return 1;
-                }))
-                .build();
         ResponseDeserializer<Result> responseDeserializer = new DefaultResponseDeserializer<>(new TypeReference<Result>() {
         }.getType(), DEFAULT);
         Result result = responseDeserializer.deserialize(responseContext);
