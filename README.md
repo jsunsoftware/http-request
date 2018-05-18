@@ -154,6 +154,23 @@ HttpRequestBuilder.createGet(someUri)
 int statusCode = httpRequest.execute().getStatusCode(); //200
 ```
 
+**Customize CloseableHttpClient before the http-request is built**
+
+```java
+HttpRequestBuilder.createGet(someUri)
+                .addHttpClientCustomizer(httpClientBuilder -> /* here you can customize your client*/)
+                .build();
+```
+For example if you want to add the Keep-Alive:
+
+```java
+HttpRequestBuilder.createGet(someUri)
+                .addHttpClientCustomizer(httpClientBuilder -> httpClientBuilder.setKeepAliveStrategy((response, context) -> {
+                    //your code;
+                }))
+                .build();
+```
+
 **Real world example how http-request simple and useful**.
 
 No try/catch, No if/else

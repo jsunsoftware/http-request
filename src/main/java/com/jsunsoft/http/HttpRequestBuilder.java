@@ -92,7 +92,7 @@ public final class HttpRequestBuilder<T> {
     private List<NameValuePair> defaultRequestParameters;
     private SSLContext sslContext;
     private HostnameVerifier hostnameVerifier;
-    private Collection<Consumer<HttpClientBuilder>> httpClientBuilderConsumers;
+    private Collection<Consumer<HttpClientBuilder>> httpClientBuilderCustomizers;
 
     private HttpRequestBuilder(String httpMethod, String uri) {
         this(httpMethod, uri, Void.class);
@@ -516,14 +516,14 @@ public final class HttpRequestBuilder<T> {
      * The method takes the {@link Consumer} instance which gives the {@link HttpClientBuilder} instance to customize
      * the {@link CloseableHttpClient} before the http-request is built
      *
-     * @param httpClientBuilderConsumer consumer instance
+     * @param httpClientCustomizer consumer instance
      * @return HttpRequestBuilder instance
      */
-    public HttpRequestBuilder<T> addHttpClientConsumer(Consumer<HttpClientBuilder> httpClientBuilderConsumer) {
-        if (httpClientBuilderConsumers == null) {
-            httpClientBuilderConsumers = new LinkedHashSet<>();
+    public HttpRequestBuilder<T> addHttpClientCustomizer(Consumer<HttpClientBuilder> httpClientCustomizer) {
+        if (httpClientBuilderCustomizers == null) {
+            httpClientBuilderCustomizers = new LinkedHashSet<>();
         }
-        httpClientBuilderConsumers.add(httpClientBuilderConsumer);
+        httpClientBuilderCustomizers.add(httpClientCustomizer);
         return this;
     }
 
@@ -603,8 +603,8 @@ public final class HttpRequestBuilder<T> {
             clientBuilder.setRedirectStrategy(redirectStrategy);
         }
 
-        if (httpClientBuilderConsumers != null) {
-            httpClientBuilderConsumers.forEach(httpClientBuilderConsumer -> httpClientBuilderConsumer.accept(clientBuilder));
+        if (httpClientBuilderCustomizers != null) {
+            httpClientBuilderCustomizers.forEach(httpClientBuilderConsumer -> httpClientBuilderConsumer.accept(clientBuilder));
         }
 
         clientBuilder.build();
