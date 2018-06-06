@@ -24,7 +24,7 @@ Optimized performance. <br/>
 Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.http/http-request).
 
 
-**Note: HttpRequest objects are immutable they can be shared after build.**
+**Note: HttpRequest objects are immutable and thread-safe, they should be reused after build the instance of HttpRequest.**
 
 ### How to use
 
