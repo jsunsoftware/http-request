@@ -40,16 +40,16 @@ int statusCode = responseHandler.getStatusCode();
 **Building HttpRequest by default options**
 
 ```java
-HttpRequest<SomeTypeToConvertResponseBody> httpRequest = RestClient.createGet(uriString,  SomeTypeToConvertResponseBody.class).build();
+HttpRequest<SomeTypeToConvertResponseBody> httpRequest = HttpRequestBuilder.createGet(uriString,  SomeTypeToConvertResponseBody.class).build();
 ```
 If you want to ignore the convert of response body, you must build it so:
 ```java
-HttpRequest<?> httpRequest = RestClient.createGet(uri).build();
+HttpRequest<?> httpRequest = HttpRequestBuilder.createGet(uri).build();
 ```
 If you want to convert response body to Generic class (example List<T>) by some type you must build it so:
 
 ```java
-HttpRequest<List<SomeType>> httpRequest = RestClient.createGet(uri,  new TypeReference<List<SomeType>>(){}).build();
+HttpRequest<List<SomeType>> httpRequest = HttpRequestBuilder.createGet(uri,  new TypeReference<List<SomeType>>(){}).build();
 ResponseHandler<List<SomeType>> responseHandler = httpRequest.execute();
 
 List<SomeType> someTypes = responseHandler.get(); //see javadoc of get method
