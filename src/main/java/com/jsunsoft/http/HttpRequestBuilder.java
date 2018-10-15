@@ -605,7 +605,6 @@ public final class HttpRequestBuilder<T> {
             httpClientBuilderCustomizers.forEach(httpClientBuilderConsumer -> httpClientBuilderConsumer.accept(clientBuilder));
         }
 
-        clientBuilder.build();
         CloseableHttpClient closeableHttpClient = clientBuilder.build();
 
         if (responseDeserializer == null) {
