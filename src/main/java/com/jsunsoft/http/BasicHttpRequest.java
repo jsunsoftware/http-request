@@ -64,7 +64,6 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
     private final Type type;
     private final CloseableHttpClient closeableHttpClient;
     private final ResponseDeserializer<T> responseDeserializer;
-    private final Charset charset;
     private final Supplier<String> cookiesSupplier;
     private final Collection<NameValuePair> defaultRequestParameters;
     private final PoolingHttpClientConnectionManager connectionManager;
@@ -74,7 +73,6 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
                      Type type,
                      CloseableHttpClient closeableHttpClient,
                      ResponseDeserializer<T> responseDeserializer,
-                     Charset charset,
                      Supplier<String> cookiesSupplier,
                      Collection<NameValuePair> defaultRequestParameters,
                      PoolingHttpClientConnectionManager connectionManager
@@ -84,7 +82,6 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
         this.type = ArgsCheck.notNull(type, "type");
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
         this.responseDeserializer = ArgsCheck.notNull(responseDeserializer, "responseDeserializer");
-        this.charset = charset;
         this.cookiesSupplier = cookiesSupplier;
         this.defaultRequestParameters = Collections.unmodifiableCollection(ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters"));
         this.connectionManager = ArgsCheck.notNull(connectionManager, "connectionManager");
@@ -211,9 +208,6 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
             defaultRequestParameters.forEach(requestBuilder::addParameter);
         }
 
-        if (charset != null) {
-            requestBuilder.setCharset(charset);
-        }
         return requestBuilder.build();
     }
 
@@ -253,7 +247,6 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
                 type,
                 closeableHttpClient,
                 responseDeserializer,
-                charset,
                 cookiesSupplier,
                 defaultRequestParameters,
                 connectionManager

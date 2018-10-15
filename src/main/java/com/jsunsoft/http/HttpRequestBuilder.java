@@ -50,7 +50,6 @@ import javax.net.ssl.SSLContext;
 import java.lang.reflect.Type;
 import java.net.ProxySelector;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -85,7 +84,6 @@ public final class HttpRequestBuilder<T> {
     private DateDeserializeContext dateDeserializeContext;
     private RedirectStrategy redirectStrategy;
     private Collection<Header> headers;
-    private Charset charset;
     private Supplier<String> cookiesSupplier;
     private HttpHost proxy;
     private boolean useDefaultProxy;
@@ -622,7 +620,6 @@ public final class HttpRequestBuilder<T> {
                 type,
                 closeableHttpClient,
                 responseDeserializer,
-                charset,
                 cookiesSupplier,
                 defaultRequestParameters == null ? Collections.emptyList() : defaultRequestParameters,
                 connectionManager
