@@ -3,3 +3,7 @@
 ### 1.0.0
 
 For building HttpRequest you should use `addContentType` instead of `contentTypeOfBody`.
+
+### 1.0.2
+
+Replace `ignorableDeserializer` of `ResponseDeserializer` to `toStringDeserializer`

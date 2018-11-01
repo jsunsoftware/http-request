@@ -57,18 +57,25 @@ or
 List<SomeType> someTypes = responseHandler.orElse(Collections.emptyList());
 ```
 
+If you want to convert response body with custom way you must add custom deserializer:
+
+HttpRequest<SomeTypeToConvertResponseBody> httpRequest = 
+              HttpRequestBuilder.createGet(uriString,  SomeTypeToConvertResponseBody.class)
+              .responseDeserializer(responseContext -> //deserialize yourself)
+              .build(); //See the javadoc of methods of `ResponseContext`
+
 **Perform simple http request**
-Perform request and get the body of the response without deserialization
+Perform request and get the body of the response as String
 
 ```java
 HttpRequest<String> httpRequest = HttpRequestBuilder.create(someHttpMethod, "https://www.jsunsoft.com/", String.class)
-                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer()).build();
+                                                .responseDeserializer(ResponseDeserializer.toStringDeserializer()).build();
 String responseBody = httpRequest.execute().get(); // see javadoc of get method
 ```
 **Perform simple http get request**
 ```java
 HttpRequest<String> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/", String.class)
-                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer()).build();
+                                                .responseDeserializer(ResponseDeserializer.toStringDeserializer()).build();
 String responseBody = httpRequest.execute(requestParameters).get(); // see documentation of get method
 or
 String responseBody = httpRequest.executeWithQuery(queryString).get(); // //queryString example "param1=param1&param2=param2"
@@ -77,7 +84,7 @@ String responseBody = httpRequest.executeWithQuery(queryString).get(); // //quer
 **Perform simple http post request**
 ```java
 HttpRequest<String> httpRequest = HttpRequestBuilder.createPost("https://www.jsunsoft.com/", String.class)
-                                                .responseDeserializer(ResponseDeserializer.ignorableDeserializer()).build();
+                                                .responseDeserializer(ResponseDeserializer.toStringDeserializer()).build();
 String responseBody = httpRequest.execute(requestParameters).get(); // see javadoc of get method
 ```
 
@@ -218,7 +225,7 @@ To use from maven add this snippet to the pom.xml `dependencies` section:
 <dependency>
   <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.2</version>
 </dependency>
 ```
 

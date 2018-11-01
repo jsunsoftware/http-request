@@ -79,6 +79,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
     ) {
         this.httpMethod = ArgsCheck.notNull(httpMethod, "httpMethod");
         this.uri = ArgsCheck.notNull(uri, "uri");
+        CustomArgsCheck.checkIsCorrectTypeForDeserialization(type);
         this.type = ArgsCheck.notNull(type, "type");
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
         this.responseDeserializer = ArgsCheck.notNull(responseDeserializer, "responseDeserializer");

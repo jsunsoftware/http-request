@@ -43,7 +43,7 @@ public class HttpRequestSimpleTest {
             .build();
 
     private final HttpRequest<String> httpRequestWithoutParse = HttpRequestBuilder.createPost("http://localhost:8080/text", String.class)
-            .responseDeserializer(ResponseDeserializer.ignorableDeserializer()).build();
+            .responseDeserializer(ResponseDeserializer.toStringDeserializer()).build();
 
     @Test
     public void userAgentTest() {

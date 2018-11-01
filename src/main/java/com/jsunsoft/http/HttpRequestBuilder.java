@@ -113,6 +113,8 @@ public final class HttpRequestBuilder<T> {
     }
 
     private HttpRequestBuilder(String httpMethod, URI uri, Type type) {
+        CustomArgsCheck.checkIsCorrectTypeForDeserialization(type);
+
         this.httpMethod = notNull(httpMethod, "httpMethod");
         this.uri = notNull(uri, "uri").normalize();
         this.type = notNull(type, "type");
