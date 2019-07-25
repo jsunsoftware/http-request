@@ -38,9 +38,9 @@
         <endorsed.dir>${project.build.directory}/endorsed</endorsed.dir>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.9.9</jackson.version>
-        <joda.time.version>2.10.2</joda.time.version>
+        <joda.time.version>2.10.3</joda.time.version>
         <junit.version>4.12</junit.version>
-        <httpclient.version>4.5.8</httpclient.version>
+        <httpclient.version>4.5.9</httpclient.version>
         <wiremock.version>2.10.1</wiremock.version>
     </properties>
 
@@ -153,7 +153,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
+            <version>2.9.9.1</version>
         </dependency>
 
         <dependency>
