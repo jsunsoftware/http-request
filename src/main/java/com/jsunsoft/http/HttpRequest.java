@@ -176,10 +176,4 @@ public interface HttpRequest<T> {
                 .map(entry -> new BasicNameValuePair(entry.getKey(), entry.getValue()))
                 .toArray(NameValuePair[]::new));
     }
-
-    /**
-     * @param uri the new uri to request. Should not be null.
-     * @return Returns a copy of this BasicHttpRequest instance with the specified uri of uri.
-     */
-    BasicHttpRequest<T> path(URI uri);
 }
