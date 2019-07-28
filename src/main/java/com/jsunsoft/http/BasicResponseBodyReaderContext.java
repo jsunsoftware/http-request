@@ -18,22 +18,26 @@ package com.jsunsoft.http;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.entity.ContentType;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.nio.charset.Charset;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-final class BasicResponseContext implements ResponseContext {
-    private static final Log LOGGER = LogFactory.getLog(BasicResponseContext.class);
+final class BasicResponseBodyReaderContext implements ResponseBodyReaderContext {
+    private static final Log LOGGER = LogFactory.getLog(BasicResponseBodyReaderContext.class);
     private final HttpResponse httpResponse;
+    private final Type type;
 
-    BasicResponseContext(HttpResponse httpResponse) {
+    BasicResponseBodyReaderContext(HttpResponse httpResponse, Type type) {
         this.httpResponse = ArgsCheck.notNull(httpResponse, "httpResponse");
+        this.type = ArgsCheck.notNull(type, "type");
     }
 
     @Override
@@ -73,17 +77,22 @@ final class BasicResponseContext implements ResponseContext {
 
     @Override
     public ContentType getContentType() {
-        return ContentType.get(httpResponse.getEntity());
+        return ContentType.get(getHttpEntity());
     }
 
     @Override
     public long getContentLength() {
-        return httpResponse.getEntity().getContentLength();
+        return getHttpEntity().getContentLength();
     }
 
     @Override
-    public HttpResponse getHttpResponse() {
-        return httpResponse;
+    public HttpEntity getHttpEntity() {
+        return httpResponse.getEntity();
+    }
+
+    @Override
+    public Type getType() {
+        return type;
     }
 
     private int resolveBufferInitialSize() throws IOException {

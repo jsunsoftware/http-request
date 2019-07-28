@@ -37,7 +37,7 @@ import java.util.List;
 import static com.jsunsoft.http.BasicDateDeserializeContext.DEFAULT;
 
 public class ResponseDeserializerTest {
-    private ResponseContext responseContext;
+    private ResponseBodyReaderContext responseContext;
 
     @Before
     public final void before() throws UnsupportedEncodingException {
@@ -64,13 +64,12 @@ public class ResponseDeserializerTest {
         basicHttpEntity.setContentType(ContentType.APPLICATION_JSON.getMimeType());
         HttpResponse httpResponse = new BasicHttpResponse(new BasicStatusLine(new ProtocolVersion("", 1, 1), 200, ""));
         httpResponse.setEntity(basicHttpEntity);
-        responseContext = new BasicResponseContext(httpResponse);
+        responseContext = new BasicResponseBodyReaderContext(httpResponse, Result.class);
     }
 
     @Test
     public void testDeserializeResponse() throws IOException {
-        ResponseDeserializer<Result> responseDeserializer = new DefaultResponseDeserializer<>(new TypeReference<Result>() {
-        }.getType(), DEFAULT);
+        ResponseDeserializer<Result> responseDeserializer = new DefaultResponseDeserializer<>(DEFAULT);
         Result result = responseDeserializer.deserialize(responseContext);
         Assert.assertEquals(1L, result.value);
         Assert.assertEquals("Test message", result.message);

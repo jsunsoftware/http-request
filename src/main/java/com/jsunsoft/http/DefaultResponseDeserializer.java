@@ -42,7 +42,7 @@ import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_
 import static org.apache.http.entity.ContentType.APPLICATION_JSON;
 import static org.apache.http.entity.ContentType.APPLICATION_XML;
 
-class DefaultResponseDeserializer<T> extends AbstractResponseDeserializer<T> {
+class DefaultResponseDeserializer<T> implements ResponseDeserializer<T> {
     private static final Log LOGGER = LogFactory.getLog(DefaultResponseDeserializer.class);
 
     private final ObjectMapper jsonSerializer;
@@ -50,8 +50,7 @@ class DefaultResponseDeserializer<T> extends AbstractResponseDeserializer<T> {
 
     private final DateDeserializeContext dateDeserializeContext;
 
-    DefaultResponseDeserializer(Type type, DateDeserializeContext dateDeserializeContext) {
-        super(type);
+    DefaultResponseDeserializer(DateDeserializeContext dateDeserializeContext) {
         this.dateDeserializeContext = dateDeserializeContext;
         jsonSerializer = defaultInit(new ObjectMapper());
         xmlSerializer = defaultInit(new XmlMapper());
@@ -59,27 +58,27 @@ class DefaultResponseDeserializer<T> extends AbstractResponseDeserializer<T> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public T deserialize(ResponseContext responseContext) throws IOException, ResponseDeserializeException {
-        ContentType contentType = responseContext.getContentType();
+    public T deserialize(ResponseBodyReaderContext bodyReaderContext) throws IOException, ResponseDeserializeException {
+        ContentType contentType = bodyReaderContext.getContentType();
         String mimeType = contentType == null ? null : contentType.getMimeType();
         T result;
 
         if (APPLICATION_JSON.getMimeType().equals(mimeType)) {
-            result = deserialize(responseContext, jsonSerializer);
+            result = deserialize(bodyReaderContext, jsonSerializer);
         } else if (APPLICATION_XML.getMimeType().equals(mimeType)) {
-            result = deserialize(responseContext, xmlSerializer);
-        } else if (type == String.class) {
-            result = (T) responseContext.getContentAsString();
+            result = deserialize(bodyReaderContext, xmlSerializer);
+        } else if (bodyReaderContext.getType() == String.class) {
+            result = (T) bodyReaderContext.getContentAsString();
         } else {
-            throw new InvalidMimeTypeException(mimeType, "DefaultDeserializer doesn't supported mimeType " + mimeType + " for converting response content to: " + type);
+            throw new InvalidMimeTypeException(mimeType, "DefaultDeserializer doesn't supported mimeType " + mimeType + " for converting response content to: " + bodyReaderContext.getType());
         }
         return result;
 
     }
 
-    private T deserialize(ResponseContext responseContext, ObjectMapper objectMapper) throws ResponseDeserializeException {
+    private T deserialize(ResponseBodyReaderContext responseBodyReaderContext, ObjectMapper objectMapper) throws ResponseDeserializeException {
         try {
-            return deserialize(responseContext.getContent(), type, objectMapper);
+            return deserialize(responseBodyReaderContext.getContent(), responseBodyReaderContext.getType(), objectMapper);
         } catch (IOException e) {
             throw new ResponseDeserializeException(e);
         }

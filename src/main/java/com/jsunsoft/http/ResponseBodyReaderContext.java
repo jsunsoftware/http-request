@@ -16,14 +16,15 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.HttpResponse;
+import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
 
-public interface ResponseContext {
+public interface ResponseBodyReaderContext {
     /**
      * @return content stream of the entity.
      * @throws IOException if the stream could not be created.
@@ -35,7 +36,7 @@ public interface ResponseContext {
      * @throws IOException                   if the stream could not be created or
      *                                       if the first byte cannot be read for any reason other than the end of the file,
      *                                       if the input stream has been closed, or if some other I/O
-     * @throws InvalidContentLengthException If content length exceeds {@link java.lang.Integer#MAX_VALUE Integer.MAX_VALUE}
+     * @throws InvalidContentLengthException If content length exceeds {@link Integer#MAX_VALUE Integer.MAX_VALUE}
      * @throws UnsupportedEncodingException  If the named charset is not supported
      */
     String getContentAsString() throws IOException;
@@ -50,13 +51,15 @@ public interface ResponseContext {
      *
      * @return the number of bytes of the content, or
      * a negative number if unknown. If the content length is known
-     * but exceeds {@link java.lang.Long#MAX_VALUE Long.MAX_VALUE},
+     * but exceeds {@link Long#MAX_VALUE Long.MAX_VALUE},
      * a negative number is returned.
      */
     long getContentLength();
 
     /**
-     * @return the {@link HttpResponse}
+     * @return the {@link HttpEntity}
      */
-    HttpResponse getHttpResponse();
+    HttpEntity getHttpEntity();
+
+    Type getType();
 }

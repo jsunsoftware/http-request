@@ -16,6 +16,8 @@
 
 package com.jsunsoft.http;
 
+import java.net.URI;
+
 /**
  * Signals an unexpected HTTP response
  */
@@ -23,7 +25,7 @@ package com.jsunsoft.http;
 @SuppressWarnings("serial")
 public class UnexpectedResponseException extends ResponseException {
 
-    public UnexpectedResponseException(int statusCode, String message, String uri) {
+    public UnexpectedResponseException(int statusCode, String message, URI uri) {
         super(statusCode, message, uri);
     }
 }

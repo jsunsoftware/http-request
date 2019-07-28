@@ -16,20 +16,20 @@
 
 package com.jsunsoft.http;
 
-class HttpRequestThread<T> extends Thread {
-    private final HttpRequest<T> httpRequest;
-    private ResponseHandler<T> responseHandler;
+class HttpRequestThread extends Thread {
+    private final WebTarget webTarget;
+    private ResponseHandler<?> responseHandler;
 
-    HttpRequestThread(HttpRequest<T> httpRequest) {
-        this.httpRequest = httpRequest;
+    HttpRequestThread(WebTarget webTarget) {
+        this.webTarget = webTarget;
     }
 
     @Override
     public void run() {
-        responseHandler = httpRequest.execute();
+        responseHandler = webTarget.rawGet();
     }
 
-    ResponseHandler<T> getResponseHandler() {
-        return responseHandler;
+    BasicResponseHandler<?> getResponseHandler() {
+        return (BasicResponseHandler<?>) responseHandler;
     }
 }

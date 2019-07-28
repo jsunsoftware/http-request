@@ -16,6 +16,8 @@
 
 package com.jsunsoft.http;
 
+import java.net.URI;
+
 /**
  * Signals an HTTP response error
  */
@@ -23,17 +25,17 @@ package com.jsunsoft.http;
 public class ResponseException extends RuntimeException {
 
     private final int statusCode;
-    private final String uri;
+    private final URI uri;
 
-    public ResponseException(int statusCode, String message, String uri) {
+    public ResponseException(int statusCode, String message, URI uri) {
         this(statusCode, message, uri, null);
     }
 
-    public ResponseException(int statusCode, String uri, Throwable cause) {
+    public ResponseException(int statusCode, URI uri, Throwable cause) {
         this(statusCode, null, uri, cause);
     }
 
-    public ResponseException(int statusCode, String msg, String uri, Throwable cause) {
+    public ResponseException(int statusCode, String msg, URI uri, Throwable cause) {
         super(msg, cause);
         this.statusCode = statusCode;
         this.uri = uri;
@@ -43,7 +45,7 @@ public class ResponseException extends RuntimeException {
         return statusCode;
     }
 
-    public String getUri() {
+    public URI getUri() {
         return uri;
     }
 }

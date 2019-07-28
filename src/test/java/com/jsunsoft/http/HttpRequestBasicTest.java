@@ -23,21 +23,25 @@ import org.junit.Test;
 public class HttpRequestBasicTest {
     private static final String URI_STRING = "https://en.wikipedia.org/wiki/List_of_least_concern_birds";
 
-    private static final HttpRequest<?> HTTP_REQUEST_TO_GET_RESPONSE_CODE =
-            HttpRequestBuilder.createGet(URI_STRING).build();
+    private static final HttpRequest HTTP_REQUEST_TO_GET_RESPONSE_CODE =
+            HttpRequestBuilder.create(new ClientBuilder().build()).build();
 
-    private static final HttpRequest<String> HTTP_REQUEST_TO_GET_LARGE_RESPONSE =
-            HttpRequestBuilder.createGet(URI_STRING, String.class)
-                    .build();
+    private static final HttpRequest HTTP_REQUEST_TO_GET_LARGE_RESPONSE =
+            HttpRequestBuilder.create(new ClientBuilder().build()).build();
 
     @Test
     public void getResponseCode() {
-        Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.execute().getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.target("https://en.wikipedia.org/")
+                .path("wiki/List_of_least_concern_birds")
+                .get()
+                .getStatusCode());
     }
 
     @Test
     public void largeResponseTest() {
-        ResponseHandler<String> responseHandler = HTTP_REQUEST_TO_GET_LARGE_RESPONSE.execute();
+        ResponseHandler<String> responseHandler = HTTP_REQUEST_TO_GET_LARGE_RESPONSE.target("https://en.wikipedia.org/")
+                .path("wiki/List_of_least_concern_birds")
+                .get(String.class);
         Assert.assertTrue(responseHandler.orElse("").length() > 16348);
     }
 }

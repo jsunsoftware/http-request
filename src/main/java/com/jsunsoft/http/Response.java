@@ -1,3 +1,5 @@
+package com.jsunsoft.http;
+
 /*
  * Copyright 2017 Benik Arakelyan
  *
@@ -14,18 +16,16 @@
  * limitations under the License.
  */
 
-package com.jsunsoft.http;
 
-import java.lang.reflect.Type;
+import org.apache.http.client.methods.CloseableHttpResponse;
 
-public abstract class AbstractResponseDeserializer<T> implements ResponseDeserializer<T> {
-    Type type;
+public interface Response extends CloseableHttpResponse {
 
-    public AbstractResponseDeserializer(Type type) {
-        this.type = type;
+    /**
+     * @return Status code
+     */
+    default int getStatusCode() {
+        return getStatusLine().getStatusCode();
     }
 
-    public Type getType() {
-        return type;
-    }
 }

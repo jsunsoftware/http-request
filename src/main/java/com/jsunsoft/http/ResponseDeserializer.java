@@ -28,21 +28,21 @@ public interface ResponseDeserializer<T> {
     /**
      * Method receives httpEntity of the response then deserialized to type {@code T}
      *
-     * @param responseContext the response context.
+     * @param bodyReaderContext the response context.
      * @return Deserialized content
      * @throws IOException                   If the stream could not be created or error occurs reading the input stream.
      * @throws UnsupportedOperationException If entity content cannot be represented as {@link java.io.InputStream}.
      * @throws ResponseDeserializeException  If Cannot deserialize content
      */
-    T deserialize(ResponseContext responseContext) throws IOException, ResponseDeserializeException;
+    T deserialize(ResponseBodyReaderContext bodyReaderContext) throws IOException, ResponseDeserializeException;
 
     /**
-     * @param responseContext the response context.
+     * @param bodyReaderContext the response context.
      * @return Error text from response
      * @throws IOException if an error occurs reading the input stream
      */
-    default String deserializeFailure(ResponseContext responseContext) throws IOException {
-        return responseContext.getContentAsString();
+    default String deserializeFailure(ResponseBodyReaderContext bodyReaderContext) throws IOException {
+        return bodyReaderContext.getContentAsString();
     }
 
     /**
@@ -51,6 +51,6 @@ public interface ResponseDeserializer<T> {
      * @return ResponseDeserializer instance
      */
     static ResponseDeserializer<String> toStringDeserializer() {
-        return ResponseContext::getContentAsString;
+        return ResponseBodyReaderContext::getContentAsString;
     }
 }

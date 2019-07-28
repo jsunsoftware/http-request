@@ -16,23 +16,24 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.HttpStatus;
 import org.junit.Test;
 
 import static org.apache.http.HttpHeaders.ACCEPT;
-import static org.apache.http.HttpStatus.SC_OK;
 import static org.apache.http.entity.ContentType.APPLICATION_XML;
 import static org.junit.Assert.assertEquals;
 
 public class HttpRequestSSLTest {
-    private final HttpRequest<?> httpRequest = HttpRequestBuilder.createGet("https://mms.nw.ru/")
+    private final HttpRequest httpRequest = HttpRequestBuilder.create(ClientBuilder.create()
             .trustAllCertificates()
             .trustAllHosts()
-            .addDefaultHeader(ACCEPT, APPLICATION_XML.getMimeType())
-            .build();
+            .addDefaultHeader(ACCEPT, APPLICATION_XML.toString())
+            .build()
+    ).build();
 
     @Test
     public final void ignoreSSLAndHostsTest() throws Exception {
 
-        assertEquals(SC_OK, httpRequest.execute().getStatusCode());
+        assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").get(Void.class).getStatusCode());
     }
 }

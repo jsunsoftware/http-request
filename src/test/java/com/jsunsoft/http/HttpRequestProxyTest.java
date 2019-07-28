@@ -28,11 +28,11 @@ import static org.junit.Assert.assertEquals;
 
 public class HttpRequestProxyTest {
     //when
-    private static final HttpRequest<?> httpRequestToSimpleProxy = HttpRequestBuilder.createGet("http://localhost:8089/private")
-            .proxy(new HttpHost("localhost", 8090)).build();
+    private static final HttpRequest httpRequestToSimpleProxy = HttpRequestBuilder.create(ClientBuilder.create()
+            .proxy(new HttpHost("localhost", 8090)).build()).build();
 
-    private static final HttpRequest<?> httpRequestToProxyAuth = HttpRequestBuilder.createGet("http://localhost:8089/private")
-            .basicAuth("username_admin", "secret_password").proxy("localhost", 8090).build();
+    private static final HttpRequest httpRequestToProxyAuth = HttpRequestBuilder.create(ClientBuilder.create()
+            .basicAuth("username_admin", "secret_password").proxy("localhost", 8090).build()).build();
 
     @Rule
     public WireMockRule serviceMock = new WireMockRule(8089);
@@ -50,7 +50,7 @@ public class HttpRequestProxyTest {
                 .willReturn(aResponse().withStatus(200)));
 
         //then
-        assertEquals(httpRequestToSimpleProxy.execute().getStatusCode(), 200);
+        assertEquals(httpRequestToSimpleProxy.target("http://localhost:8089/private").get(Void.class).getStatusCode(), 200);
         proxyMock.verify(getRequestedFor(urlEqualTo("/private")));
         serviceMock.verify(getRequestedFor(urlEqualTo("/private")));
     }
@@ -64,7 +64,7 @@ public class HttpRequestProxyTest {
                 .willReturn(aResponse().withStatus(200)));
 
         //then
-        assertEquals(httpRequestToProxyAuth.execute().getStatusCode(), 200);
+        assertEquals(httpRequestToProxyAuth.target("http://localhost:8089/private").get(Void.class).getStatusCode(), 200);
         proxyMock.verify(getRequestedFor(urlEqualTo("/private")).withHeader("Authorization", containing("Basic")));
         serviceMock.verify(getRequestedFor(urlEqualTo("/private")));
     }

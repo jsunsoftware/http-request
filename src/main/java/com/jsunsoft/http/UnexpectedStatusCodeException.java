@@ -16,13 +16,15 @@
 
 package com.jsunsoft.http;
 
+import java.net.URI;
+
 /**
  * Signals a non 2xx HTTP response.
  */
 @SuppressWarnings("serial")
 public class UnexpectedStatusCodeException extends UnexpectedResponseException {
 
-    public UnexpectedStatusCodeException(int statusCode, String message, String uri) {
+    public UnexpectedStatusCodeException(int statusCode, String message, URI uri) {
         super(statusCode, "Error code is: " + statusCode + ". " + message, uri);
     }
 }

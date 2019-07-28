@@ -1,3 +1,5 @@
+package com.jsunsoft.http;
+
 /*
  * Copyright 2017 Benik Arakelyan
  *
@@ -14,102 +16,49 @@
  * limitations under the License.
  */
 
-package com.jsunsoft.http;
 
 import org.apache.http.StatusLine;
 import org.apache.http.entity.ContentType;
 
-import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-/**
- * ResponseHandler objects are immutable they can be shared.
- *
- * @param <T> Type of deserialized content from response
- */
-
-public final class ResponseHandler<T> {
-
-    private final int statusCode;
-    private final T content;
-    private final String errorText;
-    private final boolean isVoidType;
-    private final ContentType contentType;
-    private final URI uri;
-    private final boolean success;
-    private final ConnectionFailureType connectionFailureType;
-    private final StatusLine statusLine;
-
-    ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
-        this(content, statusCode, errorText, type, contentType, uri, connectionFailureType, null);
-    }
-
-    ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, StatusLine statusLine) {
-        this(content, statusCode, errorText, type, contentType, uri, BasicConnectionFailureType.NONE, statusLine);
-    }
-
-    private ResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, StatusLine statusLine) {
-        this.statusCode = statusCode;
-        this.content = content;
-        this.errorText = errorText;
-        this.isVoidType = HttpRequestUtils.isVoidType(type);
-        this.contentType = contentType;
-        this.uri = ArgsCheck.notNull(uri, "uri");
-        this.success = HttpRequestUtils.isSuccess(statusCode);
-        this.connectionFailureType = ArgsCheck.notNull(connectionFailureType, "connectionFailureType");
-        this.statusLine = statusLine;
-    }
-
+public interface ResponseHandler<T> {
     /**
      * @return {@code true} If content is present else {@code false}
      */
-    public boolean hasContent() {
-        return content != null;
-    }
+    boolean hasContent();
 
     /**
      * @return {@code true} If hasn't content else {@code false}
      */
-    public boolean hasNotContent() {
-        return content == null;
+    default boolean hasNotContent() {
+        return !hasContent();
     }
 
     /**
      * @return Status code
      */
-    public int getStatusCode() {
-        return statusCode;
-    }
+    int getStatusCode();
 
     /**
      * @param defaultValue value to return if content isn't present
      * @return Deserialized Content from response. If content isn't present returns defaultValue.
      * @throws UnsupportedOperationException if generic type is a Void
      */
-    public T orElse(T defaultValue) {
-        check();
-        return content == null ? defaultValue : content;
-    }
+    T orElse(T defaultValue);
 
     /**
      * @param defaultValue value to return if status code is success and hasn't body
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
-     * @throws UnexpectedStatusCodeException   If status code is not success
+     * @throws UnexpectedStatusCodeException If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
-    public T orElseThrow(T defaultValue) {
-        check();
-        if (isNonSuccess()) {
-            throw new UnexpectedStatusCodeException(statusCode, errorText, uri.toString());
-        }
-        return content == null ? defaultValue : content;
-    }
+    T orElseThrow(T defaultValue);
 
     /**
      * @param exceptionFunction Instance of type {@link Function} by parameter this which returns exception to throw if status code isn't success.
@@ -117,13 +66,7 @@ public final class ResponseHandler<T> {
      * @return Deserialized content from response. If hasn't body returns {@code null}.
      * @throws X If status code isn't success.
      */
-    public <X extends Throwable> T orThrow(Function<ResponseHandler<? super T>, X> exceptionFunction) throws X {
-        check();
-        if (isNonSuccess()) {
-            throw exceptionFunction.apply(this);
-        }
-        return content;
-    }
+    <X extends Throwable> T orThrow(Function<ResponseHandler<? super T>, X> exceptionFunction) throws X;
 
     /**
      * @param defaultValue      Value to return if content is {@code null}
@@ -132,13 +75,7 @@ public final class ResponseHandler<T> {
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
      * @throws X If status code isn't success.
      */
-    public <X extends Throwable> T orThrow(T defaultValue, Function<ResponseHandler<? super T>, X> exceptionFunction) throws X {
-        check();
-        if (isNonSuccess()) {
-            throw exceptionFunction.apply(this);
-        }
-        return content == null ? defaultValue : content;
-    }
+    <X extends Throwable> T orThrow(T defaultValue, Function<ResponseHandler<? super T>, X> exceptionFunction) throws X;
 
     /**
      * @param exceptionSupplier Instance of type {@link Supplier} which returns exception to throw if status code isn't success.
@@ -146,13 +83,7 @@ public final class ResponseHandler<T> {
      * @return Deserialized content from response. If hasn't body returns {@code null}.
      * @throws X If status code isn't success.
      */
-    public <X extends Throwable> T getOrThrow(Supplier<X> exceptionSupplier) throws X {
-        check();
-        if (isNonSuccess()) {
-            throw exceptionSupplier.get();
-        }
-        return content;
-    }
+    <X extends Throwable> T getOrThrow(Supplier<X> exceptionSupplier) throws X;
 
     /**
      * @param defaultValue      Value to return if content is {@code null}
@@ -161,26 +92,14 @@ public final class ResponseHandler<T> {
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
      * @throws X If status code isn't success.
      */
-    public <X extends Throwable> T getOrThrow(T defaultValue, Supplier<X> exceptionSupplier) throws X {
-        check();
-        if (isNonSuccess()) {
-            throw exceptionSupplier.get();
-        }
-        return content == null ? defaultValue : content;
-    }
+    <X extends Throwable> T getOrThrow(T defaultValue, Supplier<X> exceptionSupplier) throws X;
 
     /**
      * @return Content from response. Returns null if hasn't body
-     * @throws UnexpectedStatusCodeException   If response code is not success
+     * @throws UnexpectedStatusCodeException If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
-    public T orElseThrow() {
-        check();
-        if (isSuccess()) {
-            return content;
-        }
-        throw new UnexpectedStatusCodeException(statusCode, errorText, uri.toString());
-    }
+    T orElseThrow();
 
     /**
      * Strongly recommend call get method after check content is present.
@@ -197,69 +116,41 @@ public final class ResponseHandler<T> {
      * @see ResponseHandler#orElse(Object)
      * @see ResponseHandler#ifHasContent(Consumer)
      */
-    public T get() {
-        check();
-        if (content == null) {
-            throw new NoSuchContentException("Content is not present: Response code: [" + statusCode + ']');
-        }
-        return content;
-    }
-
-    /**
-     * @return Deserialized content from response as optional instance.
-     * @throws UnsupportedOperationException if generic type is a Void
-     */
-    Optional<T> getAsOptional() {
-        check();
-        return Optional.ofNullable(content);
-    }
+    T get();
 
     /**
      * @return Returns the error text if the connection failed but the server sent useful data nonetheless.
      * @throws NoSuchElementException        If error text is not present
      * @throws UnsupportedOperationException if generic type is a Void
      */
-    public String getErrorText() {
-        if (errorText == null) {
-            throw new IllegalStateException("Error text is not available: Response code: [" + statusCode + ']');
-        }
-        return errorText;
-    }
+    String getErrorText();
 
     /**
      * @return Returns the connection URI
      */
-    public URI getUri() {
-        return uri;
-    }
+    URI getUri();
 
     /**
      * Obtains the status line of this response.
      *
      * @return the status line.
      */
-    public StatusLine getStatusLine() {
-        return statusLine;
-    }
+    StatusLine getStatusLine();
 
     /**
      * @return Content type of response
      */
-    public ContentType getContentType() {
-        return contentType;
-    }
+    ContentType getContentType();
 
     /**
      * @return Returns <b>true</b> if status code contains [200, 300) else <b>false</b>
      */
-    public boolean isSuccess() {
-        return success;
-    }
+    boolean isSuccess();
 
     /**
      * @return Returns <b>true</b> if status code isn't contains [200, 300) else <b>false</b>
      */
-    public boolean isNonSuccess() {
+    default boolean isNonSuccess() {
         return !isSuccess();
     }
 
@@ -269,12 +160,7 @@ public final class ResponseHandler<T> {
      * @param consumer block to be executed if has a content
      * @throws IllegalArgumentException if {@code consumer} is null
      */
-    public void ifHasContent(Consumer<? super T> consumer) {
-        ArgsCheck.notNull(consumer, "consumer");
-        if (content != null) {
-            consumer.accept(content);
-        }
-    }
+    void ifHasContent(Consumer<? super T> consumer);
 
     /**
      * If status code is success , invoke the specified consumer with the responseHandler and returns {@code OtherwiseSupport} with ignore else {@code OtherwiseSupport} with not ignore.
@@ -283,48 +169,7 @@ public final class ResponseHandler<T> {
      * @return OtherwiseSupport instance to support action otherwise.
      * @see OtherwiseSupport#otherwise(Consumer)
      */
-    public OtherwiseSupport<T> ifSuccess(Consumer<ResponseHandler<T>> consumer) {
-        ArgsCheck.notNull(consumer, "consumer");
+    OtherwiseSupport<T> ifSuccess(Consumer<ResponseHandler<T>> consumer);
 
-        OtherwiseSupport<T> otherwiseSupportResult;
-
-        if (success) {
-            consumer.accept(this);
-            otherwiseSupportResult = OtherwiseSupport.createIgnored(this);
-        } else {
-            otherwiseSupportResult = OtherwiseSupport.createNotIgnored(this);
-        }
-        return otherwiseSupportResult;
-    }
-
-    public FilterSupport<T> filter(Predicate<ResponseHandler<T>> predicate) {
-        return FilterSupport.create(this, predicate);
-    }
-
-    /**
-     * @return connectionFailureType.
-     * @see ConnectionFailureType
-     */
-    //todo rename and make public
-    ConnectionFailureType getConnectionFailureType() {
-        return connectionFailureType;
-    }
-
-    @Override
-    public String toString() {
-        return "ResponseHandler{" +
-                "statusCode=" + statusCode +
-                ", content=" + content +
-                ", errorText='" + errorText + '\'' +
-                ", uri=" + uri +
-                ", connectionFailureType=" + connectionFailureType +
-                ", statusLine=" + statusLine +
-                '}';
-    }
-
-    private void check() {
-        if (isVoidType) {
-            throw new UnsupportedOperationException("Content is not available. Generic type is a Void");
-        }
-    }
+    FilterSupport<T> filter(Predicate<ResponseHandler<T>> predicate);
 }

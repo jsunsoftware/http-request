@@ -68,7 +68,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
             "  ]\n" +
             "}";
 
-    private static final HttpRequest<ResponseData> HTTP_REQUEST = HttpRequestBuilder.createGet("http://localhost:8080/get", ResponseData.class).build();
+    private static final HttpRequest HTTP_REQUEST = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
 
     @Test
     public void test() {
@@ -81,7 +81,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                 )
         );
 
-        HTTP_REQUEST.execute().ifHasContent(responseData -> {
+        HTTP_REQUEST.target("http://localhost:8080/get").get(ResponseData.class).ifHasContent(responseData -> {
             Optional<User> foundedUser = responseData.getUsers()
                     .stream()
                     .filter(user -> "Test1".equals(user.getUserName()))
