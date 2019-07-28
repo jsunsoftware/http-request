@@ -40,6 +40,7 @@ import java.lang.reflect.Type;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Supplier;
@@ -84,7 +85,7 @@ final class BasicHttpRequest<T> implements HttpRequest<T> {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
         this.responseDeserializer = ArgsCheck.notNull(responseDeserializer, "responseDeserializer");
         this.cookiesSupplier = cookiesSupplier;
-        this.defaultRequestParameters = Collections.unmodifiableCollection(ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters"));
+        this.defaultRequestParameters = Collections.unmodifiableCollection(new ArrayList<>(ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters")));
         this.connectionManager = ArgsCheck.notNull(connectionManager, "connectionManager");
     }
 
