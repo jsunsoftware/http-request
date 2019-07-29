@@ -36,58 +36,198 @@ import java.util.Map;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 
+/**
+ * A resource target identified by the resource URI.
+ */
 public interface WebTarget {
 
+    /**
+     * Append path to the URI of the current target instance.
+     *
+     * @param path the path.
+     * @return target instance.
+     * @throws NullPointerException if path is {@code null}.
+     */
     WebTarget path(final String path);
 
-    Response request(final HttpMethod method, final HttpEntity httpEntity);
-
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method the http method.
+     * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
+     * Whether redirects or authentication challenges will be returned
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     */
     Response request(final HttpMethod method);
 
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method     the http method.
+     * @param httpEntity httpEntity
+     * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
+     * Whether redirects or authentication challenges will be returned
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     */
+    Response request(final HttpMethod method, final HttpEntity httpEntity);
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method       the http method.
+     * @param httpEntity   httpEntity
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod, HttpEntity)
+     * @see ResponseHandler
+     */
     <T> ResponseHandler<T> request(final HttpMethod method, final HttpEntity httpEntity, Class<T> responseType);
 
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method       the http method.
+     * @param httpEntity   httpEntity
+     * @param responseType representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod, HttpEntity)
+     * @see ResponseHandler
+     */
     <T> ResponseHandler<T> request(final HttpMethod method, final HttpEntity httpEntity, TypeReference<T> responseType);
 
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method       the http method.
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
     <T> ResponseHandler<T> request(final HttpMethod method, Class<T> responseType);
 
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method       the http method.
+     * @param responseType epresentation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
     <T> ResponseHandler<T> request(final HttpMethod method, TypeReference<T> responseType);
 
+    /**
+     * Invoke an arbitrary method for the current request.
+     * <p>
+     * Mainly designed to use in case when response body aren't interested.
+     * </p>
+     * Any attempt to get content from {@code ResponseHandler} will be thrown exception
+     *
+     * @param method the http method.
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
     default ResponseHandler<?> rawRequest(final HttpMethod method) {
         return request(method, Void.class);
     }
 
+    /**
+     * Removes the given header.
+     *
+     * @param header the header to remove
+     * @return WebTarget instance
+     */
     WebTarget removeHeader(final Header header);
 
+    /**
+     * Removes all headers with name.
+     *
+     * @param name the header name
+     * @return WebTarget instance
+     */
     WebTarget removeHeaders(final String name);
 
+    /**
+     * Replaces the first occurence of the header with the same name. If no header with
+     * the same name is found the given header is added to the end of the list.
+     *
+     * @param header the new header that should replace the first header with the same
+     *               name if present in the list.
+     * @return WebTarget instance
+     */
     WebTarget updateHeader(final Header header);
 
     /**
-     * Header needs to be the same for all requests
+     * Adds the given header to the request. The order in which this header was added is preserved.
      *
-     * @param header header instance
-     * @return HttpRequestBuilder instance
+     * @param header header instance. Can't be null
+     * @return WebTarget instance
      */
     WebTarget addHeader(final Header header);
 
+    /**
+     * The same as {@link #request(HttpMethod, HttpEntity, Class)} wrapped {@code payload} into {@link StringEntity}
+     *
+     * @param method       the http method.
+     * @param payload      payload
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>
+     * @return
+     */
     default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
         return request(method, new StringEntity(payload, UTF_8), responseType);
     }
 
     default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
         return request(method, new StringEntity(payload, UTF_8), responseType);
     }
 
     default Response request(final HttpMethod method, final String payload) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+
         return request(method, new StringEntity(payload, UTF_8));
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Adds the given name and value as header to the request.
      *
      * @param name  name of header. Can't be null
      * @param value value of header
-     * @return HttpRequestBuilder instance
+     * @return WebTarget instance
      */
     default WebTarget addHeader(final String name, final String value) {
         ArgsCheck.notNull(name, "name");
@@ -96,17 +236,29 @@ public interface WebTarget {
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Adds the given headers to the request. The order in which this header was added is preserved.
      *
      * @param headers collections of headers
-     * @return HttpRequestBuilder instance
+     * @return WebTarget instance
      */
     default WebTarget addHeaders(final Collection<? extends Header> headers) {
+        ArgsCheck.notNull(headers, "headers");
+
         headers.forEach(this::addHeader);
         return this;
     }
 
+    /**
+     * Replaces the first occurence of the header with the same name by the value. If no header with
+     * the same name is found the given header is added to the end of the list.
+     *
+     * @param name  name of header. Can't be null
+     * @param value value of header
+     * @return WebTarget instance
+     */
     default WebTarget updateHeader(final String name, final String value) {
+        ArgsCheck.notNull(name, "name");
+
         updateHeader(new BasicHeader(name, value));
         return this;
     }
@@ -115,18 +267,27 @@ public interface WebTarget {
      * Sets content type to header
      *
      * @param contentType content type of request header
-     * @return HttpRequestBuilder instance
+     * @return WebTarget instance
      */
     default WebTarget addContentType(final ContentType contentType) {
         addHeader(CONTENT_TYPE, contentType.toString());
         return this;
     }
 
+    /**
+     * Sets the {@code requestConfig} to the request
+     *
+     * @param requestConfig requestConfig
+     * @return WebTarget instance
+     * @see RequestConfig
+     */
     WebTarget setRequestConfig(final RequestConfig requestConfig);
 
     WebTarget addParameter(final NameValuePair nameValuePair);
 
     default WebTarget addParameters(final NameValuePair... parameters) {
+        ArgsCheck.notNull(parameters, "parameters");
+
         Arrays.stream(parameters).forEach(this::addParameter);
         return this;
     }
@@ -134,6 +295,7 @@ public interface WebTarget {
     default WebTarget addParameters(final String queryString, final Charset charset) {
         ArgsCheck.notNull(queryString, "queryString");
         ArgsCheck.notNull(charset, "charset");
+
         return addParameters(URLEncodedUtils.parse(queryString, charset));
     }
 
@@ -157,12 +319,14 @@ public interface WebTarget {
 
     default WebTarget addParameters(final Collection<? extends NameValuePair> parameters) {
         ArgsCheck.notNull(parameters, "parameters");
+
         parameters.forEach(this::addParameter);
         return this;
     }
 
     default WebTarget addParameters(final Map<String, String> parameters) {
-        ArgsCheck.notNull(parameters, "params");
+        ArgsCheck.notNull(parameters, "parameters");
+
         parameters.entrySet().stream()
                 .map(entry -> new BasicNameValuePair(entry.getKey(), entry.getValue()))
                 .forEach(this::addParameter);
@@ -171,22 +335,39 @@ public interface WebTarget {
 
     default WebTarget addParameter(final String name, final String value) {
         ArgsCheck.notNull(name, "name");
+
         return addParameter(new BasicNameValuePair(name, value));
     }
 
 
+    /**
+     * Invoke HTTP GET method for the current request
+     *
+     * @return the response to the request.
+     * @see #request(HttpMethod)
+     */
     default Response get() {
         return request(HttpMethod.GET);
     }
 
+    /**
+     * Invoke HTTP GET method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod)
+     */
     default ResponseHandler<?> rawGet() {
         return rawRequest(HttpMethod.GET);
     }
 
-
+    /**
+     * Invoke HTTP GET method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity)
+     */
     default Response get(final HttpEntity httpEntity) {
         return request(HttpMethod.GET, httpEntity);
-
     }
 
     default <T> ResponseHandler<T> get(final HttpEntity httpEntity, Class<T> responseType) {

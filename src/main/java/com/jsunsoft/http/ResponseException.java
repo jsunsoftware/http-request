@@ -19,7 +19,7 @@ package com.jsunsoft.http;
 import java.net.URI;
 
 /**
- * Signals an HTTP response error
+ * Signals an HTTP response processing error
  */
 @SuppressWarnings("serial")
 public class ResponseException extends RuntimeException {

@@ -27,6 +27,13 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+/**
+ * ResponseHandler objects are immutable they can be shared.
+ * <p>
+ * The instance which contains converted response content and provide a lot of methods to manipulation and checking.
+ *
+ * @param <T> Type of converted content from response
+ */
 public interface ResponseHandler<T> {
     /**
      * @return {@code true} If content is present else {@code false}

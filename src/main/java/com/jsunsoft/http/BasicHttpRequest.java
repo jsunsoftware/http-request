@@ -27,24 +27,29 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
+/**
+ * Basic implementation of HttpRequest
+ */
 class BasicHttpRequest implements HttpRequest {
     private final CloseableHttpClient closeableHttpClient;
     private final Collection<Header> defaultHeaders;
     private final Collection<NameValuePair> defaultRequestParameters;
 
     BasicHttpRequest(CloseableHttpClient closeableHttpClient, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters) {
-        this.closeableHttpClient = closeableHttpClient;
-        this.defaultHeaders = Collections.unmodifiableList(new ArrayList<>(defaultHeaders));
-        this.defaultRequestParameters = Collections.unmodifiableList(new ArrayList<>(defaultRequestParameters));
+        this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
+        this.defaultHeaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultHeaders, "defaultHeaders")));
+        this.defaultRequestParameters = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters")));
     }
 
     @Override
     public WebTarget target(URI uri) {
+        ArgsCheck.notNull(uri, "uri");
         return new BasicWebTarget(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters);
     }
 
     @Override
     public WebTarget target(String uri) {
+        ArgsCheck.notNull(uri, "uri");
         try {
             return new BasicWebTarget(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters);
         } catch (URISyntaxException e) {

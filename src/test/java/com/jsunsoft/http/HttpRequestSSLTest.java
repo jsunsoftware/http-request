@@ -34,6 +34,6 @@ public class HttpRequestSSLTest {
     @Test
     public final void ignoreSSLAndHostsTest() throws Exception {
 
-        assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").get(Void.class).getStatusCode());
+        assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getStatusCode());
     }
 }

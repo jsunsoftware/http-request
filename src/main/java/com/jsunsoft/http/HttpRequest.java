@@ -18,17 +18,30 @@ package com.jsunsoft.http;
 
 import java.net.URI;
 
+/**
+ * HttpRequest is the main entry point to the API used to build and execute client requests.
+ * <p>
+ * HttpRequest objects are immutable they can be shared.
+ */
 public interface HttpRequest {
 
 
+    /**
+     * Build a new web resource target.
+     *
+     * @param uri web resource URI. Must not be {@code null}.
+     * @return web resource target bound to the provided URI.
+     * @throws NullPointerException in case the supplied argument is {@code null}.
+     */
     WebTarget target(URI uri);
 
     /**
+     * Build a new web resource target.
+     *
      * @param uri The string to be parsed into a URI
      * @return Target instance
      * @throws NullPointerException     If {@code str} is {@code null}
      * @throws IllegalArgumentException If the given string violates RFC&nbsp;2396
      */
-
     WebTarget target(String uri);
 }

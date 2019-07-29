@@ -57,6 +57,13 @@ import java.util.function.Consumer;
 import static org.apache.http.HttpHeaders.AUTHORIZATION;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 
+/**
+ * Builder for {@link CloseableHttpClient}.
+ * <p>
+ * HttpClients are heavy-weight objects that manage the client-side communication infrastructure.
+ * Initialization as well as disposal of a {@link CloseableHttpClient} instance may be a rather expensive operation.
+ * It is therefore advised to construct only a small number of {@link CloseableHttpClient} instances in the application.
+ */
 public class ClientBuilder {
     private RedirectStrategy redirectStrategy;
 
@@ -78,8 +85,20 @@ public class ClientBuilder {
     }
 
     /**
-     * @param connectTimeout see documentation of {@link RequestConfig.Builder#setConnectTimeout(int)}
-     * @return HttpRequestBuilder instance
+     * Determines the timeout in milliseconds until a connection is established.
+     * A timeout value of zero is interpreted as an infinite timeout.
+     * <p>
+     * A timeout value of zero is interpreted as an infinite timeout.
+     * A negative value is interpreted as undefined (system default).
+     * </p>
+     * <p>
+     * Default: {@code 5000ms}
+     * </p>
+     * Note: Can be overridden by {@linkplain #addDefaultRequestConfigCustomizer}
+     *
+     * @param connectTimeout The Connection Timeout (http.connection.timeout) – the time to establish the connection with the remote host.
+     * @return ClientBuilder instance
+     * @see RequestConfig.Builder#setConnectTimeout
      */
     public ClientBuilder setConnectTimeout(int connectTimeout) {
         defaultRequestConfigBuilder.setConnectTimeout(connectTimeout);
@@ -87,8 +106,22 @@ public class ClientBuilder {
     }
 
     /**
-     * @param socketTimeOut see documentation of {@link RequestConfig.Builder#setSocketTimeout(int)}
-     * @return HttpRequestBuilder instance
+     * Defines the socket timeout ({@code SO_TIMEOUT}) in milliseconds,
+     * which is the timeout for waiting for data  or, put differently,
+     * a maximum period inactivity between two consecutive data packets).
+     * <p>
+     * A timeout value of zero is interpreted as an infinite timeout.
+     * A negative value is interpreted as undefined (system default).
+     * </p>
+     * <p>
+     * Default: {@code 30000ms}
+     * </p>
+     * Note: Can be overridden by {@linkplain #addDefaultRequestConfigCustomizer}
+     *
+     * @param socketTimeOut The Socket Timeout (http.socket.timeout) – the time waiting for data – after the connection was established;
+     *                      maximum time of inactivity between two data packets.
+     * @return ClientBuilder instance
+     * @see RequestConfig.Builder#setSocketTimeout
      */
     public ClientBuilder socketTimeOut(int socketTimeOut) {
         defaultRequestConfigBuilder.setSocketTimeout(socketTimeOut);
@@ -96,15 +129,36 @@ public class ClientBuilder {
     }
 
     /**
-     * @param connectionRequestTimeout see documentation of {@link RequestConfig.Builder#setConnectionRequestTimeout(int)}
-     * @return HttpRequestBuilder instance
+     * The timeout in milliseconds used when requesting a connection
+     * from the connection manager. A timeout value of zero is interpreted
+     * as an infinite timeout.
+     * <p>
+     * A timeout value of zero is interpreted as an infinite timeout.
+     * A negative value is interpreted as undefined (system default).
+     * </p>
+     * <p>
+     * Default: {@code 30000ms}
+     * </p>
+     * <p>
+     * Note: Can be overridden by {@linkplain #addDefaultRequestConfigCustomizer}
+     *
+     * @param connectionRequestTimeout The Connection Manager Timeout (http.connection-manager.timeout) –
+     *                                 the time to wait for a connection from the connection manager/pool.
+     *                                 By default 30000ms
+     * @return ClientBuilder instance
+     * @see RequestConfig.Builder#setConnectionRequestTimeout
+     * @see #addDefaultRequestConfigCustomizer
      */
     public ClientBuilder connectionRequestTimeout(int connectionRequestTimeout) {
         defaultRequestConfigBuilder.setConnectionRequestTimeout(connectionRequestTimeout);
         return this;
     }
 
-    public ClientBuilder addRequestConfigCustomizer(Consumer<RequestConfig.Builder> defaultRequestConfigBuilderConsumer) {
+    /**
+     * @param defaultRequestConfigBuilderConsumer the consumer instance which provides {@link RequestConfig.Builder} to customize default request config
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder addDefaultRequestConfigCustomizer(Consumer<RequestConfig.Builder> defaultRequestConfigBuilderConsumer) {
         if (defaultRequestConfigBuilderCustomizers == null) {
             defaultRequestConfigBuilderCustomizers = new LinkedHashSet<>();
         }
@@ -117,7 +171,7 @@ public class ClientBuilder {
      * the {@link CloseableHttpClient} before the http-request is built
      *
      * @param httpClientCustomizer consumer instance
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder addHttpClientCustomizer(Consumer<HttpClientBuilder> httpClientCustomizer) {
         if (httpClientBuilderCustomizers == null) {
@@ -129,7 +183,7 @@ public class ClientBuilder {
 
     /**
      * @param maxPoolSize see documentation of {@link HostPoolConfig#maxPoolSize(int)}
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder maxPoolSize(int maxPoolSize) {
         this.hostPoolConfig.maxPoolSize(maxPoolSize);
@@ -138,13 +192,20 @@ public class ClientBuilder {
 
     /**
      * @param defaultMaxPoolSizePerRoute see documentation of {@link HostPoolConfig#setMaxPoolSizePerRoute(int)}
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
         this.hostPoolConfig.setMaxPoolSizePerRoute(defaultMaxPoolSizePerRoute);
         return this;
     }
 
+    /**
+     * Set the connection pool default max size of concurrent connections to a specific route
+     *
+     * @param httpHost         httpHost
+     * @param maxRoutePoolSize maxRoutePoolSize
+     * @return ClientBuilder instance
+     */
     public ClientBuilder setMaxPoolSizePerRoute(HttpHost httpHost, int maxRoutePoolSize) {
         hostPoolConfig.setMaxPoolSizePerRoute(httpHost, maxRoutePoolSize);
         return this;
@@ -159,7 +220,7 @@ public class ClientBuilder {
      * since this might change the conditions under which the request was issued.
      * <p>By default disabled.
      *
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      * @see LaxRedirectStrategy
      */
 
@@ -177,7 +238,7 @@ public class ClientBuilder {
      * since this might change the conditions under which the request was issued.
      * <p>By default disabled.
      *
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      * @see DefaultRedirectStrategy
      */
     public ClientBuilder enableDefaultRedirectStrategy() {
@@ -189,7 +250,7 @@ public class ClientBuilder {
      * <p>By default disabled.
      *
      * @param redirectStrategy RedirectStrategy instance
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      * @see RedirectStrategy
      */
     public ClientBuilder redirectStrategy(RedirectStrategy redirectStrategy) {
@@ -198,11 +259,11 @@ public class ClientBuilder {
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Header needs to be the same for all requests which go through the built CloseableHttpClient
      *
      * @param name  name of header. Can't be null
      * @param value value of header
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     ClientBuilder addDefaultHeader(String name, String value) {
         ArgsCheck.notNull(name, "name");
@@ -211,12 +272,14 @@ public class ClientBuilder {
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Header needs to be the same for all requests which go through the built CloseableHttpClient
      *
-     * @param header header instance
-     * @return HttpRequestBuilder instance
+     * @param header header instance. Can't be null
+     * @return ClientBuilder instance
      */
     ClientBuilder addDefaultHeader(Header header) {
+        ArgsCheck.notNull(header, "header");
+
         if (defaultHeaders == null) {
             defaultHeaders = new ArrayList<>();
         }
@@ -225,23 +288,26 @@ public class ClientBuilder {
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Headers need to be the same for all requests which go through the built CloseableHttpClient
      *
-     * @param headers varargs of headers
-     * @return HttpRequestBuilder instance
+     * @param headers varargs of headers. Can't be null
+     * @return ClientBuilder instance
      */
     ClientBuilder addDefaultHeaders(Header... headers) {
+        ArgsCheck.notNull(headers, "headers");
         Arrays.stream(headers).forEach(this::addDefaultHeader);
         return this;
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Headers need to be the same for all requests which go through the built CloseableHttpClient
      *
      * @param headers collections of headers
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     ClientBuilder addDefaultHeaders(Collection<? extends Header> headers) {
+        ArgsCheck.notNull(headers, "headers");
+
         headers.forEach(this::addDefaultHeader);
         return this;
     }
@@ -250,7 +316,7 @@ public class ClientBuilder {
      * Sets content type to header
      *
      * @param contentType content type of request header
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     ClientBuilder addContentType(ContentType contentType) {
         addDefaultHeader(CONTENT_TYPE, contentType.toString());
@@ -262,7 +328,7 @@ public class ClientBuilder {
      * If has proxy instance method {@link ClientBuilder#useDefaultProxy()} will be ignored
      *
      * @param proxy {@link HttpHost} instance to proxy
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder proxy(HttpHost proxy) {
         this.proxy = proxy;
@@ -274,7 +340,7 @@ public class ClientBuilder {
      * If has proxy instance method {@link ClientBuilder#useDefaultProxy()} will be ignored.
      *
      * @param proxyUri {@link URI} instance to proxy
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder proxy(URI proxyUri) {
         return proxy(new HttpHost(proxyUri.getHost(), proxyUri.getPort(), proxyUri.getScheme()));
@@ -283,7 +349,7 @@ public class ClientBuilder {
     /**
      * @param host host of proxy
      * @param port port of proxy
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder proxy(String host, int port) {
         return proxy(new HttpHost(host, port));
@@ -293,7 +359,7 @@ public class ClientBuilder {
     /**
      * Instruct HttpClient to use the standard JRE proxy selector to obtain proxy.
      *
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder useDefaultProxy() {
         useDefaultProxy = true;
@@ -305,7 +371,7 @@ public class ClientBuilder {
      * Sets {@link SSLContext}
      *
      * @param sslContext SSLContext instance
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder sslContext(SSLContext sslContext) {
         this.sslContext = sslContext;
@@ -316,7 +382,7 @@ public class ClientBuilder {
      * Sets {@link HostnameVerifier}
      *
      * @param hostnameVerifier HostnameVerifier instance
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder hostnameVerifier(HostnameVerifier hostnameVerifier) {
         this.hostnameVerifier = hostnameVerifier;
@@ -326,7 +392,7 @@ public class ClientBuilder {
     /**
      * Accept all certificates
      *
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      * @throws HttpRequestBuildException when can't build ssl.
      */
     public ClientBuilder trustAllCertificates() {
@@ -342,7 +408,7 @@ public class ClientBuilder {
     /**
      * Accept all hosts
      *
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder trustAllHosts() {
         hostnameVerifier = NoopHostnameVerifier.INSTANCE;
@@ -354,7 +420,7 @@ public class ClientBuilder {
      *
      * @param username username
      * @param password password
-     * @return HttpRequestBuilder instance
+     * @return ClientBuilder instance
      */
     public ClientBuilder basicAuth(String username, String password) {
         String auth = username + ":" + password;
@@ -364,9 +430,9 @@ public class ClientBuilder {
     }
 
     /**
-     * Build Http request
+     * Build CloseableHttpClient
      *
-     * @return {@link HttpRequest} instance by build parameters
+     * @return {@link CloseableHttpClient} instance by build parameters
      */
     public CloseableHttpClient build() {
         if (defaultRequestConfigBuilderCustomizers != null) {

@@ -20,6 +20,7 @@ package com.jsunsoft.http;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.*;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -55,7 +56,7 @@ class BasicWebTarget implements WebTarget {
         this.uriBuilder = uriBuilder;
     }
 
-    public BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters) {
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters) {
         this.closeableHttpClient = closeableHttpClient;
         this.uriBuilder = uriBuilder;
         defaultHeaders.forEach(httpUriRequestBuilder::addHeader);
@@ -64,12 +65,16 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public WebTarget path(String path) {
+        ArgsCheck.notNull(path, "path");
+
         uriBuilder.setPath(path);
         return this;
     }
 
     @Override
     public Response request(HttpMethod method, HttpEntity httpEntity) {
+        ArgsCheck.notNull(method, "method");
+
         httpUriRequestBuilder.setEntity(httpEntity);
         return request(method);
     }
@@ -82,22 +87,33 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public <T> ResponseHandler<T> request(HttpMethod method, HttpEntity httpEntity, TypeReference<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(responseType, "responseType");
+
         httpUriRequestBuilder.setEntity(httpEntity);
         return request(method, responseType.getType());
     }
 
     @Override
     public <T> ResponseHandler<T> request(HttpMethod method, Class<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(responseType, "responseType");
+
         return request(method, (Type) responseType);
     }
 
     @Override
     public <T> ResponseHandler<T> request(HttpMethod method, TypeReference<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(responseType, "responseType");
+
         return request(method, responseType.getType());
     }
 
     @Override
     public Response request(HttpMethod method) {
+        ArgsCheck.notNull(method, "method");
+
         HttpUriRequest request = resolveRequest(method);
         try {
             return new BasicResponse(closeableHttpClient.execute(request), request.getURI());
@@ -115,6 +131,9 @@ class BasicWebTarget implements WebTarget {
         } catch (HttpHostConnectException e) {
             LOGGER.debug("Server on uri: [" + request.getURI() + "] is down. Status code: " + SC_SERVICE_UNAVAILABLE, e);
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server is down. " + e, request.getURI(), e);
+        } catch (ClientProtocolException e) {
+            LOGGER.debug("URI: [" + request.getURI() + "]", e);
+            throw new RequestException(e.getMessage(), e);
         } catch (IOException e) {
             LOGGER.debug("Connection was aborted for request on uri: [" + request.getURI() + "]. Status code: " + SC_SERVICE_UNAVAILABLE, e);
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection was aborted. " + e, request.getURI(), e);
@@ -218,12 +237,16 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public WebTarget removeHeader(Header header) {
+        ArgsCheck.notNull(header, "method");
+
         httpUriRequestBuilder.removeHeader(header);
         return this;
     }
 
     @Override
     public WebTarget removeHeaders(String name) {
+        ArgsCheck.notNull(name, "name");
+
         httpUriRequestBuilder.removeHeaders(name);
 
         return this;
@@ -231,18 +254,17 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public WebTarget updateHeader(Header header) {
+        ArgsCheck.notNull(header, "header");
+
         httpUriRequestBuilder.setHeader(header);
         return this;
     }
 
-    /**
-     * Header needs to be the same for all requests
-     *
-     * @param header header instance
-     * @return HttpRequestBuilder instance
-     */
+
     @Override
     public WebTarget addHeader(Header header) {
+        ArgsCheck.notNull(header, "header");
+
         httpUriRequestBuilder.addHeader(header);
         return this;
     }
@@ -255,6 +277,8 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public WebTarget addParameter(NameValuePair nameValuePair) {
+        ArgsCheck.notNull(nameValuePair, "nameValuePair");
+
         httpUriRequestBuilder.addParameter(nameValuePair);
         return this;
     }

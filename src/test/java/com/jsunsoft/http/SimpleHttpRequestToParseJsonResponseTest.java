@@ -17,6 +17,7 @@
 package com.jsunsoft.http;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,7 +69,10 @@ public class SimpleHttpRequestToParseJsonResponseTest {
             "  ]\n" +
             "}";
 
-    private static final HttpRequest HTTP_REQUEST = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
+    private static final CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
+
+    private static final HttpRequest HTTP_REQUEST = HttpRequestBuilder.create(closeableHttpClient)
+            .build();
 
     @Test
     public void test() {
@@ -81,13 +85,14 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                 )
         );
 
-        HTTP_REQUEST.target("http://localhost:8080/get").get(ResponseData.class).ifHasContent(responseData -> {
-            Optional<User> foundedUser = responseData.getUsers()
-                    .stream()
-                    .filter(user -> "Test1".equals(user.getUserName()))
-                    .findFirst();
-            foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
-        });
+        HTTP_REQUEST.target("http://localhost:8080/get").get(ResponseData.class)
+                .ifHasContent(responseData -> {
+                    Optional<User> foundedUser = responseData.getUsers()
+                            .stream()
+                            .filter(user -> "Test1".equals(user.getUserName()))
+                            .findFirst();
+                    foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+                });
     }
 
     static class ResponseData {

@@ -28,6 +28,11 @@ import java.util.*;
 
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 
+/**
+ * Http request builder
+ *
+ * @see HttpRequest
+ */
 public class HttpRequestBuilder {
     private final CloseableHttpClient closeableHttpClient;
 
@@ -35,7 +40,7 @@ public class HttpRequestBuilder {
     private Collection<Header> defaultHeaders;
 
     private HttpRequestBuilder(CloseableHttpClient closeableHttpClient) {
-        this.closeableHttpClient = closeableHttpClient;
+        this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
     }
 
     public static HttpRequestBuilder create(CloseableHttpClient closeableHttpClient) {
@@ -43,7 +48,7 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Header needs to be the same for all requests which go through the built HttpRequest
      *
      * @param name  name of header. Can't be null
      * @param value value of header
@@ -55,12 +60,14 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Header needs to be the same for all requests which go through the built HttpRequest
      *
-     * @param header header instance
+     * @param header header instance. Can't be null
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultHeader(Header header) {
+        ArgsCheck.notNull(header, "header");
+
         if (defaultHeaders == null) {
             defaultHeaders = new ArrayList<>();
         }
@@ -69,23 +76,27 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Headers need to be the same for all requests which go through the built HttpRequest
      *
      * @param headers varargs of headers
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultHeaders(Header... headers) {
+        ArgsCheck.notNull(headers, "headers");
+
         Arrays.stream(headers).forEach(this::addDefaultHeader);
         return this;
     }
 
     /**
-     * Header needs to be the same for all requests
+     * Headers need to be the same for all requests which go through the built HttpRequest
      *
      * @param headers collections of headers
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultHeaders(Collection<? extends Header> headers) {
+        ArgsCheck.notNull(headers, "headers");
+
         headers.forEach(this::addDefaultHeader);
         return this;
     }
@@ -101,7 +112,7 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Parameter needs to be add  for all requests.
+     * Parameter needs to be add  for all requests which go through the built HttpRequest
      *
      * @param name  key
      * @param value value
@@ -113,7 +124,7 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Parameters needs to be add  for all requests.
+     * Parameters need to be add  for all requests which go through the built HttpRequest
      *
      * @param nameValues nameValues
      * @return HttpRequestBuilder instance
@@ -128,7 +139,7 @@ public class HttpRequestBuilder {
 
 
     /**
-     * Parameters needs to be add  for all requests.
+     * Parameter needs to be add  for all requests which go through the built HttpRequest
      *
      * @param nameValuePair nameValuePair
      * @return HttpRequestBuilder instance
@@ -144,7 +155,7 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Parameters needs to be add  for all requests.
+     * Parameters needs to be add  for all requests which go through the built HttpRequest
      *
      * @param defaultParameters defaultParameters
      * @return HttpRequestBuilder instance
@@ -160,7 +171,7 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Parameters needs to be add  for all requests.
+     * Parameters needs to be add  for all requests which go through the built HttpRequest
      *
      * @param defaultRequestParameters defaultRequestParameters
      * @return HttpRequestBuilder instance
@@ -176,6 +187,11 @@ public class HttpRequestBuilder {
         return this;
     }
 
+    /**
+     * Build the HttpRequest instance
+     *
+     * @return HttpRequest instance
+     */
     public HttpRequest build() {
         if (defaultHeaders == null) {
             defaultHeaders = Collections.emptyList();

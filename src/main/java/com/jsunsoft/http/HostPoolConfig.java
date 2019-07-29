@@ -51,6 +51,13 @@ class HostPoolConfig {
         return this;
     }
 
+    /**
+     * Set the connection pool default max size of concurrent connections to a specific route.
+     *
+     * @param httpHost         httpHost
+     * @param maxRoutePoolSize maxRoutePoolSize
+     * @return HostPoolConfig
+     */
     public HostPoolConfig setMaxPoolSizePerRoute(HttpHost httpHost, int maxRoutePoolSize) {
         httpHostToMaxRoutePoolSize.put(httpHost, maxRoutePoolSize);
         return this;
