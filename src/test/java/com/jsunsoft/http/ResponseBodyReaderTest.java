@@ -36,7 +36,7 @@ import java.util.List;
 
 import static com.jsunsoft.http.BasicDateDeserializeContext.DEFAULT;
 
-public class ResponseDeserializerTest {
+public class ResponseBodyReaderTest {
     private ResponseBodyReaderContext responseContext;
 
     @Before
@@ -69,8 +69,8 @@ public class ResponseDeserializerTest {
 
     @Test
     public void testDeserializeResponse() throws IOException {
-        ResponseDeserializer<Result> responseDeserializer = new DefaultResponseDeserializer<>(DEFAULT);
-        Result result = responseDeserializer.deserialize(responseContext);
+        ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(DEFAULT);
+        Result result = responseBodyReader.deserialize(responseContext);
         Assert.assertEquals(1L, result.value);
         Assert.assertEquals("Test message", result.message);
         Assert.assertNotNull(result.getRelations());

@@ -182,11 +182,11 @@ public class ClientBuilder {
     }
 
     /**
-     * @param maxPoolSize see documentation of {@link HostPoolConfig#maxPoolSize(int)}
+     * @param maxPoolSize see documentation of {@link HostPoolConfig#setMaxPoolSize(int)}
      * @return ClientBuilder instance
      */
-    public ClientBuilder maxPoolSize(int maxPoolSize) {
-        this.hostPoolConfig.maxPoolSize(maxPoolSize);
+    public ClientBuilder setMaxPoolSize(int maxPoolSize) {
+        this.hostPoolConfig.setMaxPoolSize(maxPoolSize);
         return this;
     }
 
@@ -469,7 +469,8 @@ public class ClientBuilder {
                 new PoolingHttpClientConnectionManager() : new PoolingHttpClientConnectionManager(socketFactoryRegistry);
 
 
-        connectionManager.setDefaultMaxPerRoute(hostPoolConfig.getMaxPoolSize());
+        connectionManager.setDefaultMaxPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute());
+
         hostPoolConfig.getHttpHostToMaxPoolSize().forEach((httpHost, maxPerRoute) -> {
             HttpRoute httpRoute = new HttpRoute(httpHost);
             connectionManager.setMaxPerRoute(httpRoute, maxPerRoute);

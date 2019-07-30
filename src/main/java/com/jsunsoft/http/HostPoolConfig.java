@@ -35,7 +35,7 @@ class HostPoolConfig {
      * @param maxPoolSize value
      * @return Builder instance
      */
-    public HostPoolConfig maxPoolSize(int maxPoolSize) {
+    public HostPoolConfig setMaxPoolSize(int maxPoolSize) {
         this.maxPoolSize = maxPoolSize;
         return this;
     }

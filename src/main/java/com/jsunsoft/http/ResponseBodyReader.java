@@ -24,7 +24,7 @@ import java.io.IOException;
  * @param <T> Type of deserialized instance
  */
 @FunctionalInterface
-public interface ResponseDeserializer<T> {
+public interface ResponseBodyReader<T> {
     /**
      * Method receives httpEntity of the response then deserialized to type {@code T}
      *
@@ -43,14 +43,5 @@ public interface ResponseDeserializer<T> {
      */
     default String deserializeFailure(ResponseBodyReaderContext bodyReaderContext) throws IOException {
         return bodyReaderContext.getContentAsString();
-    }
-
-    /**
-     * For ignore response deserialization you can use instance
-     *
-     * @return ResponseDeserializer instance
-     */
-    static ResponseDeserializer<String> toStringDeserializer() {
-        return ResponseBodyReaderContext::getContentAsString;
     }
 }

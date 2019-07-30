@@ -42,15 +42,15 @@ import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_
 import static org.apache.http.entity.ContentType.APPLICATION_JSON;
 import static org.apache.http.entity.ContentType.APPLICATION_XML;
 
-class DefaultResponseDeserializer<T> implements ResponseDeserializer<T> {
-    private static final Log LOGGER = LogFactory.getLog(DefaultResponseDeserializer.class);
+class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
+    private static final Log LOGGER = LogFactory.getLog(DefaultResponseBodyReader.class);
 
     private final ObjectMapper jsonSerializer;
     private final ObjectMapper xmlSerializer;
 
     private final DateDeserializeContext dateDeserializeContext;
 
-    DefaultResponseDeserializer(DateDeserializeContext dateDeserializeContext) {
+    DefaultResponseBodyReader(DateDeserializeContext dateDeserializeContext) {
         this.dateDeserializeContext = dateDeserializeContext;
         jsonSerializer = defaultInit(new ObjectMapper());
         xmlSerializer = defaultInit(new XmlMapper());

@@ -283,8 +283,20 @@ public interface WebTarget {
      */
     WebTarget setRequestConfig(final RequestConfig requestConfig);
 
+    /**
+     * Added parameter into request
+     *
+     * @param nameValuePair nameValuePair
+     * @return WebTarget instance
+     */
     WebTarget addParameter(final NameValuePair nameValuePair);
 
+    /**
+     * Add parameters into request
+     *
+     * @param parameters nameValuePairs
+     * @return WebTarget instance
+     */
     default WebTarget addParameters(final NameValuePair... parameters) {
         ArgsCheck.notNull(parameters, "parameters");
 
@@ -292,6 +304,20 @@ public interface WebTarget {
         return this;
     }
 
+    /**
+     * Add parameters from queryString.
+     * <p>
+     * For example: queryString = "param1=param1&param2=param2" is the same as call
+     * <pre>{@code
+     *     addParameter(param1, param1).addParameter(param2, param2);
+     * }</pre>
+     * </p>
+     * Default charset is "UTF-8".
+     *
+     * @param queryString queryString
+     * @param charset     charset
+     * @return WebTarget instance
+     */
     default WebTarget addParameters(final String queryString, final Charset charset) {
         ArgsCheck.notNull(queryString, "queryString");
         ArgsCheck.notNull(charset, "charset");
@@ -299,10 +325,32 @@ public interface WebTarget {
         return addParameters(URLEncodedUtils.parse(queryString, charset));
     }
 
+    /**
+     * Add parameters from queryString.
+     * <p>
+     * For example: queryString = "param1=param1&param2=param2" is the same as call
+     * <pre>{@code
+     *     addParameter(param1, param1).addParameter(param2, param2);
+     * }</pre>
+     * </p>
+     * Default charset is "UTF-8".
+     *
+     * @param queryString queryString
+     * @return WebTarget instance
+     */
     default WebTarget addParameters(final String queryString) {
         return addParameters(queryString, UTF_8);
     }
 
+    /**
+     * Add parameters into request as [nameValues[0]: nameValues[1], nameValues[2]: nameValues[3], ... e.t.c.] <br> So
+     * name1 = nameValues[0], value1 = nameValues[1]; name2 = nameValues[1], value2 = nameValues[2] ... e.t.c.
+     *
+     * @param nameValues array of nameValue
+     * @return WebTarget instance
+     * @throws IllegalArgumentException When length of parameter nameValues is odd or ZERO.
+     * @throws NullPointerException     when param nameValues is null
+     */
     default WebTarget addParameters(final String... nameValues) {
         int nameValuesLength = ArgsCheck.notNull(nameValues, "nameValues").length;
         Args.check(nameValuesLength != 0, "Length of parameter can't be ZERO");
@@ -317,6 +365,12 @@ public interface WebTarget {
         return this;
     }
 
+    /**
+     * Add parameters into request
+     *
+     * @param parameters nameValuePairs
+     * @return WebTarget instance
+     */
     default WebTarget addParameters(final Collection<? extends NameValuePair> parameters) {
         ArgsCheck.notNull(parameters, "parameters");
 
@@ -324,6 +378,12 @@ public interface WebTarget {
         return this;
     }
 
+    /**
+     * Add parameters into request key as request parameter name Value as request parameter value
+     *
+     * @param parameters parameters
+     * @return WebTarget instance
+     */
     default WebTarget addParameters(final Map<String, String> parameters) {
         ArgsCheck.notNull(parameters, "parameters");
 
@@ -333,6 +393,13 @@ public interface WebTarget {
         return this;
     }
 
+    /**
+     * Add parameter into request name as request parameter name value as request parameter value
+     *
+     * @param name  request parameter name
+     * @param value request parameter value
+     * @return WebTarget instance
+     */
     default WebTarget addParameter(final String name, final String value) {
         ArgsCheck.notNull(name, "name");
 

@@ -6,14 +6,14 @@ Main purpose of the **http-request**, create simple rest client quickly, manage 
 
 **http-request** Features: 
 Building your HttpRequest requires no more than 5 minutes. <br/>
-Used builder pattern to create HttpRequest. <br/>
-HttpRequest is designed as one instance to one URI. <br/>
+Used builder pattern to create HttpClient, HttpRequest. <br/>
+HttpRequest wraps HttpClient inside and provide handy functions to manage. <br/>
 HttpRequest is immutable (thread safe after build). <br/>
-There are overloaded methods of execute() for sending request. <br/>
+There are overloaded methods of request() for sending request. <br/>
 All exceptions are wrapped: <br/>
 If connection failure -> status code is a 503(SC_SERVICE_UNAVAILABLE),
 If deserialization  of response body is failed -> status code is a 502(SC_BAD_GATEWAY). <br/>
-After request ResponseHandler instance is provided to manipulate response data. <br/>
+After request can be provided the ResponseHandler instance to manipulate response data. <br/>
 Supported:
 * converting response to the type which you want. <br/>
 * ignore response body if you interested in only status code. <br/>
@@ -26,60 +26,99 @@ Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.ht
 
 **Note: HttpRequest objects are immutable and thread-safe, they should be reused after build the instance of HttpRequest.**
 
+### Client builder
+The `ClientBuilder` have been added to build `CloseableHttpClient` with some handy methods. You can also use the apache [HttpClientBuilder](https://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/org/apache/http/impl/client/HttpClientBuilder.html). <br/>
+If you build the `CloseableHttpClient` there are overridden values:
+* SocketTimeout: 30000ms 
+* ConnectTimeout: 5000ms
+* ConnectionRequestTimeout: 30000ms
+* ConnectionRequestTimeout: 30000ms
+* connectionManager#setDefaultMaxPerRoute:  128 
+* connectionManager#setMaxTotal: 128 
+
+Can be changed through Client builder. See the API documentation `ClientBuilder`
+
+#####Note: the httpClientInstance of `CloseableHttpClient` must't be shared over HttpRequests. It is strong advice don't create `CloseableHttpClient` instance for any request.
+#####Example:
+```java
+CloseableHttpClient httpClient = ClientBuilder.create().setMaxPoolSize(256).build;
+```
 ### How to use
 
 **Retrieve the Status Code from the Http Response**
-After sending the Http request – we get back an instance of com.jsunsoft.http.ResponseHandler – <br/>
+
+After sending the Http request – we get back an instance of com.jsunsoft.http.Response – <br/>
 which allows us to access the status line of the response, and implicitly the Status Code:
 ```java
-HttpRequest<?> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/").build();
-ResponseHandler responseHandler = httpRequest.execute();
-int statusCode = responseHandler.getStatusCode();
+class Demo{
+    private final HttpRequest httpRequest = HttpRequestBuilder.create(httpClient).build();
+    
+    void request(){
+        Response response = httpRequest.target("https://www.jsunsoft.com/").get();
+        int statusCode = response.getStatusCode();
+    }
+}
 ```
-
-**Building HttpRequest by default options**
-
-```java
-HttpRequest<SomeTypeToConvertResponseBody> httpRequest = HttpRequestBuilder.createGet(uriString,  SomeTypeToConvertResponseBody.class).build();
-```
-If you want to ignore the convert of response body, you must build it so:
-```java
-HttpRequest<?> httpRequest = HttpRequestBuilder.createGet(uri).build();
-```
-If you want to convert response body to Generic class (example List<T>) by some type you must build it so:
-
-```java
-HttpRequest<List<SomeType>> httpRequest = HttpRequestBuilder.createGet(uri,  new TypeReference<List<SomeType>>(){}).build();
-ResponseHandler<List<SomeType>> responseHandler = httpRequest.execute();
-
-List<SomeType> someTypes = responseHandler.get(); //see javadoc of get method
-or
-List<SomeType> someTypes = responseHandler.orElse(Collections.emptyList());
-```
-
-If you want to convert response body with custom way you must add custom deserializer:
-
-HttpRequest<SomeTypeToConvertResponseBody> httpRequest = 
-              HttpRequestBuilder.createGet(uriString,  SomeTypeToConvertResponseBody.class)
-              .responseDeserializer(responseContext -> //deserialize yourself)
-              .build(); //See the javadoc of methods of `ResponseContext`
 
 **Perform simple http request**
-Perform request and get the body of the response as String
+
+Convert response body to Java class by some type you must build it so:
 
 ```java
-HttpRequest<String> httpRequest = HttpRequestBuilder.create(someHttpMethod, "https://www.jsunsoft.com/", String.class)
-                                                .responseDeserializer(ResponseDeserializer.toStringDeserializer()).build();
-String responseBody = httpRequest.execute().get(); // see javadoc of get method
+ResponseHandler<SomeType> rh = httpRequest.target(uri).path(path).request(HttpMethod.GET, SomeType.class);
+SomeType someType = rh.get(); //see javadoc of get method
+//or
+SomeType someType = rh.orElseThrow(); //throws UnexpectedStatusCodeException If response code is not success
 ```
-**Perform simple http get request**
+
+Convert response body to Generic class (example List<T>) by some type you must build it so:
 ```java
-HttpRequest<String> httpRequest = HttpRequestBuilder.createGet("https://www.jsunsoft.com/", String.class)
-                                                .responseDeserializer(ResponseDeserializer.toStringDeserializer()).build();
-String responseBody = httpRequest.execute(requestParameters).get(); // see documentation of get method
-or
-String responseBody = httpRequest.executeWithQuery(queryString).get(); // //queryString example "param1=param1&param2=param2"
+ResponseHandler<SomeType> rh = httpRequest.target(uri).path(path).request(HttpMethod.POST,  new TypeReference<List<SomeType>>(){});
+List<SomeType> someTypes = rh.get(); //see javadoc of get method
+//or
+List<SomeType> someTypes = rh.orElse(Collections.emptyList()); //returns defaultValue value to return if content isn't present
 ```
+
+######You can use overridden methods instead of method `request()` 
+Do the same as above example.
+```java
+ResponseHandler<SomeType> rh = httpRequest.target(uri).path(path).get(SomeType.class);
+SomeType someType = rh.get(); 
+```
+
+**Perform http request read response as String**
+
+```java
+ResponseHandler<String> rh = httpRequest.target(uri).path(path).post(String.class);
+String response = rh.get(); 
+```
+
+**Perform http get request with parameters**
+```java
+ResponseHandler<SomeType> rh = httpRequest.target(uri)
+                     .path(path)
+                     .addParameter(name, value)
+                     .addParameter(new NameValuePair(name, value))
+                     .addParameters(queryString) //queryString example "param1=param1&param2=param2"
+                     .get(HttpMethod.GET, SomeType.class);
+
+int statusCode = rh.getStatusCode();
+SomeType someType = rh.get();
+//or
+SomeType someType = rh.orElseThrow(); 
+```
+
+Get the `CloseableHttpResponse` and do manipulation yourself:
+
+```java
+CloseableHttpResponse response = httpRequest.target(uri)
+                                     .path(path)
+                                     .addParameter(name, value)
+                                     .addParameter(new NameValuePair(name, value))
+                                     .addParameters(queryString) //queryString example "param1=param1&param2=param2"
+                                     .get(HttpMethod.GET);
+```
+
 
 **Perform simple http post request**
 ```java
