@@ -430,6 +430,13 @@ public interface WebTarget {
         return request(HttpMethod.PUT, payload);
     }
 
+    default <T> ResponseHandler<T> put(Class<T> responseType) {
+        return request(HttpMethod.PUT, responseType);
+    }
+
+    default <T> ResponseHandler<T> put(TypeReference<T> responseType) {
+        return request(HttpMethod.PUT, responseType);
+    }
 
     default Response post() {
         return request(HttpMethod.POST);
@@ -461,6 +468,14 @@ public interface WebTarget {
 
     default Response post(final String payload) {
         return request(HttpMethod.POST, payload);
+    }
+
+    default <T> ResponseHandler<T> post(Class<T> responseType) {
+        return request(HttpMethod.POST, responseType);
+    }
+
+    default <T> ResponseHandler<T> post(TypeReference<T> responseType) {
+        return request(HttpMethod.POST, responseType);
     }
 
     default Response head() {
@@ -495,6 +510,13 @@ public interface WebTarget {
         return request(HttpMethod.HEAD, payload);
     }
 
+    default <T> ResponseHandler<T> head(Class<T> responseType) {
+        return request(HttpMethod.HEAD, responseType);
+    }
+
+    default <T> ResponseHandler<T> head(TypeReference<T> responseType) {
+        return request(HttpMethod.HEAD, responseType);
+    }
 
     default Response delete() {
         return request(HttpMethod.DELETE);
@@ -528,6 +550,13 @@ public interface WebTarget {
         return request(HttpMethod.DELETE, payload);
     }
 
+    default <T> ResponseHandler<T> delete(Class<T> responseType) {
+        return request(HttpMethod.DELETE, responseType);
+    }
+
+    default <T> ResponseHandler<T> delete(TypeReference<T> responseType) {
+        return request(HttpMethod.DELETE, responseType);
+    }
 
     default Response options() {
         return request(HttpMethod.OPTIONS);
@@ -562,6 +591,13 @@ public interface WebTarget {
         return request(HttpMethod.OPTIONS, payload);
     }
 
+    default <T> ResponseHandler<T> options(Class<T> responseType) {
+        return request(HttpMethod.OPTIONS, responseType);
+    }
+
+    default <T> ResponseHandler<T> options(TypeReference<T> responseType) {
+        return request(HttpMethod.OPTIONS, responseType);
+    }
 
     default Response patch() {
         return request(HttpMethod.PATCH);
@@ -596,6 +632,13 @@ public interface WebTarget {
         return request(HttpMethod.PATCH, payload);
     }
 
+    default <T> ResponseHandler<T> patch(Class<T> responseType) {
+        return request(HttpMethod.PATCH, responseType);
+    }
+
+    default <T> ResponseHandler<T> patch(TypeReference<T> responseType) {
+        return request(HttpMethod.PATCH, responseType);
+    }
 
     default Response trace() {
         return request(HttpMethod.TRACE);
@@ -629,4 +672,11 @@ public interface WebTarget {
         return request(HttpMethod.TRACE, payload);
     }
 
+    default <T> ResponseHandler<T> trace(Class<T> responseType) {
+        return request(HttpMethod.TRACE, responseType);
+    }
+
+    default <T> ResponseHandler<T> trace(TypeReference<T> responseType) {
+        return request(HttpMethod.TRACE, responseType);
+    }
 }
