@@ -34,7 +34,7 @@ import java.util.function.Supplier;
  * @param <T> Type of deserialized content from response
  */
 
-public final class BasicResponseHandler<T> implements ResponseHandler<T> {
+final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     private final int statusCode;
     private final T content;

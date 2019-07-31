@@ -16,7 +16,7 @@
 
 package com.jsunsoft.http;
 
-public class BasicDateDeserializeContext implements DateDeserializeContext {
+class BasicDateDeserializeContext implements DateDeserializeContext {
     static final DateDeserializeContext DEFAULT = new BasicDateDeserializeContext("dd/MM/yyyy", "HH:mm:ss", "dd/MM/yyyy HH:mm:ss");
 
     private final String datePattern;
