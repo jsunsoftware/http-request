@@ -11,3 +11,8 @@ Added method `addHttpClientCustomizer` into `HttpRequestBuilder`
 ### 1.0.2
 Removed `inputStreamDeserializer` from `ResponseDeserializer`. **Reason:** Response should be deserialized by `ResponseDeserializer`  
 Renamed `ignorableDeserializer` of `ResponseDeserializer` to `toStringDeserializer`
+
+### 2.0.0
+Due to the fact that old implementation was designed only for one predefined `URI` and wasn't much flexible 
+the 2.x.x version don't have back compatibility with version 1.x.x.
+The 1.x.x versions will be supported in branch `old_support`.
