@@ -46,7 +46,7 @@ class HostPoolConfig {
      * @param defaultMaxPoolSizePerRoute value
      * @return Builder instance
      */
-    public HostPoolConfig setMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
+    public HostPoolConfig setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
         this.defaultMaxPoolSizePerRoute = defaultMaxPoolSizePerRoute;
         return this;
     }

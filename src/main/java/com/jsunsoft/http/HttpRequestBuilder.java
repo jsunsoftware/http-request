@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.http.Header;
 import org.apache.http.NameValuePair;
 import org.apache.http.entity.ContentType;
@@ -26,6 +27,7 @@ import org.apache.http.util.Args;
 
 import java.util.*;
 
+import static org.apache.http.HttpHeaders.AUTHORIZATION;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 
 /**
@@ -185,6 +187,21 @@ public class HttpRequestBuilder {
         defaultRequestParameters.forEach(this::addDefaultRequestParameter);
 
         return this;
+    }
+
+
+    /**
+     * Basic Authentication - sending the Authorization header.
+     *
+     * @param username username
+     * @param password password
+     * @return ClientBuilder instance
+     */
+    public HttpRequestBuilder basicAuth(String username, String password) {
+        String auth = username + ":" + password;
+        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes());
+        String authHeader = "Basic " + new String(encodedAuth);
+        return addDefaultHeader(AUTHORIZATION, authHeader);
     }
 
     /**

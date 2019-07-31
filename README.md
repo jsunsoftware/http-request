@@ -24,7 +24,7 @@ Optimized performance. <br/>
 Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.http/http-request).
 
 
-**Note: HttpRequest objects are immutable and thread-safe, they should be reused after build the instance of HttpRequest.**
+**Note: HttpRequest objects are immutable and thread-safe, they can be reused after build the instance of HttpRequest.**
 
 ### Client builder
 The `ClientBuilder` have been added to build `CloseableHttpClient` with some handy methods. You can also use the apache [HttpClientBuilder](https://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/org/apache/http/impl/client/HttpClientBuilder.html). <br/>
@@ -39,9 +39,9 @@ If you build the `CloseableHttpClient` there are overridden values:
 Can be changed through Client builder. See the API documentation `ClientBuilder`
 
 #####Note: the httpClientInstance of `CloseableHttpClient` must't be shared over HttpRequests. It is strong advice don't create `CloseableHttpClient` instance for any request.
-#####Example:
+##### build httpClient Example:
 ```java
-CloseableHttpClient httpClient = ClientBuilder.create().setMaxPoolSize(256).build;
+CloseableHttpClient httpClient = ClientBuilder.create().setMaxPoolSize(256).build();
 ```
 ### How to use
 
@@ -108,49 +108,49 @@ SomeType someType = rh.get();
 SomeType someType = rh.orElseThrow(); 
 ```
 
-Get the `CloseableHttpResponse` and do manipulation yourself:
+Get the `Response` and do manipulation yourself:
 
 ```java
-CloseableHttpResponse response = httpRequest.target(uri)
+Response response = httpRequest.target(uri)
                                      .path(path)
                                      .addParameter(name, value)
                                      .addParameter(new NameValuePair(name, value))
                                      .addParameters(queryString) //queryString example "param1=param1&param2=param2"
-                                     .get(HttpMethod.GET);
+                                     .get();
 ```
+Note: The `Response` is implementation of `CloseableHttpResponse`
 
 
-**Perform simple http post request**
-```java
-HttpRequest<String> httpRequest = HttpRequestBuilder.createPost("https://www.jsunsoft.com/", String.class)
-                                                .responseDeserializer(ResponseDeserializer.toStringDeserializer()).build();
-String responseBody = httpRequest.execute(requestParameters).get(); // see javadoc of get method
-```
-
-**Build HttpRequest and  add HEADERS which should be send always.**
+**Build HttpRequest and add HEADERS which should be send always through httpRequest**
 ```java
 
-HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(someHeader).build();
-HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeaders(someHeaderCollection).build();
-HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeaders(someHeaderArray).build();
-HttpRequestBuilder.create(HttpMethod.PUT, "https://www.jsunsoft.com/").addDefaultHeader(headerName, headerValue).build();
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+                                .addDefaultHeader(someHeader)
+                                .addDefaultHeaders(someHeaderCollection)
+                                .addDefaultHeaders(someHeaderArray)
+                                .addDefaultHeader(headerName, headerValue)
+                                .build()
+
 ```
 **Configure connection pool**
-By default connection pool size of apache http client is 2. I changed the parameter to default value to 128. To set custom value you can:
+
+By default connection pool size of apache http client is 2. When httpClient is built by ClientBuilder the default value changed to 128. To set custom value you can:
 ```java
-HttpRequestBuilder.create(someHttpMethod, someUri).maxPoolPerRoute(someIntValue).build();
-or
-ConnectionConfig connectionConfigInstance = ConnectionConfig.create().maxPoolPerRoute(someIntValue);
-HttpRequestBuilder.create(someHttpMethod, someUri).connectionConfig(connectionConfigInstance).build();
+CloseableHttpClient httpClient = ClientBuilder.create()
+                                    .setMaxPoolSize(256)
+                                    .setDefaultMaxPoolSizePerRoute(200)
+                                    .setMaxPoolSizePerRoute(host, 56)
+                                    .build()
+
 ```
 
 **How to set proxy** <br/>
 
 ```java
-HttpRequest httpRequest = HttpRequestBuilder.create(someHttpMethod, someUri).proxy(host, port).build();
+CloseableHttpClient httpClient = ClientBuilder.create().proxy(host, port).build();
 ```
 
-**Timeouts**
+**Default request Timeouts**
 ```text
 socketTimeOut is 30000ms
 connectionRequestTimeout is 30000ms
@@ -161,11 +161,21 @@ or (http://www.baeldung.com/httpclient-timeout)
 
 To change default timeouts you can:
 ```java
-HttpRequestBuilder.create(someHttpMethod, someUri)
-                                .connectTimeout(intValue)
-                                .socketTimeOut(intValue)
-                                .connectionRequestTimeout(intValue).build();
+CloseableHttpClient httpClient = ClientBuilder.create()
+                                    .setConnectTimeout(intValue)
+                                    .setSocketTimeOut(intValue)
+                                    .setConnectionRequestTimeout(intValue)
+                                    .build();
 ```
+
+Timeouts can be overridden for each request:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient).build();
+
+httpRequest.target(uri).setRequestConfig(customReequestConfig).get();
+```
+ 
 
 **Following redirects**
 
@@ -173,44 +183,45 @@ By default redirecting are disabled.
 to enable you can:
 
 ```java
-HttpRequestBuilder.createGet(someUri).enableLaxRedirectStrategy().build();
+CloseableHttpClient httpClient = ClientBuilder.create().enableLaxRedirectStrategy().build();
 or
-HttpRequestBuilder.createGet(someUri).enableDefaultRedirectStrategy().build();
+CloseableHttpClient httpClient = ClientBuilder.create().enableDefaultRedirectStrategy().build();
 or set custom redirect strategy
-HttpRequestBuilder.createGet(someUri).setRedirectStrategy(yourRedirectStrategyInstance).build();
+CloseableHttpClient httpClient = ClientBuilder.create().setRedirectStrategy(yourRedirectStrategyInstance).build();
 ```
 **Ignore SSL certificate**
 
 ```java
-HttpRequest<?> httpRequest = HttpRequestBuilder.createGet("https://mms.nw.ru/")
+CloseableHttpClient httpClient = ClientBuilder.create()
             .trustAllCertificates()
             .trustAllHosts()
-            .addDefaultHeader("accept", "application/json")
             .build();
 
-int statusCode = httpRequest.execute().getStatusCode(); // 200
+int statusCode = httpRequest.target("https://mms.nw.ru/")
+                    .addHeader("accept", "application/json")
+                    .get().getStatusCode(); // 200
 ```
 
 **Basic Authentication**
 
 ```java
-HttpRequestBuilder.createGet(someUri)
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
             .basicAuth("username_admin", "secret_password").build();
 
-int statusCode = httpRequest.execute().getStatusCode(); //200
+int statusCode = httpRequest.get().getStatusCode(); //200
 ```
 
 **Customize CloseableHttpClient before the http-request is built**
 
 ```java
-HttpRequestBuilder.createGet(someUri)
+ClietBuilder.create()
                 .addHttpClientCustomizer(httpClientBuilder -> /* here you can customize your client*/)
                 .build();
 ```
 For example if you want to add the Keep-Alive:
 
 ```java
-HttpRequestBuilder.createGet(someUri)
+ClietBuilder.create()
                 .addHttpClientCustomizer(httpClientBuilder -> httpClientBuilder.setKeepAliveStrategy((response, context) -> {
                     //your code;
                 }))
@@ -230,14 +241,23 @@ public class Rest{
     private static final HttpRequest<List<String>> httpRequest =
      HttpRequestBuilder.createGet("https://www.jsunsoft.com/", new TypeReference<java.util.List<String>>() {})
      .addContentType(ContentType.APPLICATION_JSON).build();
+    
+    private static final HttpRequest httpRequest =
+         HttpRequestBuilder.create(ClientBuilder.create().build())
+         .addContentType(ContentType.APPLICATION_JSON)
+         .build();
      
      public void send(String jsonData){
-         httpRequest.executeWithBody(jsonData).ifSuccess(this::whenSuccess).otherwise(this::whenNotSuccess);
+         httpRequest.target("https://www.jsunsoft.com/").get(jsonData, new TypeReference<java.util.List<String>>() {})
+         .ifSuccess(this::whenSuccess) //call whenSuccess method if request is success
+         .otherwise(this::whenNotSuccess); //call whenNotSuccess method if request is success
      }
      
      private void whenSuccess(ResponseHandler<List<String>> responseHandler){
          //When predicate of filter returns true, calls whenHasContent else calls whenHasNotContent
-         responseHandler.filter(ResponseHandler::hasContent).ifPassed(this::whenHasContent).otherwise(this::whenHasNotContent);
+         responseHandler.filter(ResponseHandler::hasContent) //if request has content will be executed ifPassed consumer else otherwise consumer
+         .ifPassed(this::whenHasContent)  //call hasContent method if request body is present
+         .otherwise(this::whenHasNotContent);
      }
      
      private void whenNotSuccess(ResponseHandler<List<String>> responseHandler){
@@ -264,7 +284,7 @@ To use from maven add this snippet to the pom.xml `dependencies` section:
 <dependency>
   <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>1.0.4</version>
+  <version>2.0.0-SNAPSHOT</version>
 </dependency>
 ```
 

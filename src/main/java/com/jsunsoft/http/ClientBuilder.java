@@ -17,7 +17,6 @@ package com.jsunsoft.http;
  */
 
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.client.RedirectStrategy;
@@ -54,7 +53,6 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.function.Consumer;
 
-import static org.apache.http.HttpHeaders.AUTHORIZATION;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 
 /**
@@ -191,11 +189,11 @@ public class ClientBuilder {
     }
 
     /**
-     * @param defaultMaxPoolSizePerRoute see documentation of {@link HostPoolConfig#setMaxPoolSizePerRoute(int)}
+     * @param defaultMaxPoolSizePerRoute see documentation of {@link HostPoolConfig#setDefaultMaxPoolSizePerRoute(int)}
      * @return ClientBuilder instance
      */
     public ClientBuilder setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
-        this.hostPoolConfig.setMaxPoolSizePerRoute(defaultMaxPoolSizePerRoute);
+        this.hostPoolConfig.setDefaultMaxPoolSizePerRoute(defaultMaxPoolSizePerRoute);
         return this;
     }
 
@@ -413,20 +411,6 @@ public class ClientBuilder {
     public ClientBuilder trustAllHosts() {
         hostnameVerifier = NoopHostnameVerifier.INSTANCE;
         return this;
-    }
-
-    /**
-     * Basic Authentication - sending the Authorization header.
-     *
-     * @param username username
-     * @param password password
-     * @return ClientBuilder instance
-     */
-    public ClientBuilder basicAuth(String username, String password) {
-        String auth = username + ":" + password;
-        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes());
-        String authHeader = "Basic " + new String(encodedAuth);
-        return addDefaultHeader(AUTHORIZATION, authHeader);
     }
 
     /**
