@@ -297,6 +297,20 @@ public final class BasicResponseHandler<T> implements ResponseHandler<T> {
         return otherwiseSupportResult;
     }
 
+    /**
+     * If status code is success , invoke the specified consumer with the responseHandler.
+     *
+     * @param consumer block to be executed if status code is not success.
+     */
+    @Override
+    public void ifNotSuccess(Consumer<ResponseHandler<T>> consumer) {
+        ArgsCheck.notNull(consumer, "consumer");
+
+        if (!success) {
+            consumer.accept(this);
+        }
+    }
+
     public FilterSupport<T> filter(Predicate<ResponseHandler<T>> predicate) {
         return FilterSupport.create(this, predicate);
     }

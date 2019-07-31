@@ -20,16 +20,14 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.*;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.params.HttpParams;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.Locale;
 
-public class BasicResponse implements Response {
+class BasicResponse implements Response {
     private static final Log LOGGER = LogFactory.getLog(BasicResponse.class);
-
 
     private final CloseableHttpResponse closeableHttpResponse;
     private final URI uri;
@@ -362,13 +360,14 @@ public class BasicResponse implements Response {
 
     /**
      * Returns the parameters effective for this message as set by
-     * {@link #setParams(HttpParams)}.
+     * {@link #setParams(org.apache.http.params.HttpParams)}.
      *
      * @deprecated (4.3) use configuration classes provided 'org.apache.http.config'
      * and 'org.apache.http.client.config'
      */
     @Override
-    public HttpParams getParams() {
+    @Deprecated
+    public org.apache.http.params.HttpParams getParams() {
         return closeableHttpResponse.getParams();
     }
 
@@ -380,7 +379,12 @@ public class BasicResponse implements Response {
      * and 'org.apache.http.client.config'
      */
     @Override
-    public void setParams(HttpParams params) {
+    @Deprecated
+    public void setParams(org.apache.http.params.HttpParams params) {
         closeableHttpResponse.setParams(params);
+    }
+
+    public URI getUri() {
+        return uri;
     }
 }

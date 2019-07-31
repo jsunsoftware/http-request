@@ -178,5 +178,12 @@ public interface ResponseHandler<T> {
      */
     OtherwiseSupport<T> ifSuccess(Consumer<ResponseHandler<T>> consumer);
 
+    /**
+     * If status code is success , invoke the specified consumer with the responseHandler.
+     *
+     * @param consumer block to be executed if status code is not success.
+     */
+    void ifNotSuccess(Consumer<ResponseHandler<T>> consumer);
+
     FilterSupport<T> filter(Predicate<ResponseHandler<T>> predicate);
 }

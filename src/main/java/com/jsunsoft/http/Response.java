@@ -19,6 +19,8 @@ package com.jsunsoft.http;
 
 import org.apache.http.client.methods.CloseableHttpResponse;
 
+import java.net.URI;
+
 public interface Response extends CloseableHttpResponse {
 
     /**
@@ -27,5 +29,10 @@ public interface Response extends CloseableHttpResponse {
     default int getStatusCode() {
         return getStatusLine().getStatusCode();
     }
+
+    /**
+     * @return the request URI
+     */
+    URI getUri();
 
 }

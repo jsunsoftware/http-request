@@ -196,8 +196,8 @@ public interface WebTarget {
      * @param method       the http method.
      * @param payload      payload
      * @param responseType Java type the response entity will be converted to.
-     * @param <T>
-     * @return
+     * @param <T>          response entity type
+     * @return WebTarget instance
      */
     default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
         ArgsCheck.notNull(method, "method");
@@ -307,11 +307,10 @@ public interface WebTarget {
     /**
      * Add parameters from queryString.
      * <p>
-     * For example: queryString = "param1=param1&param2=param2" is the same as call
+     * For example: queryString = {@code "param1=param1&param2=param2" is the same as call}
      * <pre>{@code
      *     addParameter(param1, param1).addParameter(param2, param2);
      * }</pre>
-     * </p>
      * Default charset is "UTF-8".
      *
      * @param queryString queryString
@@ -328,11 +327,10 @@ public interface WebTarget {
     /**
      * Add parameters from queryString.
      * <p>
-     * For example: queryString = "param1=param1&param2=param2" is the same as call
+     * For example: queryString = {@code "param1=param1&param2=param2" is the same as call}
      * <pre>{@code
      *     addParameter(param1, param1).addParameter(param2, param2);
      * }</pre>
-     * </p>
      * Default charset is "UTF-8".
      *
      * @param queryString queryString
@@ -430,6 +428,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP GET method for the current request
      *
+     * @param httpEntity httpEntity
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, HttpEntity)
      */
