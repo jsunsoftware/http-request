@@ -31,8 +31,8 @@ public class HttpRequestProxyTest {
     private static final HttpRequest httpRequestToSimpleProxy = HttpRequestBuilder.create(ClientBuilder.create()
             .proxy(new HttpHost("localhost", 8090)).build()).build();
 
-    private static final HttpRequest httpRequestToProxyAuth = HttpRequestBuilder.create(ClientBuilder.create()
-            .basicAuth("username_admin", "secret_password").proxy("localhost", 8090).build()).build();
+    private static final HttpRequest httpRequestToProxyAuth = HttpRequestBuilder.create(ClientBuilder.create().proxy("localhost", 8090).build())
+            .basicAuth("username_admin", "secret_password").build();
 
     @Rule
     public WireMockRule serviceMock = new WireMockRule(8089);
