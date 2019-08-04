@@ -179,7 +179,7 @@ public interface ResponseHandler<T> {
     OtherwiseSupport<T> ifSuccess(Consumer<ResponseHandler<T>> consumer);
 
     /**
-     * If status code is success , invoke the specified consumer with the responseHandler.
+     * If status code is not success , invoke the specified consumer with the responseHandler.
      *
      * @param consumer block to be executed if status code is not success.
      */

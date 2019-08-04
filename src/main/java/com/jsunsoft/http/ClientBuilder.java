@@ -252,7 +252,7 @@ public class ClientBuilder {
      * @see RedirectStrategy
      */
     public ClientBuilder redirectStrategy(RedirectStrategy redirectStrategy) {
-        this.redirectStrategy = DefaultRedirectStrategy.INSTANCE;
+        this.redirectStrategy = redirectStrategy;
         return this;
     }
 
