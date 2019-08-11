@@ -6,7 +6,7 @@
 
     <groupId>com.jsunsoft.http</groupId>
     <artifactId>http-request</artifactId>
-    <version>2.0.0-alpha1</version>
+    <version>2.0.0-beta</version>
     <packaging>jar</packaging>
 
     <name>http-request</name>
@@ -152,7 +152,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.9.9.1</version>
+            <version>2.9.9.3</version>
         </dependency>
 
         <dependency>
