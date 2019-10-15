@@ -56,4 +56,35 @@ class BasicHttpRequest implements HttpRequest {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
     }
+
+    /**
+     * @param uri          web resource URI. Must not be {@code null}.
+     * @param retryContext retryContext. Must not be {@code null}.
+     * @return Target instance
+     * @throws NullPointerException in case the supplied argument is {@code null}.
+     */
+    @Override
+    public WebTarget retryableTarget(URI uri, RetryContext retryContext) {
+        ArgsCheck.notNull(uri, "uri");
+        ArgsCheck.notNull(retryContext, "retryContext");
+        return new RetryableWebTarget(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, retryContext);
+    }
+
+    /**
+     * @param uri          The string to be parsed into a URI
+     * @param retryContext retryContext. Must not be {@code null}.
+     * @return Target instance
+     * @throws NullPointerException     If {@code str} is {@code null}
+     * @throws IllegalArgumentException If the given string violates RFC&nbsp;2396
+     */
+    @Override
+    public WebTarget retryableTarget(String uri, RetryContext retryContext) {
+        ArgsCheck.notNull(uri, "uri");
+        ArgsCheck.notNull(retryContext, "retryContext");
+        try {
+            return new RetryableWebTarget(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, retryContext);
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
+    }
 }

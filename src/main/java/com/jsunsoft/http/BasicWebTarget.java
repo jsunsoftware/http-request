@@ -144,7 +144,7 @@ class BasicWebTarget implements WebTarget {
         return httpUriRequestBuilder.setMethod(method.name()).setUri(getURI()).build();
     }
 
-    private <T> ResponseHandler<T> request(HttpMethod method, Type type) {
+    <T> ResponseHandler<T> request(HttpMethod method, Type type) {
         CustomArgsCheck.checkIsCorrectTypeForDeserialization(type);
 
         long startTime = System.currentTimeMillis();
