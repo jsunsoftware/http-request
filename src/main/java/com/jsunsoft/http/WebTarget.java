@@ -157,6 +157,46 @@ public interface WebTarget {
     }
 
     /**
+     * Invoke an arbitrary method for the current request.
+     * <p>
+     * Mainly designed to use in case when response body aren't interested.
+     * </p>
+     * Any attempt to get content from {@code ResponseHandler} will be thrown exception
+     *
+     * @param method     the http method.
+     * @param httpEntity httpEntity
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
+    default ResponseHandler<?> rawRequest(final HttpMethod method, final HttpEntity httpEntity) {
+        return request(method, httpEntity, Void.class);
+    }
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     * <p>
+     * Mainly designed to use in case when response body aren't interested.
+     * </p>
+     * Any attempt to get content from {@code ResponseHandler} will be thrown exception
+     *
+     * @param method  the http method.
+     * @param payload payload
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
+    default ResponseHandler<?> rawRequest(final HttpMethod method, final String payload) {
+        return request(method, payload, Void.class);
+    }
+
+    /**
      * Removes the given header.
      *
      * @param header the header to remove
@@ -428,6 +468,26 @@ public interface WebTarget {
     /**
      * Invoke HTTP GET method for the current request
      *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, HttpEntity)
+     */
+    default ResponseHandler<?> rawGet(final HttpEntity httpEntity) {
+        return rawRequest(HttpMethod.GET, httpEntity);
+    }
+
+    /**
+     * Invoke HTTP GET method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, String)
+     */
+    default ResponseHandler<?> rawGet(final String payload) {
+        return rawRequest(HttpMethod.GET, payload);
+    }
+
+    /**
+     * Invoke HTTP GET method for the current request
+     *
      * @param httpEntity httpEntity
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, HttpEntity)
@@ -472,6 +532,26 @@ public interface WebTarget {
         return rawRequest(HttpMethod.PUT);
     }
 
+    /**
+     * Invoke HTTP PUT method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, HttpEntity)
+     */
+    default ResponseHandler<?> rawPut(final HttpEntity httpEntity) {
+        return rawRequest(HttpMethod.PUT, httpEntity);
+    }
+
+    /**
+     * Invoke HTTP PUT method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, String)
+     */
+    default ResponseHandler<?> rawPut(final String payload) {
+        return rawRequest(HttpMethod.PUT, payload);
+    }
+
     default Response put(final HttpEntity httpEntity) {
         return request(HttpMethod.PUT, httpEntity);
     }
@@ -510,6 +590,26 @@ public interface WebTarget {
 
     default ResponseHandler<?> rawPost() {
         return rawRequest(HttpMethod.POST);
+    }
+
+    /**
+     * Invoke HTTP POST method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, HttpEntity)
+     */
+    default ResponseHandler<?> rawPost(final HttpEntity httpEntity) {
+        return rawRequest(HttpMethod.POST, httpEntity);
+    }
+
+    /**
+     * Invoke HTTP POST method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, String)
+     */
+    default ResponseHandler<?> rawPost(final String payload) {
+        return rawRequest(HttpMethod.POST, payload);
     }
 
     default Response post(final HttpEntity httpEntity) {
@@ -552,6 +652,26 @@ public interface WebTarget {
         return rawRequest(HttpMethod.HEAD);
     }
 
+    /**
+     * Invoke HTTP HEAD method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, HttpEntity)
+     */
+    default ResponseHandler<?> rawHead(final HttpEntity httpEntity) {
+        return rawRequest(HttpMethod.HEAD, httpEntity);
+    }
+
+    /**
+     * Invoke HTTP HEAD method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, String)
+     */
+    default ResponseHandler<?> rawHead(final String payload) {
+        return rawRequest(HttpMethod.HEAD, payload);
+    }
+
     default Response head(final HttpEntity httpEntity) {
         return request(HttpMethod.HEAD, httpEntity);
     }
@@ -590,6 +710,26 @@ public interface WebTarget {
 
     default ResponseHandler<?> rawDelete() {
         return rawRequest(HttpMethod.DELETE);
+    }
+
+    /**
+     * Invoke HTTP DELETE method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, HttpEntity)
+     */
+    default ResponseHandler<?> rawDelete(final HttpEntity httpEntity) {
+        return rawRequest(HttpMethod.DELETE, httpEntity);
+    }
+
+    /**
+     * Invoke HTTP DELETE method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, String)
+     */
+    default ResponseHandler<?> rawDelete(final String payload) {
+        return rawRequest(HttpMethod.DELETE, payload);
     }
 
     default Response delete(final HttpEntity httpEntity) {
@@ -632,6 +772,25 @@ public interface WebTarget {
         return rawRequest(HttpMethod.OPTIONS);
     }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, HttpEntity)
+     */
+    default ResponseHandler<?> rawOptions(final HttpEntity httpEntity) {
+        return rawRequest(HttpMethod.OPTIONS, httpEntity);
+    }
+
+    /**
+     * Invoke HTTP OPTIONS method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, String)
+     */
+    default ResponseHandler<?> rawOptions(final String payload) {
+        return rawRequest(HttpMethod.OPTIONS, payload);
+    }
 
     default Response options(final HttpEntity httpEntity) {
         return request(HttpMethod.OPTIONS, httpEntity);
@@ -673,6 +832,25 @@ public interface WebTarget {
         return rawRequest(HttpMethod.PATCH);
     }
 
+    /**
+     * Invoke HTTP PATCH method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, HttpEntity)
+     */
+    default ResponseHandler<?> rawPatch(final HttpEntity httpEntity) {
+        return rawRequest(HttpMethod.PATCH, httpEntity);
+    }
+
+    /**
+     * Invoke HTTP PATCH method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, String)
+     */
+    default ResponseHandler<?> rawPatch(final String payload) {
+        return rawRequest(HttpMethod.PATCH, payload);
+    }
 
     default Response patch(final HttpEntity httpEntity) {
         return request(HttpMethod.PATCH, httpEntity);
