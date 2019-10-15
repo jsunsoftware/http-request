@@ -135,7 +135,7 @@ public interface ResponseHandler<T> {
     /**
      * @return Returns the connection URI
      */
-    URI getUri();
+    URI getURI();
 
     /**
      * Obtains the status line of this response.

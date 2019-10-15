@@ -229,7 +229,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @return Returns the connection URI
      */
-    public URI getUri() {
+    public URI getURI() {
         return uri;
     }
 

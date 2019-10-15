@@ -45,7 +45,7 @@ public class ResponseException extends RuntimeException {
         return statusCode;
     }
 
-    public URI getUri() {
+    public URI getURI() {
         return uri;
     }
 }

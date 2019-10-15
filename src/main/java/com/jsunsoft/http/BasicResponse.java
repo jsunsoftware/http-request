@@ -384,7 +384,7 @@ class BasicResponse implements Response {
         closeableHttpResponse.setParams(params);
     }
 
-    public URI getUri() {
+    public URI getURI() {
         return uri;
     }
 }

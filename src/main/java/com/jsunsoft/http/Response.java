@@ -33,6 +33,6 @@ public interface Response extends CloseableHttpResponse {
     /**
      * @return the request URI
      */
-    URI getUri();
+    URI getURI();
 
 }

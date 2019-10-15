@@ -22,7 +22,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.http.*;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ConnectTimeoutException;
@@ -39,7 +38,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 
-import static com.jsunsoft.http.BasicConnectionFailureType.*;
+import static com.jsunsoft.http.BasicConnectionFailureType.CONNECTION_POOL_IS_EMPTY;
+import static com.jsunsoft.http.BasicConnectionFailureType.IO;
 import static org.apache.http.HttpStatus.*;
 
 class BasicWebTarget implements WebTarget {
@@ -57,8 +57,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters) {
-        this.closeableHttpClient = closeableHttpClient;
-        this.uriBuilder = uriBuilder;
+        this(closeableHttpClient, uriBuilder);
         defaultHeaders.forEach(httpUriRequestBuilder::addHeader);
         defaultRequestParameters.forEach(httpUriRequestBuilder::addParameter);
     }
@@ -142,7 +141,7 @@ class BasicWebTarget implements WebTarget {
 
     private HttpUriRequest resolveRequest(HttpMethod method) {
 
-        return httpUriRequestBuilder.setMethod(method.name()).setUri(getUri()).build();
+        return httpUriRequestBuilder.setMethod(method.name()).setUri(getURI()).build();
     }
 
     private <T> ResponseHandler<T> request(HttpMethod method, Type type) {
@@ -150,11 +149,10 @@ class BasicWebTarget implements WebTarget {
 
         long startTime = System.currentTimeMillis();
 
-        HttpUriRequest request = httpUriRequestBuilder.setMethod(method.name()).setUri(getUri()).build();
         ResponseHandler<T> result;
         StatusLine statusLine;
 
-        try (CloseableHttpResponse response = closeableHttpClient.execute(request)) {
+        try (Response response = request(method)) {
             statusLine = response.getStatusLine();
             if (statusLine == null) {
                 throw new IllegalStateException("StatusLine is null.");
@@ -162,7 +160,7 @@ class BasicWebTarget implements WebTarget {
 
             int responseCode = statusLine.getStatusCode();
             HttpEntity httpEntity = response.getEntity();
-            LOGGER.info("Response code from uri: [" + request.getURI() + "] is " + responseCode);
+            LOGGER.info("Response code from uri: [" + response.getURI() + "] is " + responseCode);
 
             boolean hasBody = HttpRequestUtils.hasBody(responseCode);
 
@@ -170,18 +168,18 @@ class BasicWebTarget implements WebTarget {
             String failedMessage = null;
             if (hasBody && httpEntity == null) {
                 failedMessage = "Response entity is null";
-                LOGGER.debug(failedMessage + " .Uri: [" + request.getURI() + "]. Status code: " + responseCode);
+                LOGGER.debug(failedMessage + " .Uri: [" + response.getURI() + "]. Status code: " + responseCode);
                 responseCode = SC_BAD_GATEWAY;
             } else {
                 try {
                     if (!HttpRequestUtils.isVoidType(type) && hasBody && HttpRequestUtils.isSuccess(responseCode)) {
                         DefaultResponseBodyReader<T> responseDeserializer = new DefaultResponseBodyReader<>(BasicDateDeserializeContext.DEFAULT);
                         content = responseDeserializer.deserialize(new BasicResponseBodyReaderContext(response, type));
-                        LOGGER.trace("Result of Uri: [" + request.getURI() + "] is " + content);
+                        LOGGER.trace("Result of Uri: [" + response.getURI() + "] is " + content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
                         DefaultResponseBodyReader<T> responseDeserializer = new DefaultResponseBodyReader<>(BasicDateDeserializeContext.DEFAULT);
                         failedMessage = responseDeserializer.deserializeFailure(new BasicResponseBodyReaderContext(response, type));
-                        String logMsg = "Unexpected Response. Url: [" + request.getURI() + "] Status code: " + responseCode + ", Error message: " + failedMessage;
+                        String logMsg = "Unexpected Response. Url: [" + response.getURI() + "] Status code: " + responseCode + ", Error message: " + failedMessage;
                         if (responseCode == SC_BAD_REQUEST) {
                             LOGGER.warn(logMsg);
                         } else {
@@ -190,42 +188,33 @@ class BasicWebTarget implements WebTarget {
                     }
                 } catch (ResponseDeserializeException e) {
                     failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + type + "]." + e;
-                    LOGGER.debug(failedMessage + ". Uri: [" + request.getURI() + "]. Status code: " + responseCode, e);
+                    LOGGER.debug(failedMessage + ". Uri: [" + response.getURI() + "]. Status code: " + responseCode, e);
                     responseCode = SC_BAD_GATEWAY;
                 } catch (IOException e) {
                     failedMessage = "Get content from response failed: " + e;
-                    LOGGER.debug("Stream could not be created. Uri: [" + request.getURI() + "]. Status code: " + responseCode, e);
+                    LOGGER.debug("Stream could not be created. Uri: [" + response.getURI() + "]. Status code: " + responseCode, e);
                     responseCode = SC_SERVICE_UNAVAILABLE;
                 }
             }
             ContentType responseContentType = ContentType.get(httpEntity);
             EntityUtils.consumeQuietly(httpEntity);
-            result = new BasicResponseHandler<>(content, responseCode, failedMessage, type, responseContentType, request.getURI(), statusLine);
+            result = new BasicResponseHandler<>(content, responseCode, failedMessage, type, responseContentType, response.getURI(), statusLine);
 
-        } catch (ConnectionPoolTimeoutException e) {
-            result = new BasicResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "Connection pool is empty. " + e, type, null, request.getURI(), CONNECTION_POOL_IS_EMPTY);
-            LOGGER.debug("Connection pool is empty for request on uri: [" + request.getURI() + "]. Status code: " + result.getStatusCode(), e);
-        } catch (SocketTimeoutException | NoHttpResponseException e) {
-            //todo support retry when NoHttpResponseException
-            result = new BasicResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "Server is high loaded. " + e, type, null, request.getURI(), REMOTE_SERVER_HIGH_LOADED);
-            LOGGER.debug("Server on uri: [" + request.getURI() + "] is high loaded. Status code: " + result.getStatusCode(), e);
-        } catch (ConnectTimeoutException e) {
-            result = new BasicResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "HttpRequest is unable to establish a connection within the given period of time. " + e, type, null, request.getURI(), CONNECT_TIMEOUT_EXPIRED);
-            LOGGER.debug("HttpRequest is unable to establish a connection with the: [" + request.getURI() + "] within the given period of time. Status code: " + result.getStatusCode(), e);
-        } catch (HttpHostConnectException e) {
-            result = new BasicResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "Server is down. " + e, type, null, request.getURI(), REMOTE_SERVER_IS_DOWN);
-            LOGGER.debug("Server on uri: [" + request.getURI() + "] is down. Status code: " + result.getStatusCode(), e);
+        } catch (ResponseException e) {
+            result = new BasicResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "Connection pool is empty. " + e, type, null, e.getURI(), CONNECTION_POOL_IS_EMPTY);
+            LOGGER.debug("Connection pool is empty for request on uri: [" + e.getURI() + "]. Status code: " + result.getStatusCode(), e);
         } catch (IOException e) {
-            result = new BasicResponseHandler<>(null, SC_SERVICE_UNAVAILABLE, "Connection was aborted. " + e, type, null, request.getURI(), IO);
-            LOGGER.debug("Connection was aborted for request on uri: [" + request.getURI() + "]. Status code: " + result.getStatusCode(), e);
+            LOGGER.warn("Resources close failed", e);
+            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Resources close failed. " + e, type, null, getURI(), IO);
+
         }
 
-        LOGGER.debug("Executing of uri: [" + request.getURI() + "] completed. Time " + HttpRequestUtils.humanTime(startTime));
+        LOGGER.debug("Executing of uri: [" + result.getURI() + "] completed. Time " + HttpRequestUtils.humanTime(startTime));
         LOGGER.trace("Executed result: " + result);
         return result;
     }
 
-    private URI getUri() {
+    private URI getURI() {
         URI uri;
         try {
             uri = uriBuilder.build().normalize();
