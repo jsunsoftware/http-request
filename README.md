@@ -238,10 +238,7 @@ import java.util.List;
 import org.apache.http.entity.ContentType;
 
 public class Rest{
-    private static final HttpRequest<List<String>> httpRequest =
-     HttpRequestBuilder.createGet("https://www.jsunsoft.com/", new TypeReference<java.util.List<String>>() {})
-     .addContentType(ContentType.APPLICATION_JSON).build();
-    
+  
     private static final HttpRequest httpRequest =
          HttpRequestBuilder.create(ClientBuilder.create().build())
          .addContentType(ContentType.APPLICATION_JSON)
@@ -284,7 +281,7 @@ To use from maven add this snippet to the pom.xml `dependencies` section:
 <dependency>
   <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>2.0.0-SNAPSHOT</version>
+  <version>2.0.0-rc2</version>
 </dependency>
 ```
 
