@@ -16,11 +16,11 @@
 
 package com.jsunsoft.http;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.entity.ContentType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -31,7 +31,7 @@ import java.nio.charset.Charset;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 final class BasicResponseBodyReaderContext implements ResponseBodyReaderContext {
-    private static final Log LOGGER = LogFactory.getLog(BasicResponseBodyReaderContext.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BasicResponseBodyReaderContext.class);
     private final HttpResponse httpResponse;
     private final Type type;
 
@@ -70,8 +70,8 @@ final class BasicResponseBodyReaderContext implements ResponseBodyReaderContext 
             result = outputStream.toString(charset.name());
         }
 
-        LOGGER.trace("Content type is: " + result);
-        LOGGER.debug("Executed response body as string. Time: " + HttpRequestUtils.humanTime(startTime) + ", length of response body: " + (result == null ? 0 : result.length()));
+        LOGGER.trace("Content type is: {}", result);
+        LOGGER.debug("Executed response body as string. Time: {}, length of response body: {}", HttpRequestUtils.humanTime(startTime), (result == null ? 0 : result.length()));
         return result;
     }
 

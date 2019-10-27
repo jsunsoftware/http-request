@@ -17,8 +17,6 @@ package com.jsunsoft.http;
  */
 
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.*;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
@@ -30,6 +28,8 @@ import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -43,7 +43,7 @@ import static com.jsunsoft.http.BasicConnectionFailureType.IO;
 import static org.apache.http.HttpStatus.*;
 
 class BasicWebTarget implements WebTarget {
-    private static final Log LOGGER = LogFactory.getLog(BasicWebTarget.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BasicWebTarget.class);
 
 
     private final CloseableHttpClient closeableHttpClient;
@@ -160,7 +160,7 @@ class BasicWebTarget implements WebTarget {
 
             int responseCode = statusLine.getStatusCode();
             HttpEntity httpEntity = response.getEntity();
-            LOGGER.info("Response code from uri: [" + response.getURI() + "] is " + responseCode);
+            LOGGER.info("Response code from uri: [{}] is {}", response.getURI(), responseCode);
 
             boolean hasBody = HttpRequestUtils.hasBody(responseCode);
 
@@ -168,14 +168,14 @@ class BasicWebTarget implements WebTarget {
             String failedMessage = null;
             if (hasBody && httpEntity == null) {
                 failedMessage = "Response entity is null";
-                LOGGER.debug(failedMessage + " .Uri: [" + response.getURI() + "]. Status code: " + responseCode);
+                LOGGER.debug(failedMessage + " .Uri: [{}]. Status code: {}", response.getURI(), responseCode);
                 responseCode = SC_BAD_GATEWAY;
             } else {
                 try {
                     if (!HttpRequestUtils.isVoidType(type) && hasBody && HttpRequestUtils.isSuccess(responseCode)) {
                         DefaultResponseBodyReader<T> responseDeserializer = new DefaultResponseBodyReader<>(BasicDateDeserializeContext.DEFAULT);
                         content = responseDeserializer.deserialize(new BasicResponseBodyReaderContext(response, type));
-                        LOGGER.trace("Result of Uri: [" + response.getURI() + "] is " + content);
+                        LOGGER.trace("Result of Uri: [{}] is {}", response.getURI(), content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
                         DefaultResponseBodyReader<T> responseDeserializer = new DefaultResponseBodyReader<>(BasicDateDeserializeContext.DEFAULT);
                         failedMessage = responseDeserializer.deserializeFailure(new BasicResponseBodyReaderContext(response, type));
@@ -209,8 +209,8 @@ class BasicWebTarget implements WebTarget {
 
         }
 
-        LOGGER.debug("Executing of uri: [" + result.getURI() + "] completed. Time " + HttpRequestUtils.humanTime(startTime));
-        LOGGER.trace("Executed result: " + result);
+        LOGGER.debug("Executing of uri: [{}] completed. Time: {}", result.getURI(), HttpRequestUtils.humanTime(startTime));
+        LOGGER.trace("Executed result: {}", result);
         return result;
     }
 

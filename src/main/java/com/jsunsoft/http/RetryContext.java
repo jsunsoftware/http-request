@@ -31,7 +31,7 @@ public interface RetryContext {
      * @return time in sec to wait before retry
      */
     default int getRetryDelay(Response response) {
-        int retryAfterSec = 5000;
+        int retryAfterSec = 5;
         Header retryAfter = response.getFirstHeader(HttpHeaders.RETRY_AFTER);
 
         if (retryAfter != null) {

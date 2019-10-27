@@ -25,12 +25,12 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.entity.ContentType;
 import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.joda.time.LocalTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,7 +43,7 @@ import static org.apache.http.entity.ContentType.APPLICATION_JSON;
 import static org.apache.http.entity.ContentType.APPLICATION_XML;
 
 class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
-    private static final Log LOGGER = LogFactory.getLog(DefaultResponseBodyReader.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultResponseBodyReader.class);
 
     private final ObjectMapper jsonSerializer;
     private final ObjectMapper xmlSerializer;
@@ -90,7 +90,7 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
         long startTime = System.currentTimeMillis();
         JavaType javaType = objectMapper.constructType(type);
         T result = objectMapper.readValue(inputStreamToDeserialize, javaType);
-        LOGGER.debug("Time of deserialization inputStream to type: [" + type + "] is " + HttpRequestUtils.humanTime(startTime));
+        LOGGER.debug("Time of deserialization inputStream to type: [{}] is {}", type, HttpRequestUtils.humanTime(startTime));
         return result;
     }
 

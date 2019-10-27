@@ -16,8 +16,6 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.*;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.util.EntityUtils;
@@ -27,7 +25,6 @@ import java.net.URI;
 import java.util.Locale;
 
 class BasicResponse implements Response {
-    private static final Log LOGGER = LogFactory.getLog(BasicResponse.class);
 
     private final CloseableHttpResponse closeableHttpResponse;
     private final URI uri;

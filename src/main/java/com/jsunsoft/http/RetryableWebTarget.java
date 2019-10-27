@@ -22,12 +22,16 @@ import org.apache.http.Header;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 @Beta
 class RetryableWebTarget extends BasicWebTarget {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RetryableWebTarget.class);
+
     private final RetryContext retryContext;
 
     RetryableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, RetryContext retryContext) {
@@ -48,6 +52,8 @@ class RetryableWebTarget extends BasicWebTarget {
 
         try {
             while (retryCount > 0 && retryContext.mustBeRetried(response)) {
+                LOGGER.debug("Request to URI: [{}] has been retried. Response code: [{}]", response.getURI(), response.getStatusCode());
+
                 TimeUnit.SECONDS.sleep(retryContext.getRetryDelay(response));
 
                 response = retryContext.beforeRetry(this).request(method);

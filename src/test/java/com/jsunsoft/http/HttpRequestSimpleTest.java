@@ -17,11 +17,11 @@
 package com.jsunsoft.http;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpHeaders;
 import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
@@ -30,7 +30,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class HttpRequestSimpleTest {
-    private static final Log LOGGER = LogFactory.getLog(HttpRequestSimpleTest.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpRequestSimpleTest.class);
+
     @Rule
     public final WireMockRule wireMockRule = new WireMockRule(8080);
     private final String userAgent = "JsunSoftAgent/1.0";
