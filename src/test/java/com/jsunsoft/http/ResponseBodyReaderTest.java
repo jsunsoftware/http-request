@@ -70,7 +70,7 @@ public class ResponseBodyReaderTest {
     @Test
     public void testDeserializeResponse() throws IOException {
         ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(DEFAULT);
-        Result result = responseBodyReader.deserialize(responseContext);
+        Result result = responseBodyReader.read(responseContext);
         Assert.assertEquals(1L, result.value);
         Assert.assertEquals("Test message", result.message);
         Assert.assertNotNull(result.getRelations());

@@ -16,20 +16,16 @@
 
 package com.jsunsoft.http;
 
-import java.io.IOException;
-
-@SuppressWarnings("serial")
-public class ResponseDeserializeException extends IOException {
-
-    public ResponseDeserializeException(String message, Throwable cause) {
+public class ResponseBodyReaderNotFoundException extends ResponseBodyReaderException {
+    public ResponseBodyReaderNotFoundException(String message, Throwable cause) {
         super(message, cause);
     }
 
-    public ResponseDeserializeException(Throwable cause) {
+    public ResponseBodyReaderNotFoundException(Throwable cause) {
         super(cause);
     }
 
-    public ResponseDeserializeException(String message) {
+    public ResponseBodyReaderNotFoundException(String message) {
         super(message);
     }
 }

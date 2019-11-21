@@ -40,6 +40,7 @@ public class HttpRequestBuilder {
 
     private List<NameValuePair> defaultRequestParameters;
     private Collection<Header> defaultHeaders;
+    private ResponseBodyReaderConfig.Builder responseBodyReaderConfigBuilder = ResponseBodyReaderConfig.create();
 
     private HttpRequestBuilder(CloseableHttpClient closeableHttpClient) {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
@@ -189,6 +190,24 @@ public class HttpRequestBuilder {
         return this;
     }
 
+    public HttpRequestBuilder addBodyReader(ResponseBodyReader<?> responseBodyReader) {
+
+        responseBodyReaderConfigBuilder.addResponseBodyReader(responseBodyReader);
+
+        return this;
+    }
+
+    public HttpRequestBuilder setDefaultResponseBodyReader(ResponseBodyReader<?> defaultResponseBodyReader) {
+        responseBodyReaderConfigBuilder.setDefaultResponseBodyReader(defaultResponseBodyReader);
+
+        return this;
+    }
+
+    public HttpRequestBuilder setUseDefaultReader(boolean useDefaultReader) {
+        responseBodyReaderConfigBuilder.setUseDefaultReader(useDefaultReader);
+        return this;
+    }
+
 
     /**
      * Basic Authentication - sending the Authorization header.
@@ -217,6 +236,7 @@ public class HttpRequestBuilder {
         if (defaultRequestParameters == null) {
             defaultRequestParameters = Collections.emptyList();
         }
-        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters);
+
+        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build());
     }
 }

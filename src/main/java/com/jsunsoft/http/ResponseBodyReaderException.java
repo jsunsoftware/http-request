@@ -16,16 +16,20 @@
 
 package com.jsunsoft.http;
 
-@SuppressWarnings("serial")
-public class InvalidContentLengthException extends ResponseBodyReaderException {
-    private final long contentLength;
+import java.io.IOException;
 
-    InvalidContentLengthException(long contentLength, String message) {
-        super("Invalid content length \"" + contentLength + "\": " + message);
-        this.contentLength = contentLength;
+@SuppressWarnings("serial")
+public class ResponseBodyReaderException extends IOException {
+
+    public ResponseBodyReaderException(String message, Throwable cause) {
+        super(message, cause);
     }
 
-    public long getContentLength() {
-        return contentLength;
+    public ResponseBodyReaderException(Throwable cause) {
+        super(cause);
+    }
+
+    public ResponseBodyReaderException(String message) {
+        super(message);
     }
 }

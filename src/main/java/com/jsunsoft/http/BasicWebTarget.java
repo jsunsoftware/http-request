@@ -37,6 +37,7 @@ import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
+import java.util.Optional;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.CONNECTION_POOL_IS_EMPTY;
 import static com.jsunsoft.http.BasicConnectionFailureType.IO;
@@ -49,15 +50,17 @@ class BasicWebTarget implements WebTarget {
     private final CloseableHttpClient closeableHttpClient;
     private final URIBuilder uriBuilder;
     private final HttpUriRequestBuilder httpUriRequestBuilder = new HttpUriRequestBuilder();
+    private final ResponseBodyReaderConfig responseBodyReaderConfig;
 
 
-    BasicWebTarget(final CloseableHttpClient closeableHttpClient, final URIBuilder uriBuilder) {
+    BasicWebTarget(final CloseableHttpClient closeableHttpClient, final URIBuilder uriBuilder, ResponseBodyReaderConfig responseBodyReaderConfig) {
         this.closeableHttpClient = closeableHttpClient;
         this.uriBuilder = uriBuilder;
+        this.responseBodyReaderConfig = responseBodyReaderConfig;
     }
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters) {
-        this(closeableHttpClient, uriBuilder);
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig) {
+        this(closeableHttpClient, uriBuilder, responseBodyReaderConfig);
         defaultHeaders.forEach(httpUriRequestBuilder::addHeader);
         defaultRequestParameters.forEach(httpUriRequestBuilder::addParameter);
     }
@@ -173,12 +176,25 @@ class BasicWebTarget implements WebTarget {
             } else {
                 try {
                     if (!HttpRequestUtils.isVoidType(type) && hasBody && HttpRequestUtils.isSuccess(responseCode)) {
-                        DefaultResponseBodyReader<T> responseDeserializer = new DefaultResponseBodyReader<>(BasicDateDeserializeContext.DEFAULT);
-                        content = responseDeserializer.deserialize(new BasicResponseBodyReaderContext(response, type));
+
+                        ResponseBodyReaderContext responseBodyReaderContext = new BasicResponseBodyReaderContext(response, type);
+
+                        Optional<ResponseBodyReader<?>> responseBodyReader = responseBodyReaderConfig.getResponseBodyReaders().stream()
+                                .filter(rbr -> rbr.isReadable(responseBodyReaderContext))
+                                .findFirst();
+
+                        if (responseBodyReader.isPresent()) {
+                            content = (T) responseBodyReader.get().read(responseBodyReaderContext);
+                        } else if (responseBodyReaderConfig.isUseDefaultReader() && responseBodyReaderConfig.getDefaultResponseBodyReader().isReadable(responseBodyReaderContext)) {
+                            content = (T) responseBodyReaderConfig.getDefaultResponseBodyReader().read(responseBodyReaderContext);
+                        } else {
+                            throw new ResponseBodyReaderNotFoundException("Can't found body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType());
+                        }
+
                         LOGGER.trace("Result of Uri: [{}] is {}", response.getURI(), content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
                         DefaultResponseBodyReader<T> responseDeserializer = new DefaultResponseBodyReader<>(BasicDateDeserializeContext.DEFAULT);
-                        failedMessage = responseDeserializer.deserializeFailure(new BasicResponseBodyReaderContext(response, type));
+                        failedMessage = responseDeserializer.readFailure(new BasicResponseBodyReaderContext(response, type));
                         String logMsg = "Unexpected Response. Url: [" + response.getURI() + "] Status code: " + responseCode + ", Error message: " + failedMessage;
                         if (responseCode == SC_BAD_REQUEST) {
                             LOGGER.warn(logMsg);
@@ -186,7 +202,7 @@ class BasicWebTarget implements WebTarget {
                             LOGGER.debug(logMsg);
                         }
                     }
-                } catch (ResponseDeserializeException e) {
+                } catch (ResponseBodyReaderException e) {
                     failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + type + "]." + e;
                     LOGGER.debug(failedMessage + ". Uri: [" + response.getURI() + "]. Status code: " + responseCode, e);
                     responseCode = SC_BAD_GATEWAY;

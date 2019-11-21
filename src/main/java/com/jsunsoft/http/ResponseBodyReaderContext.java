@@ -17,14 +17,12 @@
 package com.jsunsoft.http;
 
 import org.apache.http.HttpEntity;
-import org.apache.http.entity.ContentType;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Type;
 
-public interface ResponseBodyReaderContext {
+public interface ResponseBodyReaderContext extends ResponseBodyReadableContext {
     /**
      * @return content stream of the entity.
      * @throws IOException if the stream could not be created.
@@ -42,24 +40,7 @@ public interface ResponseBodyReaderContext {
     String getContentAsString() throws IOException;
 
     /**
-     * @return content type
-     */
-    ContentType getContentType();
-
-    /**
-     * Tells the length of the content, if known.
-     *
-     * @return the number of bytes of the content, or
-     * a negative number if unknown. If the content length is known
-     * but exceeds {@link Long#MAX_VALUE Long.MAX_VALUE},
-     * a negative number is returned.
-     */
-    long getContentLength();
-
-    /**
      * @return the {@link HttpEntity}
      */
     HttpEntity getHttpEntity();
-
-    Type getType();
 }

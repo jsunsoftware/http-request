@@ -57,8 +57,13 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
     }
 
     @Override
+    public boolean isReadable(ResponseBodyReadableContext bodyReadableContext) {
+        return true;
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
-    public T deserialize(ResponseBodyReaderContext bodyReaderContext) throws IOException, ResponseDeserializeException {
+    public T read(ResponseBodyReaderContext bodyReaderContext) throws IOException, ResponseBodyReaderException {
         ContentType contentType = bodyReaderContext.getContentType();
         String mimeType = contentType == null ? null : contentType.getMimeType();
         T result;
@@ -76,11 +81,11 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
 
     }
 
-    private T deserialize(ResponseBodyReaderContext responseBodyReaderContext, ObjectMapper objectMapper) throws ResponseDeserializeException {
+    private T deserialize(ResponseBodyReaderContext responseBodyReaderContext, ObjectMapper objectMapper) throws ResponseBodyReaderException {
         try {
             return deserialize(responseBodyReaderContext.getContent(), responseBodyReaderContext.getType(), objectMapper);
         } catch (IOException e) {
-            throw new ResponseDeserializeException(e);
+            throw new ResponseBodyReaderException(e);
         }
     }
 

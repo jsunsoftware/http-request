@@ -34,13 +34,13 @@ class RetryableWebTarget extends BasicWebTarget {
 
     private final RetryContext retryContext;
 
-    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, RetryContext retryContext) {
-        super(closeableHttpClient, uriBuilder);
+    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig) {
+        super(closeableHttpClient, uriBuilder, responseBodyReaderConfig);
         this.retryContext = retryContext;
     }
 
-    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext) {
-        super(closeableHttpClient, uriBuilder, defaultHeaders, defaultRequestParameters);
+    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig) {
+        super(closeableHttpClient, uriBuilder, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
         this.retryContext = retryContext;
     }
 

@@ -16,16 +16,26 @@
 
 package com.jsunsoft.http;
 
-@SuppressWarnings("serial")
-public class InvalidContentLengthException extends ResponseBodyReaderException {
-    private final long contentLength;
+import org.apache.http.entity.ContentType;
 
-    InvalidContentLengthException(long contentLength, String message) {
-        super("Invalid content length \"" + contentLength + "\": " + message);
-        this.contentLength = contentLength;
-    }
+import java.lang.reflect.Type;
 
-    public long getContentLength() {
-        return contentLength;
-    }
+public interface ResponseBodyReadableContext {
+
+    /**
+     * @return content type
+     */
+    ContentType getContentType();
+
+    /**
+     * Tells the length of the content, if known.
+     *
+     * @return the number of bytes of the content, or
+     * a negative number if unknown. If the content length is known
+     * but exceeds {@link Long#MAX_VALUE Long.MAX_VALUE},
+     * a negative number is returned.
+     */
+    long getContentLength();
+
+    Type getType();
 }
