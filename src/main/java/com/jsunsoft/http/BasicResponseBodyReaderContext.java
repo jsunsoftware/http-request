@@ -18,6 +18,7 @@ package com.jsunsoft.http;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.entity.ContentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,6 +94,11 @@ final class BasicResponseBodyReaderContext implements ResponseBodyReaderContext 
     @Override
     public Type getType() {
         return type;
+    }
+
+    @Override
+    public StatusLine getStatusLine() {
+        return httpResponse.getStatusLine();
     }
 
     private int resolveBufferInitialSize() throws IOException {

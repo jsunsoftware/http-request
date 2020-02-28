@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.StatusLine;
 import org.apache.http.entity.ContentType;
 
 import java.lang.reflect.Type;
@@ -38,4 +39,10 @@ public interface ResponseBodyReadableContext {
     long getContentLength();
 
     Type getType();
+
+    StatusLine getStatusLine();
+
+    default int getStatusCode() {
+        return getStatusLine().getStatusCode();
+    }
 }
