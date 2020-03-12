@@ -29,6 +29,7 @@ import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
@@ -263,7 +264,7 @@ public class ClientBuilder {
      * @param value value of header
      * @return ClientBuilder instance
      */
-    ClientBuilder addDefaultHeader(String name, String value) {
+    public ClientBuilder addDefaultHeader(String name, String value) {
         ArgsCheck.notNull(name, "name");
         addDefaultHeader(new BasicHeader(name, value));
         return this;
@@ -275,7 +276,7 @@ public class ClientBuilder {
      * @param header header instance. Can't be null
      * @return ClientBuilder instance
      */
-    ClientBuilder addDefaultHeader(Header header) {
+    public ClientBuilder addDefaultHeader(Header header) {
         ArgsCheck.notNull(header, "header");
 
         if (defaultHeaders == null) {
@@ -291,7 +292,7 @@ public class ClientBuilder {
      * @param headers varargs of headers. Can't be null
      * @return ClientBuilder instance
      */
-    ClientBuilder addDefaultHeaders(Header... headers) {
+    public ClientBuilder addDefaultHeaders(Header... headers) {
         ArgsCheck.notNull(headers, "headers");
         Arrays.stream(headers).forEach(this::addDefaultHeader);
         return this;
@@ -303,7 +304,7 @@ public class ClientBuilder {
      * @param headers collections of headers
      * @return ClientBuilder instance
      */
-    ClientBuilder addDefaultHeaders(Collection<? extends Header> headers) {
+    public ClientBuilder addDefaultHeaders(Collection<? extends Header> headers) {
         ArgsCheck.notNull(headers, "headers");
 
         headers.forEach(this::addDefaultHeader);
@@ -316,7 +317,7 @@ public class ClientBuilder {
      * @param contentType content type of request header
      * @return ClientBuilder instance
      */
-    ClientBuilder addContentType(ContentType contentType) {
+    public ClientBuilder addContentType(ContentType contentType) {
         addDefaultHeader(CONTENT_TYPE, contentType.toString());
         return this;
     }
@@ -396,7 +397,7 @@ public class ClientBuilder {
     public ClientBuilder trustAllCertificates() {
         try {
             sslContext = SSLContexts.custom()
-                    .loadTrustMaterial(null, (certificate, authType) -> true).build();
+                    .loadTrustMaterial(null, TrustAllStrategy.INSTANCE).build();
         } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
             throw new HttpRequestBuildException(e);
         }
