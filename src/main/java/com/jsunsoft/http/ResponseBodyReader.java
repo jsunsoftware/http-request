@@ -34,16 +34,14 @@ public interface ResponseBodyReader<T> {
      * @return Deserialized content
      * @throws IOException                   If the stream could not be created or error occurs reading the input stream.
      * @throws UnsupportedOperationException If entity content cannot be represented as {@link java.io.InputStream}.
-     * @throws ResponseBodyReaderException  If Cannot deserialize content
+     * @throws ResponseBodyReaderException   If Cannot deserialize content
      */
     T read(ResponseBodyReaderContext bodyReaderContext) throws IOException, ResponseBodyReaderException;
 
     /**
-     * @param bodyReaderContext the response context.
-     * @return Error text from response
-     * @throws IOException if an error occurs reading the input stream
+     * @return returns reader which will always read response stream to string
      */
-    default String readFailure(ResponseBodyReaderContext bodyReaderContext) throws IOException {
-        return bodyReaderContext.getContentAsString();
+    static ResponseBodyReader<String> stringReader() {
+        return DefaultStringResponseBodyReader.INSTANCE;
     }
 }

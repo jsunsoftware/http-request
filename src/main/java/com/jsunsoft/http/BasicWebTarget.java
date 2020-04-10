@@ -193,8 +193,8 @@ class BasicWebTarget implements WebTarget {
 
                         LOGGER.trace("Result of Uri: [{}] is {}", response.getURI(), content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
-                        DefaultResponseBodyReader<T> responseDeserializer = new DefaultResponseBodyReader<>(BasicDateDeserializeContext.DEFAULT);
-                        failedMessage = responseDeserializer.readFailure(new BasicResponseBodyReaderContext(response, type));
+                        //todo find reader
+                        failedMessage = ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext(response, type));
                         String logMsg = "Unexpected Response. Url: [" + response.getURI() + "] Status code: " + responseCode + ", Error message: " + failedMessage;
                         if (responseCode == SC_BAD_REQUEST) {
                             LOGGER.warn(logMsg);
