@@ -286,3 +286,5 @@ To use from maven add this snippet to the pom.xml `dependencies` section:
 ```
 
 Pull requests are welcome.
+
+Supported by https://www.jetbrains.com/?from=http-request
