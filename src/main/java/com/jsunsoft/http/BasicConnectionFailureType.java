@@ -25,7 +25,8 @@ enum BasicConnectionFailureType implements ConnectionFailureType {
     CONNECT_TIMEOUT_EXPIRED,
     CONNECTION_POOL_IS_EMPTY,
     REMOTE_SERVER_IS_DOWN,
-    IO;
+    IO,
+    UNDEFINED;
 
     public boolean isFailed() {
         return this != NONE;
