@@ -55,7 +55,7 @@ public class ResponseContextTest {
         httpResponse.setEntity(httpEntity);
         ResponseBodyReaderContext responseContext = new BasicResponseBodyReaderContext(httpResponse, String.class);
         Assert.assertEquals(content.length(), responseContext.getContentLength());
-        Assert.assertEquals(content, responseContext.getContentAsString());
+        Assert.assertEquals(content, ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext(httpResponse, String.class)));
         Assert.assertEquals(ContentType.APPLICATION_JSON.getMimeType(), responseContext.getContentType().getMimeType());
     }
 }

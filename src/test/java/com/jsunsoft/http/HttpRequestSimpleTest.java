@@ -44,8 +44,9 @@ public class HttpRequestSimpleTest {
             .addContentType(APPLICATION_XML)
             .build();
 
-//    private final HttpRequest<String> httpRequestWithoutParse = HttpRequestBuilder.createPost("http://localhost:8080/text", String.class)
-//            .responseDeserializer(ResponseBodyReader.toStringDeserializer()).build();
+    private final HttpRequest httpRequestWithoutParse = HttpRequestBuilder.create((new ClientBuilder().build()))
+            .addBodyReader(ResponseBodyReader.stringReader())
+            .build();
 
     @Test
     public void userAgentTest() {
@@ -84,21 +85,22 @@ public class HttpRequestSimpleTest {
         assertEquals(1, parsedXml.id);
     }
 
-//    @Test
-//    public void withoutParseTest() {
-//        String text = "abcd";
-//        wireMockRule.stubFor(post(urlEqualTo("/text"))
-//                .willReturn(
-//                        aResponse()
-//                                .withBody(text)
-//                                .withStatus(200)
-//                )
-//        );
-//
-//        ResponseHandler<String> responseHandler = httpRequestWithoutParse.execute();
-//
-//        assertEquals("abcd", responseHandler.get());
-//    }
+    @Test
+    public void withoutParseTest() {
+        String text = "abcd";
+        wireMockRule.stubFor(post(urlEqualTo("/text"))
+                .willReturn(
+                        aResponse()
+                                .withBody(text)
+                                .withStatus(200)
+                )
+        );
+
+        ResponseHandler<String> responseHandler = httpRequestWithoutParse.target("http://localhost:8080/text")
+                .post(String.class);
+
+        assertEquals("abcd", responseHandler.get());
+    }
 
     private static class XmlWrapper {
         private int id;

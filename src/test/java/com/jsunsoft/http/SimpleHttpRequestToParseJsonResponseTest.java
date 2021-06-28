@@ -93,6 +93,15 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                             .findFirst();
                     foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
                 });
+
+        ResponseData responseData = HTTP_REQUEST.target("http://localhost:8080/get").get()
+                .readEntity(ResponseData.class);
+
+        Optional<User> foundedUser = responseData.getUsers()
+                .stream()
+                .filter(user -> "Test1".equals(user.getUserName()))
+                .findFirst();
+        foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
     }
 
     static class ResponseData {

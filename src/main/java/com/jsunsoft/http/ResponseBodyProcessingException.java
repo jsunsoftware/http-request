@@ -16,29 +16,19 @@
 
 package com.jsunsoft.http;
 
-public class InvalidMimeTypeException extends ResponseBodyProcessingException {
-
-    private final String mimeType;
-
-
-    /**
-     * Create a new InvalidContentTypeException for the given content type.
-     *
-     * @param mimeType the offending media type
-     * @param message  a detail message indicating the invalid part
-     */
-    public InvalidMimeTypeException(String mimeType, String message) {
-        super("Invalid mime type \"" + mimeType + "\": " + message);
-        this.mimeType = mimeType;
-
+/**
+ * When response body parsing failed
+ */
+public class ResponseBodyProcessingException extends RuntimeException {
+    public ResponseBodyProcessingException(String message) {
+        super(message);
     }
 
-
-    /**
-     * @return The offending mime type.
-     */
-    public String getMimeType() {
-        return this.mimeType;
+    public ResponseBodyProcessingException(String message, Throwable cause) {
+        super(message, cause);
     }
 
+    public ResponseBodyProcessingException(Throwable cause) {
+        super(cause);
+    }
 }
