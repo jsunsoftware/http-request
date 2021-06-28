@@ -73,7 +73,7 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
         } else if (APPLICATION_XML.getMimeType().equals(mimeType)) {
             result = deserialize(bodyReaderContext, xmlSerializer);
         } else if (bodyReaderContext.getType() == String.class) {
-            result = (T) bodyReaderContext.getContentAsString();
+            result = (T) ResponseBodyReader.stringReader().read(bodyReaderContext);
         } else {
             throw new InvalidMimeTypeException(mimeType, "DefaultDeserializer doesn't supported mimeType " + mimeType + " for converting response content to: " + bodyReaderContext.getType());
         }
@@ -95,7 +95,11 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
         long startTime = System.currentTimeMillis();
         JavaType javaType = objectMapper.constructType(type);
         T result = objectMapper.readValue(inputStreamToDeserialize, javaType);
-        LOGGER.debug("Time of deserialization inputStream to type: [{}] is {}", type, HttpRequestUtils.humanTime(startTime));
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Time of deserialization inputStream to type: [{}] is {}", type, HttpRequestUtils.humanTime(startTime));
+        }
+
         return result;
     }
 
@@ -115,7 +119,8 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
                 .disable(FAIL_ON_UNKNOWN_PROPERTIES)
                 .registerModules(new JodaModule(),
                         new ParameterNamesModule(JsonCreator.Mode.PROPERTIES),
-                        new Jdk8Module(), new JavaTimeModule());
+                        new Jdk8Module(), new JavaTimeModule()
+                );
         return objectMapper;
     }
 }

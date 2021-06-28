@@ -17,11 +17,109 @@ package com.jsunsoft.http;
  */
 
 
+import com.jsunsoft.http.annotations.Beta;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.entity.ContentType;
 
+import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.URI;
 
 public interface Response extends CloseableHttpResponse {
+
+    /**
+     * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
+     * <p>
+     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     *
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     *
+     * @return Response entity
+     *
+     * @throws ResponseBodyProcessingException when body processing failed.
+     */
+    <T> T readEntity(Class<T> responseType);
+
+    /**
+     * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
+     * <p>
+     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     *
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     *
+     * @return Response entity
+     *
+     * @throws ResponseBodyProcessingException when body processing failed.
+     */
+    <T> T readEntity(TypeReference<T> responseType);
+
+    /**
+     * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
+     * <p>
+     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     *
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     *
+     * @return Response entity
+     *
+     * @throws IOException                 If the stream could not be created or error occurs reading the input stream.
+     * @throws ResponseBodyReaderException If Cannot deserialize content
+     */
+    @Beta
+    <T> T readEntityChecked(Class<T> responseType) throws IOException;
+
+    /**
+     * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
+     * <p>
+     * <p>
+     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     *
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     *
+     * @return Response entity
+     *
+     * @throws IOException                 If the stream could not be created or error occurs reading the input stream.
+     * @throws ResponseBodyReaderException If Cannot deserialize content
+     */
+    @Beta
+    <T> T readEntityChecked(TypeReference<T> responseType) throws IOException;
+
+    /**
+     * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
+     * <p>
+     * <p>
+     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     *
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type which must match to the responseType.
+     *
+     * @return Response entity
+     *
+     * @throws IOException                 If the stream could not be created or error occurs reading the input stream.
+     * @throws ResponseBodyReaderException If Cannot deserialize content
+     */
+    @Beta
+    <T> T readEntityChecked(Type responseType) throws IOException;
+
+    /**
+     * @return the request URI
+     */
+    URI getURI();
+
+    default boolean hasEntity() {
+        return getEntity() != null;
+    }
+
+    /**
+     * @return Content type of response
+     */
+    default ContentType getContentType() {
+        return ContentType.get(getEntity());
+    }
 
     /**
      * @return Status code
@@ -31,8 +129,17 @@ public interface Response extends CloseableHttpResponse {
     }
 
     /**
-     * @return the request URI
+     * @return Returns <b>true</b> if status code contains [200, 300) else <b>false</b>
      */
-    URI getURI();
+    default boolean isSuccess() {
+        return HttpRequestUtils.isSuccess(getStatusCode());
+    }
+
+    /**
+     * @return Returns <b>true</b> if status code isn't contains [200, 300) else <b>false</b>
+     */
+    default boolean isNonSuccess() {
+        return !isSuccess();
+    }
 
 }

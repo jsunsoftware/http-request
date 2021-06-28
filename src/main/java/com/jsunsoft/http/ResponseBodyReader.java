@@ -31,7 +31,9 @@ public interface ResponseBodyReader<T> {
      * Method receives httpEntity of the response then deserialized to type {@code T}
      *
      * @param bodyReaderContext the response context.
+     *
      * @return Deserialized content
+     *
      * @throws IOException                   If the stream could not be created or error occurs reading the input stream.
      * @throws UnsupportedOperationException If entity content cannot be represented as {@link java.io.InputStream}.
      * @throws ResponseBodyReaderException   If Cannot deserialize content

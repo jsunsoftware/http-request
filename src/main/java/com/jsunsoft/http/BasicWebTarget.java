@@ -37,7 +37,6 @@ import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
-import java.util.Optional;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
 import static org.apache.http.HttpStatus.*;
@@ -117,7 +116,7 @@ class BasicWebTarget implements WebTarget {
 
         HttpUriRequest request = resolveRequest(method);
         try {
-            return new BasicResponse(closeableHttpClient.execute(request), request.getURI());
+            return new BasicResponse(closeableHttpClient.execute(request), responseBodyReaderConfig, request.getURI());
         } catch (ConnectionPoolTimeoutException e) {
             LOGGER.debug("Connection pool is empty for request on uri: [" + request.getURI() + "]. Status code: " + SC_SERVICE_UNAVAILABLE, e);
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection pool is empty. " + e, request.getURI(), CONNECTION_POOL_IS_EMPTY, e);
@@ -176,24 +175,12 @@ class BasicWebTarget implements WebTarget {
                 try {
                     if (!HttpRequestUtils.isVoidType(type) && hasBody && HttpRequestUtils.isSuccess(responseCode)) {
 
-                        ResponseBodyReaderContext responseBodyReaderContext = new BasicResponseBodyReaderContext(response, type);
-
-                        Optional<ResponseBodyReader<?>> responseBodyReader = responseBodyReaderConfig.getResponseBodyReaders().stream()
-                                .filter(rbr -> rbr.isReadable(responseBodyReaderContext))
-                                .findFirst();
-
-                        if (responseBodyReader.isPresent()) {
-                            content = (T) responseBodyReader.get().read(responseBodyReaderContext);
-                        } else if (responseBodyReaderConfig.isUseDefaultReader() && responseBodyReaderConfig.getDefaultResponseBodyReader().isReadable(responseBodyReaderContext)) {
-                            content = (T) responseBodyReaderConfig.getDefaultResponseBodyReader().read(responseBodyReaderContext);
-                        } else {
-                            throw new ResponseBodyReaderNotFoundException("Can't found body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType());
-                        }
+                        content = response.readEntityChecked(type);
 
                         LOGGER.trace("Result of Uri: [{}] is {}", response.getURI(), content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
                         //todo find reader
-                        failedMessage = ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext(response, type));
+                        failedMessage = ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext(response, String.class));
                         String logMsg = "Unexpected Response. Url: [" + response.getURI() + "] Status code: " + responseCode + ", Error message: " + failedMessage;
                         if (responseCode == SC_BAD_REQUEST) {
                             LOGGER.warn(logMsg);

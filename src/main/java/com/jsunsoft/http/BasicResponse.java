@@ -21,16 +21,20 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.Locale;
+import java.util.Optional;
 
 class BasicResponse implements Response {
 
     private final CloseableHttpResponse closeableHttpResponse;
+    private final ResponseBodyReaderConfig responseBodyReaderConfig;
     private final URI uri;
 
-    public BasicResponse(CloseableHttpResponse closeableHttpResponse, URI uri) {
+    public BasicResponse(CloseableHttpResponse closeableHttpResponse, ResponseBodyReaderConfig responseBodyReaderConfig, URI uri) {
         this.closeableHttpResponse = closeableHttpResponse;
+        this.responseBodyReaderConfig = responseBodyReaderConfig;
         this.uri = uri;
     }
 
@@ -104,6 +108,7 @@ class BasicResponse implements Response {
      * Updates the status line of this response with a new status code.
      *
      * @param code the HTTP status code.
+     *
      * @throws IllegalStateException if the status line has not be set
      * @see HttpStatus
      * @see #setStatusLine(StatusLine)
@@ -119,6 +124,7 @@ class BasicResponse implements Response {
      *
      * @param reason the new reason phrase as a single-line string, or
      *               {@code null} to unset the reason phrase
+     *
      * @throws IllegalStateException if the status line has not be set
      * @see #setStatusLine(StatusLine)
      * @see #setStatusLine(ProtocolVersion, int)
@@ -149,6 +155,7 @@ class BasicResponse implements Response {
      *
      * @param entity the entity to associate with this response, or
      *               {@code null} to unset
+     *
      * @see HttpEntity#isStreaming()
      * @see EntityUtils#updateEntity(HttpResponse, HttpEntity)
      */
@@ -193,6 +200,7 @@ class BasicResponse implements Response {
      * ignored.
      *
      * @param name the header name to check for.
+     *
      * @return true if at least one header with this name is present.
      */
     @Override
@@ -206,6 +214,7 @@ class BasicResponse implements Response {
      * connection.
      *
      * @param name the name of the headers to return.
+     *
      * @return the headers whose name property equals {@code name}.
      */
     @Override
@@ -221,6 +230,7 @@ class BasicResponse implements Response {
      * returned.
      *
      * @param name the name of the header to return.
+     *
      * @return the first header whose name property equals {@code name}
      * or {@code null} if no such header could be found.
      */
@@ -236,6 +246,7 @@ class BasicResponse implements Response {
      * matching header in the message {@code null} is returned.
      *
      * @param name the name of the header to return.
+     *
      * @return the last header whose name property equals {@code name}.
      * or {@code null} if no such header could be found.
      */
@@ -347,6 +358,7 @@ class BasicResponse implements Response {
      *
      * @param name the name of the headers over which to iterate, or
      *             {@code null} for all headers
+     *
      * @return Iterator that returns Header objects with the argument name
      * in the sequence they are sent over a connection.
      */
@@ -372,6 +384,7 @@ class BasicResponse implements Response {
      * Provides parameters to be used for the processing of this message.
      *
      * @param params the parameters
+     *
      * @deprecated (4.3) use configuration classes provided 'org.apache.http.config'
      * and 'org.apache.http.client.config'
      */
@@ -379,6 +392,59 @@ class BasicResponse implements Response {
     @Deprecated
     public void setParams(org.apache.http.params.HttpParams params) {
         closeableHttpResponse.setParams(params);
+    }
+
+    @Override
+    public <T> T readEntity(Class<T> responseType) {
+        return readEntityUnChecked(responseType);
+    }
+
+    @Override
+    public <T> T readEntity(TypeReference<T> responseType) {
+        return readEntityUnChecked(responseType.getType());
+    }
+
+    @Override
+    public <T> T readEntityChecked(Class<T> responseType) throws IOException {
+        return readEntityChecked((Type) responseType);
+    }
+
+    @Override
+    public <T> T readEntityChecked(TypeReference<T> responseType) throws IOException {
+        return readEntityChecked(responseType.getType());
+    }
+
+    private <T> T readEntityUnChecked(Type type) {
+        try {
+            return readEntityChecked(type);
+        } catch (ResponseBodyReaderException e) {
+            throw new ResponseBodyProcessingException("Response deserialization failed. Cannot deserialize response to: [" + type + "].", e);
+        } catch (IOException e) {
+            throw new ResponseBodyProcessingException("Stream could not be created. Uri: [" + getURI() + "].", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> T readEntityChecked(Type responseType) throws IOException {
+        T content;
+
+        ResponseBodyReaderContext responseBodyReaderContext = new BasicResponseBodyReaderContext(this, responseType);
+
+        Optional<ResponseBodyReader<?>> responseBodyReader =
+                responseBodyReaderConfig.getResponseBodyReaders().stream()
+                        .filter(rbr -> rbr.isReadable(responseBodyReaderContext))
+                        .findFirst();
+
+        if (responseBodyReader.isPresent()) {
+            content = (T) responseBodyReader.get().read(responseBodyReaderContext);
+        } else if (responseBodyReaderConfig.isUseDefaultReader() && responseBodyReaderConfig.getDefaultResponseBodyReader().isReadable(responseBodyReaderContext)) {
+            content = (T) responseBodyReaderConfig.getDefaultResponseBodyReader().read(responseBodyReaderContext);
+        } else {
+            throw new ResponseBodyReaderNotFoundException("Can't found body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType());
+        }
+
+        return content;
     }
 
     public URI getURI() {

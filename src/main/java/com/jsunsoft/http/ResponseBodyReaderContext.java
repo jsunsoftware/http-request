@@ -25,18 +25,22 @@ import java.io.UnsupportedEncodingException;
 public interface ResponseBodyReaderContext extends ResponseBodyReadableContext {
     /**
      * @return content stream of the entity.
+     *
      * @throws IOException if the stream could not be created.
      */
     InputStream getContent() throws IOException;
 
     /**
      * @return content as {@link String}
+     *
      * @throws IOException                   if the stream could not be created or
      *                                       if the first byte cannot be read for any reason other than the end of the file,
      *                                       if the input stream has been closed, or if some other I/O
      * @throws InvalidContentLengthException If content length exceeds {@link Integer#MAX_VALUE Integer.MAX_VALUE}
      * @throws UnsupportedEncodingException  If the named charset is not supported
+     * @deprecated Will be removed in future versions
      */
+    @Deprecated
     String getContentAsString() throws IOException;
 
     /**
