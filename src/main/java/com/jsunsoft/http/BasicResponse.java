@@ -441,7 +441,15 @@ class BasicResponse implements Response {
         } else if (responseBodyReaderConfig.isUseDefaultReader() && responseBodyReaderConfig.getDefaultResponseBodyReader().isReadable(responseBodyReaderContext)) {
             content = (T) responseBodyReaderConfig.getDefaultResponseBodyReader().read(responseBodyReaderContext);
         } else {
-            throw new ResponseBodyReaderNotFoundException("Can't found body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType());
+            String errMsg;
+
+            if (hasEntity()) {
+                errMsg = "Can't found body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType();
+            } else {
+                errMsg = "Can't found body reader for type: " + responseBodyReaderContext.getType() + " when http entity is null.";
+            }
+
+            throw new ResponseBodyReaderNotFoundException(errMsg);
         }
 
         return content;

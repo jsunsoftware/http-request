@@ -42,6 +42,8 @@ public interface ResponseBodyReadableContext {
 
     StatusLine getStatusLine();
 
+    boolean hasEntity();
+
     default int getStatusCode() {
         return getStatusLine().getStatusCode();
     }
