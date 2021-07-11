@@ -58,7 +58,7 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
 
     @Override
     public boolean isReadable(ResponseBodyReadableContext bodyReadableContext) {
-        return true;
+        return bodyReadableContext.hasEntity();
     }
 
     @Override

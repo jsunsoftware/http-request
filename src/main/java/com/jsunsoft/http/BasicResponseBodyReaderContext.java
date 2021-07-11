@@ -68,4 +68,9 @@ final class BasicResponseBodyReaderContext implements ResponseBodyReaderContext 
     public StatusLine getStatusLine() {
         return httpResponse.getStatusLine();
     }
+
+    @Override
+    public boolean hasEntity() {
+        return getHttpEntity() != null;
+    }
 }
