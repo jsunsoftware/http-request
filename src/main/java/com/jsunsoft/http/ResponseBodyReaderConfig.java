@@ -77,7 +77,7 @@ class ResponseBodyReaderConfig {
             return this;
         }
 
-        Builder setUseDefaultReader(boolean useDefaultReader) {
+        Builder setUseDefaultBodyReader(boolean useDefaultReader) {
             this.useDefaultReader = useDefaultReader;
 
             return this;
