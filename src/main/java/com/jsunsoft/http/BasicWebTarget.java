@@ -109,25 +109,19 @@ class BasicWebTarget implements WebTarget {
         try {
             return new BasicResponse(closeableHttpClient.execute(request), responseBodyReaderConfig, request.getURI());
         } catch (ConnectionPoolTimeoutException e) {
-            LOGGER.debug("Connection pool is empty for request on uri: [" + request.getURI() + "]. Status code: " + SC_SERVICE_UNAVAILABLE, e);
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection pool is empty. " + e, request.getURI(), CONNECTION_POOL_IS_EMPTY, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection pool is empty for request on uri: [" + request.getURI() + "]. Status code: " + SC_SERVICE_UNAVAILABLE, request.getURI(), CONNECTION_POOL_IS_EMPTY, e);
         } catch (SocketTimeoutException | NoHttpResponseException e) {
             //todo support retry when NoHttpResponseException
-            LOGGER.debug("Server on uri: [" + request.getURI() + "] is high loaded. Status code: " + SC_SERVICE_UNAVAILABLE, e);
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Remote server is high loaded. " + e, request.getURI(), REMOTE_SERVER_HIGH_LOADED, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + request.getURI() + "] is high loaded. Status code: " + SC_SERVICE_UNAVAILABLE, request.getURI(), REMOTE_SERVER_HIGH_LOADED, e);
         } catch (ConnectTimeoutException e) {
-            LOGGER.debug("HttpRequest is unable to establish a connection with the: [" + request.getURI() + "] within the given period of time. Status code: " + SC_SERVICE_UNAVAILABLE, e);
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "HttpRequest is unable to establish a connection within the given period of time. " + e, request.getURI(), CONNECT_TIMEOUT_EXPIRED, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "HttpRequest is unable to establish a connection with the: [" + request.getURI() + "] within the given period of time. Status code: " + SC_SERVICE_UNAVAILABLE, request.getURI(), CONNECT_TIMEOUT_EXPIRED, e);
 
         } catch (HttpHostConnectException e) {
-            LOGGER.debug("Server on uri: [" + request.getURI() + "] is down. Status code: " + SC_SERVICE_UNAVAILABLE, e);
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server is down. " + e, request.getURI(), REMOTE_SERVER_IS_DOWN, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + request.getURI() + "] is down. Status code: " + SC_SERVICE_UNAVAILABLE, request.getURI(), REMOTE_SERVER_IS_DOWN, e);
         } catch (ClientProtocolException e) {
-            LOGGER.debug("URI: [" + request.getURI() + "]", e);
-            throw new RequestException(e.getMessage(), e);
+            throw new RequestException("Error in the HTTP protocol. URI: [" + request.getURI() + "]", e);
         } catch (IOException e) {
-            LOGGER.debug("Connection was aborted for request on uri: [" + request.getURI() + "]. Status code: " + SC_SERVICE_UNAVAILABLE, e);
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection was aborted. " + e, request.getURI(), IO, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection was aborted for request on uri: [" + request.getURI() + "]. Status code: " + SC_SERVICE_UNAVAILABLE, request.getURI(), IO, e);
         }
     }
 
@@ -172,7 +166,7 @@ class BasicWebTarget implements WebTarget {
                         LOGGER.trace("Result of Uri: [{}] is {}", response.getURI(), content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
                         //todo find reader
-                        failedMessage = ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext(response, String.class, String.class));
+                        failedMessage = ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext<>(response, String.class, String.class));
                         String logMsg = "Unexpected Response. Url: [" + response.getURI() + "] Status code: " + responseCode + ", Error message: " + failedMessage;
                         if (responseCode == SC_BAD_REQUEST) {
                             LOGGER.warn(logMsg);
@@ -195,10 +189,10 @@ class BasicWebTarget implements WebTarget {
             result = new BasicResponseHandler<>(content, responseCode, failedMessage, typeReference.getType(), responseContentType, response.getURI(), statusLine);
 
         } catch (ResponseException e) {
-            result = new BasicResponseHandler<>(null, e.getStatusCode(), "Connection pool is empty. " + e, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType());
-            LOGGER.debug("Connection pool is empty for request on uri: [" + e.getURI() + "]. Status code: " + result.getStatusCode(), e);
+            result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getMessage(), typeReference.getType(), null, e.getURI(), e.getConnectionFailureType());
+            LOGGER.debug("Request failed.", e);
         } catch (IOException e) {
-            LOGGER.warn("Resources close failed", e);
+            LOGGER.warn("Resources close failed.", e);
             result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Resources close failed. " + e, typeReference.getType(), null, getURI(), IO);
         }
         if (LOGGER.isDebugEnabled()) {
