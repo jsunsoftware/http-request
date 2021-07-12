@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -91,7 +90,7 @@ class BasicWebTarget implements WebTarget {
         ArgsCheck.notNull(responseType, "responseType");
 
         httpUriRequestBuilder.setEntity(httpEntity);
-        return request(method, responseType.getType());
+        return request(method, responseType);
     }
 
     @Override
@@ -99,15 +98,7 @@ class BasicWebTarget implements WebTarget {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(responseType, "responseType");
 
-        return request(method, (Type) responseType);
-    }
-
-    @Override
-    public <T> ResponseHandler<T> request(HttpMethod method, TypeReference<T> responseType) {
-        ArgsCheck.notNull(method, "method");
-        ArgsCheck.notNull(responseType, "responseType");
-
-        return request(method, responseType.getType());
+        return request(method, new TypeReference<T>(responseType));
     }
 
     @Override
@@ -145,8 +136,9 @@ class BasicWebTarget implements WebTarget {
         return httpUriRequestBuilder.setMethod(method.name()).setUri(getURI()).build();
     }
 
-    <T> ResponseHandler<T> request(HttpMethod method, Type type) {
-        CustomArgsCheck.checkIsCorrectTypeForDeserialization(type);
+    @Override
+    public <T> ResponseHandler<T> request(HttpMethod method, TypeReference<T> typeReference) {
+        CustomArgsCheck.checkIsCorrectTypeForDeserialization(typeReference.getRawType());
 
         long startTime = System.currentTimeMillis();
 
@@ -173,14 +165,14 @@ class BasicWebTarget implements WebTarget {
                 responseCode = SC_BAD_GATEWAY;
             } else {
                 try {
-                    if (!HttpRequestUtils.isVoidType(type) && hasBody && HttpRequestUtils.isSuccess(responseCode)) {
+                    if (!HttpRequestUtils.isVoidType(typeReference.getRawType()) && hasBody && HttpRequestUtils.isSuccess(responseCode)) {
 
-                        content = response.readEntityChecked(type);
+                        content = response.readEntityChecked(typeReference);
 
                         LOGGER.trace("Result of Uri: [{}] is {}", response.getURI(), content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
                         //todo find reader
-                        failedMessage = ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext(response, String.class));
+                        failedMessage = ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext(response, String.class, String.class));
                         String logMsg = "Unexpected Response. Url: [" + response.getURI() + "] Status code: " + responseCode + ", Error message: " + failedMessage;
                         if (responseCode == SC_BAD_REQUEST) {
                             LOGGER.warn(logMsg);
@@ -189,7 +181,7 @@ class BasicWebTarget implements WebTarget {
                         }
                     }
                 } catch (ResponseBodyReaderException e) {
-                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + type + "]." + e;
+                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "]." + e;
                     LOGGER.debug(failedMessage + ". Uri: [" + response.getURI() + "]. Status code: " + responseCode, e);
                     responseCode = SC_BAD_GATEWAY;
                 } catch (IOException e) {
@@ -200,14 +192,14 @@ class BasicWebTarget implements WebTarget {
             }
             ContentType responseContentType = ContentType.get(httpEntity);
             EntityUtils.consumeQuietly(httpEntity);
-            result = new BasicResponseHandler<>(content, responseCode, failedMessage, type, responseContentType, response.getURI(), statusLine);
+            result = new BasicResponseHandler<>(content, responseCode, failedMessage, typeReference.getType(), responseContentType, response.getURI(), statusLine);
 
         } catch (ResponseException e) {
-            result = new BasicResponseHandler<>(null, e.getStatusCode(), "Connection pool is empty. " + e, type, null, e.getURI(), e.getConnectionFailureType());
+            result = new BasicResponseHandler<>(null, e.getStatusCode(), "Connection pool is empty. " + e, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType());
             LOGGER.debug("Connection pool is empty for request on uri: [" + e.getURI() + "]. Status code: " + result.getStatusCode(), e);
         } catch (IOException e) {
             LOGGER.warn("Resources close failed", e);
-            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Resources close failed. " + e, type, null, getURI(), IO);
+            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Resources close failed. " + e, typeReference.getType(), null, getURI(), IO);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Executing of uri: [{}] completed. Time: {}", result.getURI(), HttpRequestUtils.humanTime(startTime));

@@ -63,7 +63,7 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public T read(ResponseBodyReaderContext bodyReaderContext) throws IOException, ResponseBodyReaderException {
+    public T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException, ResponseBodyReaderException {
         ContentType contentType = bodyReaderContext.getContentType();
         String mimeType = contentType == null ? null : contentType.getMimeType();
         T result;
@@ -73,7 +73,7 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
         } else if (APPLICATION_XML.getMimeType().equals(mimeType)) {
             result = deserialize(bodyReaderContext, xmlSerializer);
         } else if (bodyReaderContext.getType() == String.class) {
-            result = (T) ResponseBodyReader.stringReader().read(bodyReaderContext);
+            result = (T) ResponseBodyReader.stringReader().read((ResponseBodyReaderContext<String>) bodyReaderContext);
         } else {
             throw new InvalidMimeTypeException(mimeType, "DefaultDeserializer doesn't supported mimeType " + mimeType + " for converting response content to: " + bodyReaderContext.getType());
         }
@@ -81,9 +81,9 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
 
     }
 
-    private T deserialize(ResponseBodyReaderContext responseBodyReaderContext, ObjectMapper objectMapper) throws ResponseBodyReaderException {
+    private T deserialize(ResponseBodyReaderContext<T> responseBodyReaderContext, ObjectMapper objectMapper) throws ResponseBodyReaderException {
         try {
-            return deserialize(responseBodyReaderContext.getContent(), responseBodyReaderContext.getType(), objectMapper);
+            return deserialize(responseBodyReaderContext.getContent(), responseBodyReaderContext.getGenericType(), objectMapper);
         } catch (IOException e) {
             throw new ResponseBodyReaderException(e);
         }

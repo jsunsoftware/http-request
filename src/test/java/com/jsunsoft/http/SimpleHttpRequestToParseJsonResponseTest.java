@@ -16,15 +16,20 @@
 
 package com.jsunsoft.http;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 import static org.apache.http.entity.ContentType.APPLICATION_JSON;
@@ -33,7 +38,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
     @Rule
     public final WireMockRule wireMockRule = new WireMockRule(8080);
 
-    private final String response = "{\n" +
+    private final String responseDataString = "{\n" +
             "  \"displayLength\": \"4\",\n" +
             "  \"iTotal\": \"20\",\n" +
             "  \"users\": [\n" +
@@ -69,21 +74,67 @@ public class SimpleHttpRequestToParseJsonResponseTest {
             "  ]\n" +
             "}";
 
+    private final String responseMapString = "{\n" +
+            "  \"testKey\" : \"testValue\"\n" +
+            "}";
+
     private static final CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
 
     private static final HttpRequest HTTP_REQUEST = HttpRequestBuilder.create(closeableHttpClient)
             .build();
 
-    @Test
-    public void test() {
+    private static final HttpRequest HTTP_REQUEST_WITH_BODY_READER = HttpRequestBuilder.create(closeableHttpClient)
+            .addBodyReader(new ResponseBodyReader<Map<String, String>>() {
+                @Override
+                public boolean isReadable(ResponseBodyReadableContext bodyReadableContext) {
+                    return bodyReadableContext.getType() == Map.class;
+                }
+
+                @Override
+                public Map<String, String> read(ResponseBodyReaderContext<Map<String, String>> bodyReaderContext) throws IOException, ResponseBodyReaderException {
+                    ObjectMapper mapper = new ObjectMapper();
+                    return mapper.readValue(bodyReaderContext.getContent(), mapper.constructType(bodyReaderContext.getGenericType()));
+                }
+            })
+            .addBodyReader(new ResponseBodyReader<ResponseData>() {
+                @Override
+                public boolean isReadable(ResponseBodyReadableContext bodyReadableContext) {
+                    return bodyReadableContext.getType() == ResponseData.class;
+                }
+
+                @Override
+                public ResponseData read(ResponseBodyReaderContext<ResponseData> bodyReaderContext) throws IOException, ResponseBodyReaderException {
+                    return new ObjectMapper()
+                            .disable(FAIL_ON_UNKNOWN_PROPERTIES)
+                            .readValue(bodyReaderContext.getContent(), bodyReaderContext.getType());
+                }
+            })
+            .build();
+
+    @Before
+    public void before() {
+
         wireMockRule.stubFor(get(urlEqualTo("/get"))
                 .willReturn(
                         aResponse()
-                                .withBody(response)
+                                .withBody(responseDataString)
                                 .withHeader(CONTENT_TYPE, APPLICATION_JSON.getMimeType())
                                 .withStatus(200)
                 )
         );
+
+        wireMockRule.stubFor(get(urlEqualTo("/get/map"))
+                .willReturn(
+                        aResponse()
+                                .withBody(responseMapString)
+                                .withHeader(CONTENT_TYPE, APPLICATION_JSON.getMimeType())
+                                .withStatus(200)
+                )
+        );
+    }
+
+    @Test
+    public void testParsingResponseDataWithDefaultBodyReader() {
 
         HTTP_REQUEST.target("http://localhost:8080/get").get(ResponseData.class)
                 .ifHasContent(responseData -> {
@@ -102,6 +153,40 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                 .filter(user -> "Test1".equals(user.getUserName()))
                 .findFirst();
         foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+    }
+
+    @Test
+    public void testParsingResponseDataWithCustomBodyReader() {
+
+        HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get").get(ResponseData.class)
+                .ifHasContent(rd -> {
+                    Optional<User> foundedUser = rd.getUsers()
+                            .stream()
+                            .filter(user -> "Test1".equals(user.getUserName()))
+                            .findFirst();
+                    foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+                });
+
+        ResponseData responseData = HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get").get()
+                .readEntity(ResponseData.class);
+
+        Optional<User> foundedUser = responseData.getUsers()
+                .stream()
+                .filter(user -> "Test1".equals(user.getUserName()))
+                .findFirst();
+        foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+    }
+
+    @Test
+    public void testParsingMapWithCustomBodyReader() {
+
+        HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get/map").get(new TypeReference<Map<String, String>>() {})
+                .ifHasContent(r -> Assert.assertEquals("testValue", r.get("testKey")));
+
+        Map<String, String> r = HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get/map").get()
+                .readEntity(new TypeReference<Map<String, String>>() {});
+
+        Assert.assertEquals("testValue", r.get("testKey"));
     }
 
     static class ResponseData {
@@ -184,5 +269,4 @@ public class SimpleHttpRequestToParseJsonResponseTest {
             this.name = name;
         }
     }
-
 }

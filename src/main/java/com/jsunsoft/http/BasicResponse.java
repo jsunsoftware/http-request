@@ -396,27 +396,29 @@ class BasicResponse implements Response {
 
     @Override
     public <T> T readEntity(Class<T> responseType) {
-        return readEntityUnChecked(responseType);
+        return readEntityUnChecked(responseType, responseType);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> T readEntity(TypeReference<T> responseType) {
-        return readEntityUnChecked(responseType.getType());
+        return (T) readEntityUnChecked(responseType.getRawType(), responseType.getType());
     }
 
     @Override
     public <T> T readEntityChecked(Class<T> responseType) throws IOException {
-        return readEntityChecked((Type) responseType);
+        return readEntityChecked(responseType, responseType);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> T readEntityChecked(TypeReference<T> responseType) throws IOException {
-        return readEntityChecked(responseType.getType());
+        return (T) readEntityChecked(responseType.getRawType(), responseType.getType());
     }
 
-    private <T> T readEntityUnChecked(Type type) {
+    private <T> T readEntityUnChecked(Class<T> type, Type genericType) {
         try {
-            return readEntityChecked(type);
+            return readEntityChecked(type, genericType);
         } catch (ResponseBodyReaderException e) {
             throw new ResponseBodyProcessingException("Response deserialization failed. Cannot deserialize response to: [" + type + "].", e);
         } catch (IOException e) {
@@ -424,12 +426,27 @@ class BasicResponse implements Response {
         }
     }
 
+
+    /**
+     * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
+     * <p>
+     * <p>
+     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     *
+     * @param type        Java type the response entity will be converted to.
+     * @param genericType Java type the response entity will be converted to.
+     * @param <T>         response entity type which must match to the responseType.
+     *
+     * @return Response entity
+     *
+     * @throws IOException                 If the stream could not be created or error occurs reading the input stream.
+     * @throws ResponseBodyReaderException If Cannot deserialize content
+     */
     @SuppressWarnings("unchecked")
-    @Override
-    public <T> T readEntityChecked(Type responseType) throws IOException {
+    private <T> T readEntityChecked(Class<T> type, Type genericType) throws IOException {
         T content;
 
-        ResponseBodyReaderContext responseBodyReaderContext = new BasicResponseBodyReaderContext(this, responseType);
+        ResponseBodyReaderContext<T> responseBodyReaderContext = new BasicResponseBodyReaderContext<>(this, type, genericType);
 
         Optional<ResponseBodyReader<?>> responseBodyReader =
                 responseBodyReaderConfig.getResponseBodyReaders().stream()
@@ -437,9 +454,9 @@ class BasicResponse implements Response {
                         .findFirst();
 
         if (responseBodyReader.isPresent()) {
-            content = (T) responseBodyReader.get().read(responseBodyReaderContext);
+            content = ((ResponseBodyReader<T>) responseBodyReader.get()).read(responseBodyReaderContext);
         } else if (responseBodyReaderConfig.isUseDefaultReader() && responseBodyReaderConfig.getDefaultResponseBodyReader().isReadable(responseBodyReaderContext)) {
-            content = (T) responseBodyReaderConfig.getDefaultResponseBodyReader().read(responseBodyReaderContext);
+            content = ((ResponseBodyReader<T>) responseBodyReaderConfig.getDefaultResponseBodyReader()).read(responseBodyReaderContext);
         } else {
             String errMsg;
 

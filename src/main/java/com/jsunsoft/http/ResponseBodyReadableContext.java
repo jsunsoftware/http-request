@@ -24,7 +24,7 @@ import java.lang.reflect.Type;
 public interface ResponseBodyReadableContext {
 
     /**
-     * @return content type
+     * @return the content type of http entity
      */
     ContentType getContentType();
 
@@ -38,12 +38,41 @@ public interface ResponseBodyReadableContext {
      */
     long getContentLength();
 
-    Type getType();
+    /**
+     * @return the class of instance to be produced.
+     *
+     * <p>
+     * E.g. if given TypeReference for converting is {@code new TypeReference<Map<String, String>>(){}}
+     * <p>
+     * then this will return
+     * <p>
+     * {@code interface java.util.Map}
+     */
+    Class<?> getType();
 
+    /**
+     * @return the type of instance to be produced.
+     * E.g. if given TypeReference for converting is {@code new TypeReference<Map<String, String>>(){}}
+     * <p>
+     * then this will return
+     * <p>
+     * {@code java.util.Map<java.lang.String, java.lang.String>}
+     */
+    Type getGenericType();
+
+    /**
+     * @return the status line of response
+     */
     StatusLine getStatusLine();
 
+    /**
+     * @return {@code true} if response has entity otherwise {@code false}
+     */
     boolean hasEntity();
 
+    /**
+     * @return the status code
+     */
     default int getStatusCode() {
         return getStatusLine().getStatusCode();
     }

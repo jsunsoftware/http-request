@@ -34,7 +34,7 @@ class DefaultStringResponseBodyReader implements ResponseBodyReader<String> {
      * @throws UnsupportedEncodingException  If the named charset is not supported
      */
     @Override
-    public String read(ResponseBodyReaderContext bodyReaderContext) throws IOException {
+    public String read(ResponseBodyReaderContext<String> bodyReaderContext) throws IOException {
 
         long startTime = System.currentTimeMillis();
 
@@ -68,7 +68,7 @@ class DefaultStringResponseBodyReader implements ResponseBodyReader<String> {
         return result;
     }
 
-    private int resolveBufferInitialSize(ResponseBodyReaderContext bodyReaderContext) throws IOException {
+    private int resolveBufferInitialSize(ResponseBodyReaderContext<String> bodyReaderContext) throws IOException {
         int result;
         long contentLength = bodyReaderContext.getContentLength();
         if (contentLength > Integer.MAX_VALUE) {

@@ -38,7 +38,7 @@ public interface ResponseBodyReader<T> {
      * @throws UnsupportedOperationException If entity content cannot be represented as {@link java.io.InputStream}.
      * @throws ResponseBodyReaderException   If Cannot deserialize content
      */
-    T read(ResponseBodyReaderContext bodyReaderContext) throws IOException, ResponseBodyReaderException;
+    T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException, ResponseBodyReaderException;
 
     /**
      * @return returns reader which will always read response stream to string

@@ -37,7 +37,7 @@ import java.util.List;
 import static com.jsunsoft.http.BasicDateDeserializeContext.DEFAULT;
 
 public class ResponseBodyReaderTest {
-    private ResponseBodyReaderContext responseContext;
+    private ResponseBodyReaderContext<Result> responseContext;
 
     @Before
     public final void before() throws UnsupportedEncodingException {
@@ -64,7 +64,7 @@ public class ResponseBodyReaderTest {
         basicHttpEntity.setContentType(ContentType.APPLICATION_JSON.getMimeType());
         HttpResponse httpResponse = new BasicHttpResponse(new BasicStatusLine(new ProtocolVersion("", 1, 1), 200, ""));
         httpResponse.setEntity(basicHttpEntity);
-        responseContext = new BasicResponseBodyReaderContext(httpResponse, Result.class);
+        responseContext = new BasicResponseBodyReaderContext<>(httpResponse, Result.class, Result.class);
     }
 
     @Test
