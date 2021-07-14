@@ -22,7 +22,6 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.ContentType;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.net.URI;
 
 public interface Response extends CloseableHttpResponse {
@@ -87,23 +86,6 @@ public interface Response extends CloseableHttpResponse {
      */
     @Beta
     <T> T readEntityChecked(TypeReference<T> responseType) throws IOException;
-
-    /**
-     * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
-     * <p>
-     * <p>
-     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
-     *
-     * @param responseType Java type the response entity will be converted to.
-     * @param <T>          response entity type which must match to the responseType.
-     *
-     * @return Response entity
-     *
-     * @throws IOException                 If the stream could not be created or error occurs reading the input stream.
-     * @throws ResponseBodyReaderException If Cannot deserialize content
-     */
-    @Beta
-    <T> T readEntityChecked(Type responseType) throws IOException;
 
     /**
      * @return the request URI

@@ -38,7 +38,7 @@ import java.util.Deque;
  *  TypeReference ref = new TypeReference&lt;List&lt;Integer&gt;&gt;() { };
  *  </pre>
  */
-public abstract class TypeReference<T> implements Comparable<TypeReference<T>> {
+public class TypeReference<T> implements Comparable<TypeReference<T>> {
 
     /**
      * Type represented by the generic type instance.
@@ -80,6 +80,11 @@ public abstract class TypeReference<T> implements Comparable<TypeReference<T>> {
 
         type = typeReference;
         rawType = getClass(type);
+    }
+
+    TypeReference(Type type, Class<?> rawType) {
+        this.type = ArgsCheck.notNull(type, "type");
+        this.rawType = ArgsCheck.notNull(rawType, "rawType");
     }
 
     /**

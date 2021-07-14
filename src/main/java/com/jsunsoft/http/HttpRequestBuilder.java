@@ -55,6 +55,7 @@ public class HttpRequestBuilder {
      *
      * @param name  name of header. Can't be null
      * @param value value of header
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultHeader(String name, String value) {
@@ -66,6 +67,7 @@ public class HttpRequestBuilder {
      * Header needs to be the same for all requests which go through the built HttpRequest
      *
      * @param header header instance. Can't be null
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultHeader(Header header) {
@@ -82,6 +84,7 @@ public class HttpRequestBuilder {
      * Headers need to be the same for all requests which go through the built HttpRequest
      *
      * @param headers varargs of headers
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultHeaders(Header... headers) {
@@ -95,6 +98,7 @@ public class HttpRequestBuilder {
      * Headers need to be the same for all requests which go through the built HttpRequest
      *
      * @param headers collections of headers
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultHeaders(Collection<? extends Header> headers) {
@@ -108,6 +112,7 @@ public class HttpRequestBuilder {
      * Sets content type to header
      *
      * @param contentType content type of request header
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addContentType(ContentType contentType) {
@@ -119,6 +124,7 @@ public class HttpRequestBuilder {
      *
      * @param name  key
      * @param value value
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultRequestParameter(String name, String value) {
@@ -130,6 +136,7 @@ public class HttpRequestBuilder {
      * Parameters need to be add  for all requests which go through the built HttpRequest
      *
      * @param nameValues nameValues
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultRequestParameter(NameValuePair... nameValues) {
@@ -145,6 +152,7 @@ public class HttpRequestBuilder {
      * Parameter needs to be add  for all requests which go through the built HttpRequest
      *
      * @param nameValuePair nameValuePair
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultRequestParameter(NameValuePair nameValuePair) {
@@ -161,6 +169,7 @@ public class HttpRequestBuilder {
      * Parameters needs to be add  for all requests which go through the built HttpRequest
      *
      * @param defaultParameters defaultParameters
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultRequestParameter(Map<String, String> defaultParameters) {
@@ -177,6 +186,7 @@ public class HttpRequestBuilder {
      * Parameters needs to be add  for all requests which go through the built HttpRequest
      *
      * @param defaultRequestParameters defaultRequestParameters
+     *
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder addDefaultRequestParameter(Collection<? extends NameValuePair> defaultRequestParameters) {
@@ -203,8 +213,13 @@ public class HttpRequestBuilder {
         return this;
     }
 
-    public HttpRequestBuilder setUseDefaultReader(boolean useDefaultReader) {
-        responseBodyReaderConfigBuilder.setUseDefaultReader(useDefaultReader);
+    public HttpRequestBuilder enableDefaultBodyReader() {
+        responseBodyReaderConfigBuilder.setUseDefaultBodyReader(true);
+        return this;
+    }
+
+    public HttpRequestBuilder disableDefaultBodyReader() {
+        responseBodyReaderConfigBuilder.setUseDefaultBodyReader(false);
         return this;
     }
 
@@ -214,6 +229,7 @@ public class HttpRequestBuilder {
      *
      * @param username username
      * @param password password
+     *
      * @return ClientBuilder instance
      */
     public HttpRequestBuilder basicAuth(String username, String password) {

@@ -22,13 +22,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 
-public interface ResponseBodyReaderContext extends ResponseBodyReadableContext {
+public interface ResponseBodyReaderContext<T> extends ResponseBodyReadableContext {
     /**
      * @return content stream of the entity.
      *
      * @throws IOException if the stream could not be created.
      */
     InputStream getContent() throws IOException;
+
+    /**
+     * @return the type that is to be read from the entity stream.
+     */
+    @Override
+    Class<T> getType();
 
     /**
      * @return content as {@link String}

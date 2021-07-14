@@ -25,13 +25,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 
-final class BasicResponseBodyReaderContext implements ResponseBodyReaderContext {
+final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderContext<T> {
     private final HttpResponse httpResponse;
-    private final Type type;
+    private final Class<T> type;
+    private final Type genericType;
 
-    BasicResponseBodyReaderContext(HttpResponse httpResponse, Type type) {
+    BasicResponseBodyReaderContext(HttpResponse httpResponse, Class<T> type, Type genericType) {
         this.httpResponse = ArgsCheck.notNull(httpResponse, "httpResponse");
         this.type = ArgsCheck.notNull(type, "type");
+        this.genericType = ArgsCheck.notNull(genericType, "genericType");
     }
 
     @Override
@@ -41,7 +43,7 @@ final class BasicResponseBodyReaderContext implements ResponseBodyReaderContext 
 
     @Override
     public String getContentAsString() throws IOException {
-        return ResponseBodyReader.stringReader().read(this);
+        return ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class));
     }
 
     @Override
@@ -60,8 +62,13 @@ final class BasicResponseBodyReaderContext implements ResponseBodyReaderContext 
     }
 
     @Override
-    public Type getType() {
+    public Class<T> getType() {
         return type;
+    }
+
+    @Override
+    public Type getGenericType() {
+        return genericType;
     }
 
     @Override
