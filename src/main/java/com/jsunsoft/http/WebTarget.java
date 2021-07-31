@@ -45,18 +45,36 @@ public interface WebTarget {
      * Append path to the URI of the current target instance.
      *
      * @param path the path.
+     *
      * @return target instance.
+     *
      * @throws NullPointerException if path is {@code null}.
      */
     WebTarget path(final String path);
 
     /**
+     * Set path to the URI of the current target instance.
+     *
+     * <p>
+     * Note: If path already existed this will replace it.
+     *
+     * @param path the path.
+     *
+     * @return target instance.
+     *
+     * @throws NullPointerException if path is {@code null}.
+     */
+    WebTarget setPath(final String path);
+
+    /**
      * Invoke an arbitrary method for the current request.
      *
      * @param method the http method.
+     *
      * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
      * Whether redirects or authentication challenges will be returned
      * or handled automatically depends on the implementation and configuration of this client.
+     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      */
@@ -67,9 +85,11 @@ public interface WebTarget {
      *
      * @param method     the http method.
      * @param httpEntity httpEntity
+     *
      * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
      * Whether redirects or authentication challenges will be returned
      * or handled automatically depends on the implementation and configuration of this client.
+     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      */
@@ -82,8 +102,10 @@ public interface WebTarget {
      * @param httpEntity   httpEntity
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
+     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
+     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod, HttpEntity)
@@ -98,8 +120,10 @@ public interface WebTarget {
      * @param httpEntity   httpEntity
      * @param responseType representation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          response entity type.
+     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
+     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod, HttpEntity)
@@ -113,8 +137,10 @@ public interface WebTarget {
      * @param method       the http method.
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
+     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
+     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -128,8 +154,10 @@ public interface WebTarget {
      * @param method       the http method.
      * @param responseType epresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          response entity type.
+     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
+     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -145,8 +173,10 @@ public interface WebTarget {
      * Any attempt to get content from {@code ResponseHandler} will be thrown exception
      *
      * @param method the http method.
+     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
+     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -165,8 +195,10 @@ public interface WebTarget {
      *
      * @param method     the http method.
      * @param httpEntity httpEntity
+     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
+     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -185,8 +217,10 @@ public interface WebTarget {
      *
      * @param method  the http method.
      * @param payload payload
+     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
+     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -200,6 +234,7 @@ public interface WebTarget {
      * Removes the given header.
      *
      * @param header the header to remove
+     *
      * @return WebTarget instance
      */
     WebTarget removeHeader(final Header header);
@@ -208,6 +243,7 @@ public interface WebTarget {
      * Removes all headers with name.
      *
      * @param name the header name
+     *
      * @return WebTarget instance
      */
     WebTarget removeHeaders(final String name);
@@ -218,6 +254,7 @@ public interface WebTarget {
      *
      * @param header the new header that should replace the first header with the same
      *               name if present in the list.
+     *
      * @return WebTarget instance
      */
     WebTarget updateHeader(final Header header);
@@ -226,6 +263,7 @@ public interface WebTarget {
      * Adds the given header to the request. The order in which this header was added is preserved.
      *
      * @param header header instance. Can't be null
+     *
      * @return WebTarget instance
      */
     WebTarget addHeader(final Header header);
@@ -237,6 +275,7 @@ public interface WebTarget {
      * @param payload      payload
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type
+     *
      * @return WebTarget instance
      */
     default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
@@ -267,6 +306,7 @@ public interface WebTarget {
      *
      * @param name  name of header. Can't be null
      * @param value value of header
+     *
      * @return WebTarget instance
      */
     default WebTarget addHeader(final String name, final String value) {
@@ -279,6 +319,7 @@ public interface WebTarget {
      * Adds the given headers to the request. The order in which this header was added is preserved.
      *
      * @param headers collections of headers
+     *
      * @return WebTarget instance
      */
     default WebTarget addHeaders(final Collection<? extends Header> headers) {
@@ -294,6 +335,7 @@ public interface WebTarget {
      *
      * @param name  name of header. Can't be null
      * @param value value of header
+     *
      * @return WebTarget instance
      */
     default WebTarget updateHeader(final String name, final String value) {
@@ -307,6 +349,7 @@ public interface WebTarget {
      * Sets content type to header
      *
      * @param contentType content type of request header
+     *
      * @return WebTarget instance
      */
     default WebTarget addContentType(final ContentType contentType) {
@@ -318,7 +361,9 @@ public interface WebTarget {
      * Sets the {@code requestConfig} to the request
      *
      * @param requestConfig requestConfig
+     *
      * @return WebTarget instance
+     *
      * @see RequestConfig
      */
     WebTarget setRequestConfig(final RequestConfig requestConfig);
@@ -327,6 +372,7 @@ public interface WebTarget {
      * Added parameter into request
      *
      * @param nameValuePair nameValuePair
+     *
      * @return WebTarget instance
      */
     WebTarget addParameter(final NameValuePair nameValuePair);
@@ -335,6 +381,7 @@ public interface WebTarget {
      * Add parameters into request
      *
      * @param parameters nameValuePairs
+     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final NameValuePair... parameters) {
@@ -355,6 +402,7 @@ public interface WebTarget {
      *
      * @param queryString queryString
      * @param charset     charset
+     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final String queryString, final Charset charset) {
@@ -374,6 +422,7 @@ public interface WebTarget {
      * Default charset is "UTF-8".
      *
      * @param queryString queryString
+     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final String queryString) {
@@ -385,7 +434,9 @@ public interface WebTarget {
      * name1 = nameValues[0], value1 = nameValues[1]; name2 = nameValues[1], value2 = nameValues[2] ... e.t.c.
      *
      * @param nameValues array of nameValue
+     *
      * @return WebTarget instance
+     *
      * @throws IllegalArgumentException When length of parameter nameValues is odd or ZERO.
      * @throws NullPointerException     when param nameValues is null
      */
@@ -407,6 +458,7 @@ public interface WebTarget {
      * Add parameters into request
      *
      * @param parameters nameValuePairs
+     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final Collection<? extends NameValuePair> parameters) {
@@ -420,6 +472,7 @@ public interface WebTarget {
      * Add parameters into request key as request parameter name Value as request parameter value
      *
      * @param parameters parameters
+     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final Map<String, String> parameters) {
@@ -436,6 +489,7 @@ public interface WebTarget {
      *
      * @param name  request parameter name
      * @param value request parameter value
+     *
      * @return WebTarget instance
      */
     default WebTarget addParameter(final String name, final String value) {
@@ -449,6 +503,7 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @return the response to the request.
+     *
      * @see #request(HttpMethod)
      */
     default Response get() {
@@ -459,6 +514,7 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod)
      */
     default ResponseHandler<?> rawGet() {
@@ -469,6 +525,7 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawGet(final HttpEntity httpEntity) {
@@ -479,6 +536,7 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawGet(final String payload) {
@@ -489,7 +547,9 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @param httpEntity httpEntity
+     *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #request(HttpMethod, HttpEntity)
      */
     default Response get(final HttpEntity httpEntity) {
@@ -536,6 +596,7 @@ public interface WebTarget {
      * Invoke HTTP PUT method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawPut(final HttpEntity httpEntity) {
@@ -546,6 +607,7 @@ public interface WebTarget {
      * Invoke HTTP PUT method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawPut(final String payload) {
@@ -596,6 +658,7 @@ public interface WebTarget {
      * Invoke HTTP POST method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawPost(final HttpEntity httpEntity) {
@@ -606,6 +669,7 @@ public interface WebTarget {
      * Invoke HTTP POST method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawPost(final String payload) {
@@ -656,6 +720,7 @@ public interface WebTarget {
      * Invoke HTTP HEAD method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawHead(final HttpEntity httpEntity) {
@@ -666,6 +731,7 @@ public interface WebTarget {
      * Invoke HTTP HEAD method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawHead(final String payload) {
@@ -716,6 +782,7 @@ public interface WebTarget {
      * Invoke HTTP DELETE method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawDelete(final HttpEntity httpEntity) {
@@ -726,6 +793,7 @@ public interface WebTarget {
      * Invoke HTTP DELETE method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawDelete(final String payload) {
@@ -776,6 +844,7 @@ public interface WebTarget {
      * Invoke HTTP OPTIONS method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawOptions(final HttpEntity httpEntity) {
@@ -786,6 +855,7 @@ public interface WebTarget {
      * Invoke HTTP OPTIONS method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawOptions(final String payload) {
@@ -836,6 +906,7 @@ public interface WebTarget {
      * Invoke HTTP PATCH method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawPatch(final HttpEntity httpEntity) {
@@ -846,6 +917,7 @@ public interface WebTarget {
      * Invoke HTTP PATCH method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawPatch(final String payload) {
