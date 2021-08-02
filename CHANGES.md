@@ -30,3 +30,7 @@ versions.
 # 2.1.0
 
 The `ResponseBodyReaderContext` become generic.
+
+# 2.2.0
+
+The `path` method of `WebTarget` now adds path to existed path instead of replacing, for replace use `setPath` method.

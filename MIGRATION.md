@@ -19,4 +19,10 @@ Replace `getType` of `ResponseBodyReaderContext` to `getGenericType`.
 The method `getType` of `ResponseBodyReaderContext` now returns Class<T> the type that is to be read from the entity
 stream.
 
-Replace `setUseDefaultReader(boolean useDefaultReader)` of `HttpRequestBuilder` to `enableDefaultBodyReader` or `disableDefaultBodyReader`
+Replace `setUseDefaultReader(boolean useDefaultReader)` of `HttpRequestBuilder` to `enableDefaultBodyReader`
+or `disableDefaultBodyReader`
+
+# 2.2.0
+
+Rename method `path` of `WebTarget` to `setPath`. The `path` method now adds path to existed path instead of replacing,
+for replace use `setPath` method.

@@ -66,7 +66,33 @@ class BasicWebTarget implements WebTarget {
     public WebTarget path(String path) {
         ArgsCheck.notNull(path, "path");
 
+
+        String newPath;
+
+        if (uriBuilder.isPathEmpty()) {
+            newPath = path;
+        } else {
+            String currentPath = uriBuilder.getPath();
+
+            String slash = "/";
+
+            if (!path.startsWith(slash) || !currentPath.endsWith(slash)) {
+                newPath = currentPath + slash + path;
+            } else {
+                newPath = currentPath + path;
+            }
+        }
+
+        uriBuilder.setPath(newPath);
+        return this;
+    }
+
+    @Override
+    public WebTarget setPath(String path) {
+        ArgsCheck.notNull(path, "path");
+
         uriBuilder.setPath(path);
+
         return this;
     }
 
