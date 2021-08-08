@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +14,7 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
+package com.jsunsoft.http;
 
 import org.apache.http.*;
 import org.apache.http.client.ClientProtocolException;
@@ -60,6 +59,11 @@ class BasicWebTarget implements WebTarget {
         this(closeableHttpClient, uriBuilder, responseBodyReaderConfig);
         defaultHeaders.forEach(httpUriRequestBuilder::addHeader);
         defaultRequestParameters.forEach(httpUriRequestBuilder::addParameter);
+    }
+
+    @Override
+    public String getURIString() {
+        return uriBuilder.toString();
     }
 
     @Override
@@ -124,7 +128,7 @@ class BasicWebTarget implements WebTarget {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(responseType, "responseType");
 
-        return request(method, new TypeReference<T>(responseType));
+        return request(method, new TypeReference<>(responseType));
     }
 
     @Override
@@ -233,7 +237,7 @@ class BasicWebTarget implements WebTarget {
         try {
             uri = uriBuilder.build().normalize();
         } catch (URISyntaxException e) {
-            throw new IllegalArgumentException(e.getMessage(), e);
+            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + getURIString() + "].", e);
         }
         return uri;
     }

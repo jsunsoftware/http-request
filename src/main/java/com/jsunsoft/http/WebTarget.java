@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +14,7 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
+package com.jsunsoft.http;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -40,6 +39,11 @@ import static org.apache.http.HttpHeaders.CONTENT_TYPE;
  * A resource target identified by the resource URI.
  */
 public interface WebTarget {
+
+    /**
+     * @return URI as string
+     */
+    String getURIString();
 
     /**
      * Append path to the URI of the current target instance.

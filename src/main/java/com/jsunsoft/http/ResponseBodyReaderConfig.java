@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2017-2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ package com.jsunsoft.http;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 
 class ResponseBodyReaderConfig {
     private final ResponseBodyReader<?> defaultResponseBodyReader;
@@ -69,7 +70,7 @@ class ResponseBodyReaderConfig {
 
         Builder addResponseBodyReader(ResponseBodyReader<?> responseBodyReader) {
             if (responseBodyReaders == null) {
-                responseBodyReaders = new ArrayList<>();
+                responseBodyReaders = new LinkedHashSet<>();
             }
 
             this.responseBodyReaders.add(responseBodyReader);
