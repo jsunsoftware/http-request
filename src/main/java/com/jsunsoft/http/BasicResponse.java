@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +13,8 @@ package com.jsunsoft.http;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package com.jsunsoft.http;
 
 import org.apache.http.*;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -40,11 +40,18 @@ class BasicResponse implements Response {
 
     /**
      * Ensures that the entity content is fully consumed and the content stream, if exists, is closed
-     * then calls {@link CloseableHttpResponse#close()}
+     * then calls {@link EntityUtils#consume(HttpEntity)} then {@link CloseableHttpResponse#close()}
      */
     @Override
     public void close() throws IOException {
-        EntityUtils.consumeQuietly(getEntity());
+
+        try {
+            EntityUtils.consume(getEntity());
+        } catch (IOException e) {
+            closeableHttpResponse.close();
+            throw e;
+        }
+
         closeableHttpResponse.close();
     }
 
