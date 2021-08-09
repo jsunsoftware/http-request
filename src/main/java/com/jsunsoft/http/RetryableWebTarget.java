@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +14,17 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
+package com.jsunsoft.http;
 
 import com.jsunsoft.http.annotations.Beta;
 import org.apache.http.Header;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
@@ -34,13 +34,13 @@ class RetryableWebTarget extends BasicWebTarget {
 
     private final RetryContext retryContext;
 
-    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig) {
-        super(closeableHttpClient, uriBuilder, responseBodyReaderConfig);
+    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig) {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
         this.retryContext = retryContext;
     }
 
-    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig) {
-        super(closeableHttpClient, uriBuilder, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
+    RetryableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig) throws URISyntaxException {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
         this.retryContext = retryContext;
     }
 

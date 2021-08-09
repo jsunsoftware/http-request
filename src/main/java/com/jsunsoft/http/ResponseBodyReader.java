@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021. Benik Arakelyan
+ * Copyright (c) 2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ import java.io.IOException;
  * Implementation of this interface must provided deserialization of response body to type {@code T}
  *
  * @param <T> Type of deserialized instance
+ *            <p>
+ *            <p>
+ *            Note: All implementations must be thread safe in case of multi thread environment.
  */
 public interface ResponseBodyReader<T> {
 

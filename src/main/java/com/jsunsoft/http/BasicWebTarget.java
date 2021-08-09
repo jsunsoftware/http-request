@@ -42,52 +42,53 @@ import static org.apache.http.HttpStatus.*;
 class BasicWebTarget implements WebTarget {
     private static final Logger LOGGER = LoggerFactory.getLogger(BasicWebTarget.class);
 
-
     private final CloseableHttpClient closeableHttpClient;
     private final URIBuilder uriBuilder;
-    private final HttpUriRequestBuilder httpUriRequestBuilder = new HttpUriRequestBuilder();
+    private final HttpUriRequestBuilder httpUriRequestBuilder;
     private final ResponseBodyReaderConfig responseBodyReaderConfig;
 
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig) {
+        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
+    }
 
-    BasicWebTarget(final CloseableHttpClient closeableHttpClient, final URIBuilder uriBuilder, ResponseBodyReaderConfig responseBodyReaderConfig) {
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig) throws URISyntaxException {
+        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
+    }
+
+    private BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig) {
         this.closeableHttpClient = closeableHttpClient;
         this.uriBuilder = uriBuilder;
         this.responseBodyReaderConfig = responseBodyReaderConfig;
-    }
+        this.httpUriRequestBuilder = new HttpUriRequestBuilder();
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig) {
-        this(closeableHttpClient, uriBuilder, responseBodyReaderConfig);
         defaultHeaders.forEach(httpUriRequestBuilder::addHeader);
         defaultRequestParameters.forEach(httpUriRequestBuilder::addParameter);
     }
 
-    @Override
-    public String getURIString() {
-        return uriBuilder.toString();
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig) {
+        this.closeableHttpClient = closeableHttpClient;
+        this.uriBuilder = uriBuilder;
+        this.httpUriRequestBuilder = httpUriRequestBuilder;
+        this.responseBodyReaderConfig = responseBodyReaderConfig;
+    }
+
+    /**
+     * Copy constructor
+     *
+     * @param source source WebTarget instance from which new WebTarget must be initialized
+     */
+    BasicWebTarget(BasicWebTarget source) {
+        this.closeableHttpClient = source.getCloseableHttpClient();
+        this.uriBuilder = source.getUriBuilder();
+        this.responseBodyReaderConfig = source.getResponseBodyReaderConfig();
+        this.httpUriRequestBuilder = source.getHttpUriRequestBuilder();
     }
 
     @Override
     public WebTarget path(String path) {
         ArgsCheck.notNull(path, "path");
 
-
-        String newPath;
-
-        if (uriBuilder.isPathEmpty()) {
-            newPath = path;
-        } else {
-            String currentPath = uriBuilder.getPath();
-
-            String slash = "/";
-
-            if (!path.startsWith(slash) || !currentPath.endsWith(slash)) {
-                newPath = currentPath + slash + path;
-            } else {
-                newPath = currentPath + path;
-            }
-        }
-
-        uriBuilder.setPath(newPath);
+        HttpRequestUtils.appendPath(uriBuilder, path);
         return this;
     }
 
@@ -232,7 +233,7 @@ class BasicWebTarget implements WebTarget {
         return result;
     }
 
-    private URI getURI() {
+    public URI getURI() {
         URI uri;
         try {
             uri = uriBuilder.build().normalize();
@@ -240,6 +241,11 @@ class BasicWebTarget implements WebTarget {
             throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + getURIString() + "].", e);
         }
         return uri;
+    }
+
+    @Override
+    public String getURIString() {
+        return uriBuilder.toString();
     }
 
     @Override
@@ -288,5 +294,21 @@ class BasicWebTarget implements WebTarget {
 
         httpUriRequestBuilder.addParameter(nameValuePair);
         return this;
+    }
+
+    CloseableHttpClient getCloseableHttpClient() {
+        return closeableHttpClient;
+    }
+
+    URIBuilder getUriBuilder() {
+        return new URIBuilder(getURI());
+    }
+
+    HttpUriRequestBuilder getHttpUriRequestBuilder() {
+        return httpUriRequestBuilder.copyBuilder();
+    }
+
+    ResponseBodyReaderConfig getResponseBodyReaderConfig() {
+        return responseBodyReaderConfig;
     }
 }

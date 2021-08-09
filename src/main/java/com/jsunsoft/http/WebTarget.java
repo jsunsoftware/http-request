@@ -27,6 +27,7 @@ import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.Args;
 
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,11 +40,6 @@ import static org.apache.http.HttpHeaders.CONTENT_TYPE;
  * A resource target identified by the resource URI.
  */
 public interface WebTarget {
-
-    /**
-     * @return URI as string
-     */
-    String getURIString();
 
     /**
      * Append path to the URI of the current target instance.
@@ -380,6 +376,16 @@ public interface WebTarget {
      * @return WebTarget instance
      */
     WebTarget addParameter(final NameValuePair nameValuePair);
+
+    /**
+     * @return URI as string
+     */
+    String getURIString();
+
+    /**
+     * @return The URI
+     */
+    URI getURI();
 
     /**
      * Add parameters into request

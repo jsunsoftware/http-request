@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2017-2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,6 +79,69 @@ public class HttpRequestConnectionManagementLiveTest {
         final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.target(SERVER1));
         final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.target(SERVER7));
         final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.target("http://www.google.com/"));
+        thread1.start();
+        thread2.start();
+        thread3.start();
+        thread1.join();
+        thread2.join(1000);
+        thread3.join();
+//        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) closeableHttpClient.getConnectionManager()).getTotalStats().getLeased());
+    }
+
+
+    @Test
+    public final void whenConnectionsNeededGreaterThanMaxTotal_thenReuseConnectionsImmutableWebTarget() throws InterruptedException {
+        HttpRequest httpRequest = HttpRequestBuilder.create(ClientBuilder.create().connectionRequestTimeout(5).build()).build();
+
+        int validThreadSize = 128;
+        final HttpRequestThread[] threads = new HttpRequestThread[validThreadSize];
+
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new HttpRequestThread(httpRequest.immutableTarget(SERVER1));
+        }
+
+        for (HttpRequestThread thread : threads) {
+            thread.start();
+        }
+
+        for (HttpRequestThread thread : threads) {
+            thread.join();
+            assertFalse(thread.getResponseHandler().getConnectionFailureType().isConnectionPoolEmpty());
+        }
+    }
+
+    @Test
+    public final void whenTwoConnectionsForTwoRequests_thenNoExceptionsImmutableWebTarget() throws InterruptedException {
+        HttpRequest httpRequest1 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
+        HttpRequest httpRequest2 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
+
+        HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.immutableTarget(SERVER1));
+        HttpRequestThread thread2 = new HttpRequestThread(httpRequest2.immutableTarget(SERVER7));
+
+        thread1.start();
+        thread2.start();
+        thread1.join();
+        thread2.join();
+        assertTrue(thread1.getResponseHandler().getConnectionFailureType().isNotFailed());
+        assertTrue(thread2.getResponseHandler().getConnectionFailureType().isNotFailed());
+    }
+
+    @Test
+    public final void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptionsImmutableWebTarget() {
+        CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
+        BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(closeableHttpClient).build();
+        httpRequest.immutableTarget(SERVER1).get();
+//        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) closeableHttpClient.getConnectionManager()).getTotalStats().getLeased());
+    }
+
+    @Test
+    public final void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeasedImmutableWebTarget() throws InterruptedException {
+        CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
+
+        HttpRequest httpRequest1 = HttpRequestBuilder.create(closeableHttpClient).build();
+        final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.immutableTarget(SERVER1));
+        final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.immutableTarget(SERVER7));
+        final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.immutableTarget("http://www.google.com/"));
         thread1.start();
         thread2.start();
         thread3.start();
