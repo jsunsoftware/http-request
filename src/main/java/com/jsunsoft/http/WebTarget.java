@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +14,7 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
+package com.jsunsoft.http;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -28,6 +27,7 @@ import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.Args;
 
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collection;
@@ -376,6 +376,16 @@ public interface WebTarget {
      * @return WebTarget instance
      */
     WebTarget addParameter(final NameValuePair nameValuePair);
+
+    /**
+     * @return URI as string
+     */
+    String getURIString();
+
+    /**
+     * @return The URI
+     */
+    URI getURI();
 
     /**
      * Add parameters into request

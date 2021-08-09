@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ import java.io.IOException;
  * Implementation of this interface must provided deserialization of response body to type {@code T}
  *
  * @param <T> Type of deserialized instance
+ *            <p>
+ *            <p>
+ *            Note: All implementations must be thread safe in case of multi thread environment.
  */
 public interface ResponseBodyReader<T> {
 
@@ -41,9 +44,23 @@ public interface ResponseBodyReader<T> {
     T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException, ResponseBodyReaderException;
 
     /**
-     * @return returns reader which will always read response stream to string
+     * @return returns reader which will always read response stream to string. Reader's result will be null if no content.
      */
     static ResponseBodyReader<String> stringReader() {
-        return DefaultStringResponseBodyReader.INSTANCE;
+        return ResponseBodyReaders.stringReader();
+    }
+
+    /**
+     * @return returns reader which will always read response stream to string only when status code is not success. Reader's result will be null if no content.
+     */
+    static ResponseBodyReader<String> whenNonSuccessStringReader() {
+        return ResponseBodyReaders.whenNonSuccessStringReader();
+    }
+
+    /**
+     * @return returns reader which will read response stream to string only when status code is success. Reader's result will be null if no content.
+     */
+    static ResponseBodyReader<String> whenSuccessStringReader() {
+        return ResponseBodyReaders.whenSuccessStringReader();
     }
 }

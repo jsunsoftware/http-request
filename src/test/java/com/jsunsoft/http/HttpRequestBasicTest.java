@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2017-2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,22 @@ public class HttpRequestBasicTest {
     @Test
     public void largeResponseTest() {
         ResponseHandler<String> responseHandler = HTTP_REQUEST_TO_GET_LARGE_RESPONSE.target("https://en.wikipedia.org/")
+                .path("wiki/List_of_least_concern_birds")
+                .get(String.class);
+        Assert.assertTrue(responseHandler.orElse("").length() > 16348);
+    }
+
+    @Test
+    public void getResponseCodeImmutable() {
+        Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.immutableTarget("https://en.wikipedia.org/")
+                .path("wiki/List_of_least_concern_birds")
+                .get()
+                .getStatusCode());
+    }
+
+    @Test
+    public void largeResponseTestImmutable() {
+        ResponseHandler<String> responseHandler = HTTP_REQUEST_TO_GET_LARGE_RESPONSE.immutableTarget("https://en.wikipedia.org/")
                 .path("wiki/List_of_least_concern_birds")
                 .get(String.class);
         Assert.assertTrue(responseHandler.orElse("").length() > 16348);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2017-2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.jsunsoft.http;
 
 import org.apache.http.HttpStatus;
+import org.apache.http.client.utils.URIBuilder;
 
 import java.lang.reflect.Type;
 
@@ -64,5 +65,25 @@ class HttpRequestUtils {
 
     static <T> T orDefault(T value, T defaultValue) {
         return value == null ? defaultValue : value;
+    }
+
+    static URIBuilder appendPath(URIBuilder uriBuilder, String path) {
+        String newPath;
+
+        if (uriBuilder.isPathEmpty()) {
+            newPath = path;
+        } else {
+            String currentPath = uriBuilder.getPath();
+
+            String slash = "/";
+
+            if (!path.startsWith(slash) || !currentPath.endsWith(slash)) {
+                newPath = currentPath + slash + path;
+            } else {
+                newPath = currentPath + path;
+            }
+        }
+
+        return uriBuilder.setPath(newPath);
     }
 }

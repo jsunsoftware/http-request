@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +13,8 @@ package com.jsunsoft.http;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package com.jsunsoft.http;
 
 import org.apache.http.HttpRequest;
 import org.apache.http.*;
@@ -49,7 +49,7 @@ class HttpUriRequestBuilder {
     private List<NameValuePair> parameters;
     private RequestConfig config;
 
-    private HttpUriRequestBuilder(final String method) {
+    HttpUriRequestBuilder(final String method) {
         super();
         this.charset = Consts.UTF_8;
         this.method = method;
@@ -133,17 +133,39 @@ class HttpUriRequestBuilder {
         return this;
     }
 
-    /**
-     * @since 4.4
-     */
+    HttpUriRequestBuilder copyBuilder() {
+        HttpUriRequestBuilder copyHttpUriRequestBuilder = new HttpUriRequestBuilder();
+
+        copyHttpUriRequestBuilder.method = method;
+        copyHttpUriRequestBuilder.charset = charset;
+        copyHttpUriRequestBuilder.version = version;
+        copyHttpUriRequestBuilder.uri = uri;
+
+        if (headerGroup != null) {
+            copyHttpUriRequestBuilder.headerGroup = new HeaderGroup();
+            copyHttpUriRequestBuilder.headerGroup.setHeaders(headerGroup.getAllHeaders());
+        }
+
+        if (entity != null) {
+            throw new IllegalStateException("After initializing the httpEntity builder can't be copied.");
+        }
+
+        if (parameters != null) {
+            copyHttpUriRequestBuilder.parameters = new ArrayList<>(parameters);
+        }
+
+        if (config != null) {
+            copyHttpUriRequestBuilder.config = RequestConfig.copy(config).build();
+        }
+
+        return this;
+    }
+
     public HttpUriRequestBuilder setCharset(final Charset charset) {
         this.charset = charset;
         return this;
     }
 
-    /**
-     * @since 4.4
-     */
     public Charset getCharset() {
         return charset;
     }
