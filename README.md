@@ -365,8 +365,8 @@ To use from maven add this snippet to the pom.xml `dependencies` section:
 
 <dependency>
     <groupId>com.jsunsoft.http</groupId>
-    <artifactId>http-request</artifactId>
-    <version>2.1.0</version>
+  <artifactId>http-request</artifactId>
+  <version>2.2.1</version>
 </dependency>
 ```
 
