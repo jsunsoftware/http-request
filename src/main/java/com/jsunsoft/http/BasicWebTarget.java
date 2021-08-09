@@ -102,7 +102,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
-    public Response request(HttpMethod method, HttpEntity httpEntity) {
+    public Response request(String method, HttpEntity httpEntity) {
         ArgsCheck.notNull(method, "method");
 
         httpUriRequestBuilder.setEntity(httpEntity);
@@ -110,13 +110,13 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
-    public <T> ResponseHandler<T> request(HttpMethod method, HttpEntity httpEntity, Class<T> responseType) {
+    public <T> ResponseHandler<T> request(String method, HttpEntity httpEntity, Class<T> responseType) {
         httpUriRequestBuilder.setEntity(httpEntity);
         return request(method, responseType);
     }
 
     @Override
-    public <T> ResponseHandler<T> request(HttpMethod method, HttpEntity httpEntity, TypeReference<T> responseType) {
+    public <T> ResponseHandler<T> request(String method, HttpEntity httpEntity, TypeReference<T> responseType) {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(responseType, "responseType");
 
@@ -125,7 +125,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
-    public <T> ResponseHandler<T> request(HttpMethod method, Class<T> responseType) {
+    public <T> ResponseHandler<T> request(String method, Class<T> responseType) {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(responseType, "responseType");
 
@@ -133,7 +133,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
-    public Response request(HttpMethod method) {
+    public Response request(String method) {
         ArgsCheck.notNull(method, "method");
 
         HttpUriRequest request = resolveRequest(method);
@@ -156,13 +156,13 @@ class BasicWebTarget implements WebTarget {
         }
     }
 
-    private HttpUriRequest resolveRequest(HttpMethod method) {
+    private HttpUriRequest resolveRequest(String method) {
 
-        return httpUriRequestBuilder.setMethod(method.name()).setUri(getURI()).build();
+        return httpUriRequestBuilder.setMethod(method).setUri(getURI()).build();
     }
 
     @Override
-    public <T> ResponseHandler<T> request(HttpMethod method, TypeReference<T> typeReference) {
+    public <T> ResponseHandler<T> request(String method, TypeReference<T> typeReference) {
         CustomArgsCheck.checkIsCorrectTypeForDeserialization(typeReference.getRawType());
 
         long startTime = System.currentTimeMillis();

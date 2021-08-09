@@ -78,7 +78,9 @@ public interface WebTarget {
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      */
-    Response request(final HttpMethod method);
+    default Response request(final HttpMethod method) {
+        return request(method.name());
+    }
 
     /**
      * Invoke an arbitrary method for the current request.
@@ -93,7 +95,9 @@ public interface WebTarget {
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      */
-    Response request(final HttpMethod method, final HttpEntity httpEntity);
+    default Response request(final HttpMethod method, final HttpEntity httpEntity) {
+        return request(method.name(), httpEntity);
+    }
 
     /**
      * Invoke an arbitrary method for the current request.
@@ -111,7 +115,9 @@ public interface WebTarget {
      * @see #request(HttpMethod, HttpEntity)
      * @see ResponseHandler
      */
-    <T> ResponseHandler<T> request(final HttpMethod method, final HttpEntity httpEntity, Class<T> responseType);
+    default <T> ResponseHandler<T> request(final HttpMethod method, final HttpEntity httpEntity, Class<T> responseType) {
+        return request(method.name(), httpEntity, responseType);
+    }
 
     /**
      * Invoke an arbitrary method for the current request.
@@ -129,7 +135,9 @@ public interface WebTarget {
      * @see #request(HttpMethod, HttpEntity)
      * @see ResponseHandler
      */
-    <T> ResponseHandler<T> request(final HttpMethod method, final HttpEntity httpEntity, TypeReference<T> responseType);
+    default <T> ResponseHandler<T> request(final HttpMethod method, final HttpEntity httpEntity, TypeReference<T> responseType) {
+        return request(method.name(), httpEntity, responseType);
+    }
 
     /**
      * Invoke an arbitrary method for the current request.
@@ -146,7 +154,9 @@ public interface WebTarget {
      * @see #request(HttpMethod)
      * @see ResponseHandler
      */
-    <T> ResponseHandler<T> request(final HttpMethod method, Class<T> responseType);
+    default <T> ResponseHandler<T> request(final HttpMethod method, Class<T> responseType) {
+        return request(method.name(), responseType);
+    }
 
     /**
      * Invoke an arbitrary method for the current request.
@@ -163,7 +173,9 @@ public interface WebTarget {
      * @see #request(HttpMethod)
      * @see ResponseHandler
      */
-    <T> ResponseHandler<T> request(final HttpMethod method, TypeReference<T> responseType);
+    default <T> ResponseHandler<T> request(final HttpMethod method, TypeReference<T> responseType) {
+        return request(method.name(), responseType);
+    }
 
     /**
      * Invoke an arbitrary method for the current request.
@@ -231,6 +243,236 @@ public interface WebTarget {
     }
 
     /**
+     * The same as {@link #request(HttpMethod, HttpEntity, Class)} wrapped {@code payload} into {@link StringEntity}
+     *
+     * @param method       the http method.
+     * @param payload      payload
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type
+     *
+     * @return WebTarget instance
+     */
+    default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
+        return request(method, new StringEntity(payload, UTF_8), responseType);
+    }
+
+    default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
+        return request(method, new StringEntity(payload, UTF_8), responseType);
+    }
+
+    default Response request(final HttpMethod method, final String payload) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+
+        return request(method, new StringEntity(payload, UTF_8));
+    }
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method the http method.
+     *
+     * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
+     * Whether redirects or authentication challenges will be returned
+     * or handled automatically depends on the implementation and configuration of this client.
+     *
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     */
+    Response request(final String method);
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method     the http method.
+     * @param httpEntity httpEntity
+     *
+     * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
+     * Whether redirects or authentication challenges will be returned
+     * or handled automatically depends on the implementation and configuration of this client.
+     *
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     */
+    Response request(final String method, final HttpEntity httpEntity);
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method       the http method.
+     * @param httpEntity   httpEntity
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     *
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     *
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod, HttpEntity)
+     * @see ResponseHandler
+     */
+    <T> ResponseHandler<T> request(final String method, final HttpEntity httpEntity, Class<T> responseType);
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method       the http method.
+     * @param httpEntity   httpEntity
+     * @param responseType representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     *
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     *
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod, HttpEntity)
+     * @see ResponseHandler
+     */
+    <T> ResponseHandler<T> request(final String method, final HttpEntity httpEntity, TypeReference<T> responseType);
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method       the http method.
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     *
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     *
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
+    <T> ResponseHandler<T> request(final String method, Class<T> responseType);
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     *
+     * @param method       the http method.
+     * @param responseType epresentation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          response entity type.
+     *
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     *
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
+    <T> ResponseHandler<T> request(final String method, TypeReference<T> responseType);
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     * <p>
+     * Mainly designed to use in case when response body aren't interested.
+     * </p>
+     * Any attempt to get content from {@code ResponseHandler} will be thrown exception
+     *
+     * @param method the http method.
+     *
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     *
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
+    default ResponseHandler<?> rawRequest(final String method) {
+        return request(method, Void.class);
+    }
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     * <p>
+     * Mainly designed to use in case when response body aren't interested.
+     * </p>
+     * Any attempt to get content from {@code ResponseHandler} will be thrown exception
+     *
+     * @param method     the http method.
+     * @param httpEntity httpEntity
+     *
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     *
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
+    default ResponseHandler<?> rawRequest(final String method, final HttpEntity httpEntity) {
+        return request(method, httpEntity, Void.class);
+    }
+
+    /**
+     * Invoke an arbitrary method for the current request.
+     * <p>
+     * Mainly designed to use in case when response body aren't interested.
+     * </p>
+     * Any attempt to get content from {@code ResponseHandler} will be thrown exception
+     *
+     * @param method  the http method.
+     * @param payload payload
+     *
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     *
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error.
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
+    default ResponseHandler<?> rawRequest(final String method, final String payload) {
+        return request(method, payload, Void.class);
+    }
+
+    /**
+     * The same as {@link #request(HttpMethod, HttpEntity, Class)} wrapped {@code payload} into {@link StringEntity}
+     *
+     * @param method       the http method.
+     * @param payload      payload
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type
+     *
+     * @return WebTarget instance
+     */
+    default <T> ResponseHandler<T> request(final String method, final String payload, Class<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
+        return request(method, new StringEntity(payload, UTF_8), responseType);
+    }
+
+    default <T> ResponseHandler<T> request(final String method, final String payload, TypeReference<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
+        return request(method, new StringEntity(payload, UTF_8), responseType);
+    }
+
+    default Response request(final String method, final String payload) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+
+        return request(method, new StringEntity(payload, UTF_8));
+    }
+
+    /**
      * Removes the given header.
      *
      * @param header the header to remove
@@ -267,39 +509,6 @@ public interface WebTarget {
      * @return WebTarget instance
      */
     WebTarget addHeader(final Header header);
-
-    /**
-     * The same as {@link #request(HttpMethod, HttpEntity, Class)} wrapped {@code payload} into {@link StringEntity}
-     *
-     * @param method       the http method.
-     * @param payload      payload
-     * @param responseType Java type the response entity will be converted to.
-     * @param <T>          response entity type
-     *
-     * @return WebTarget instance
-     */
-    default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
-        ArgsCheck.notNull(method, "method");
-        ArgsCheck.notNull(payload, "payload");
-        ArgsCheck.notNull(payload, "responseType");
-
-        return request(method, new StringEntity(payload, UTF_8), responseType);
-    }
-
-    default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType) {
-        ArgsCheck.notNull(method, "method");
-        ArgsCheck.notNull(payload, "payload");
-        ArgsCheck.notNull(payload, "responseType");
-
-        return request(method, new StringEntity(payload, UTF_8), responseType);
-    }
-
-    default Response request(final HttpMethod method, final String payload) {
-        ArgsCheck.notNull(method, "method");
-        ArgsCheck.notNull(payload, "payload");
-
-        return request(method, new StringEntity(payload, UTF_8));
-    }
 
     /**
      * Adds the given name and value as header to the request.

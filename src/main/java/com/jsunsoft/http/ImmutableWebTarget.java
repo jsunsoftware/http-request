@@ -128,7 +128,7 @@ class ImmutableWebTarget extends BasicWebTarget {
     }
 
     @Override
-    public Response request(HttpMethod method, HttpEntity httpEntity) {
+    public Response request(String method, HttpEntity httpEntity) {
         return new BasicWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder(),
@@ -138,27 +138,27 @@ class ImmutableWebTarget extends BasicWebTarget {
     }
 
     @Override
-    public <T> ResponseHandler<T> request(HttpMethod method, HttpEntity httpEntity, Class<T> responseType) {
+    public <T> ResponseHandler<T> request(String method, HttpEntity httpEntity, Class<T> responseType) {
         return toBasicWebTarget().request(method, httpEntity, responseType);
     }
 
     @Override
-    public <T> ResponseHandler<T> request(HttpMethod method, HttpEntity httpEntity, TypeReference<T> responseType) {
+    public <T> ResponseHandler<T> request(String method, HttpEntity httpEntity, TypeReference<T> responseType) {
         return toBasicWebTarget().request(method, httpEntity, responseType);
     }
 
     @Override
-    public <T> ResponseHandler<T> request(HttpMethod method, Class<T> responseType) {
+    public <T> ResponseHandler<T> request(String method, Class<T> responseType) {
         return toBasicWebTarget().request(method, responseType);
     }
 
     @Override
-    public Response request(HttpMethod method) {
+    public Response request(String method) {
         return toBasicWebTarget().request(method);
     }
 
     @Override
-    public <T> ResponseHandler<T> request(HttpMethod method, TypeReference<T> typeReference) {
+    public <T> ResponseHandler<T> request(String method, TypeReference<T> typeReference) {
         return toBasicWebTarget().request(method, typeReference);
     }
 }

@@ -45,7 +45,7 @@ class RetryableWebTarget extends BasicWebTarget {
     }
 
     @Override
-    public Response request(HttpMethod method) {
+    public Response request(String method) {
         Response response = super.request(method);
 
         int retryCount = retryContext.getRetryCount();
