@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2017-2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,10 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.Header;
 import org.apache.http.StatusLine;
 import org.apache.http.entity.ContentType;
+import org.apache.http.message.HeaderGroup;
 
 import java.lang.reflect.Type;
 import java.net.URI;
@@ -38,6 +40,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     private final int statusCode;
     private final T content;
+    private final HeaderGroup headerGroup;
     private final String errorText;
     private final boolean isVoidType;
     private final ContentType contentType;
@@ -47,16 +50,17 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     private final StatusLine statusLine;
 
     BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
-        this(content, statusCode, errorText, type, contentType, uri, connectionFailureType, null);
+        this(content, statusCode, new HeaderGroup(), errorText, type, contentType, uri, connectionFailureType, null);
     }
 
-    BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, StatusLine statusLine) {
-        this(content, statusCode, errorText, type, contentType, uri, BasicConnectionFailureType.NONE, statusLine);
+    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, StatusLine statusLine) {
+        this(content, statusCode, headerGroup, errorText, type, contentType, uri, BasicConnectionFailureType.NONE, statusLine);
     }
 
-    private BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, StatusLine statusLine) {
+    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, StatusLine statusLine) {
         this.statusCode = statusCode;
         this.content = content;
+        this.headerGroup = headerGroup;
         this.errorText = errorText;
         this.isVoidType = HttpRequestUtils.isVoidType(type);
         this.contentType = contentType;
@@ -89,7 +93,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @param defaultValue value to return if content isn't present
+     *
      * @return Deserialized Content from response. If content isn't present returns defaultValue.
+     *
      * @throws UnsupportedOperationException if generic type is a Void
      */
     public T orElse(T defaultValue) {
@@ -99,7 +105,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @param defaultValue value to return if status code is success and hasn't body
+     *
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
+     *
      * @throws UnexpectedStatusCodeException If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
@@ -114,7 +122,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @param exceptionFunction Instance of type {@link Function} by parameter this which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
+     *
      * @return Deserialized content from response. If hasn't body returns {@code null}.
+     *
      * @throws X If status code isn't success.
      */
     public <X extends Throwable> T orThrow(Function<ResponseHandler<? super T>, X> exceptionFunction) throws X {
@@ -129,7 +139,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * @param defaultValue      Value to return if content is {@code null}
      * @param exceptionFunction Instance of type {@link Function} by parameter this which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
+     *
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
+     *
      * @throws X If status code isn't success.
      */
     public <X extends Throwable> T orThrow(T defaultValue, Function<ResponseHandler<? super T>, X> exceptionFunction) throws X {
@@ -143,7 +155,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @param exceptionSupplier Instance of type {@link Supplier} which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
+     *
      * @return Deserialized content from response. If hasn't body returns {@code null}.
+     *
      * @throws X If status code isn't success.
      */
     public <X extends Throwable> T getOrThrow(Supplier<X> exceptionSupplier) throws X {
@@ -158,7 +172,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * @param defaultValue      Value to return if content is {@code null}
      * @param exceptionSupplier Instance of type {@link Supplier} which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
+     *
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
+     *
      * @throws X If status code isn't success.
      */
     public <X extends Throwable> T getOrThrow(T defaultValue, Supplier<X> exceptionSupplier) throws X {
@@ -171,6 +187,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @return Content from response. Returns null if hasn't body
+     *
      * @throws UnexpectedStatusCodeException If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
@@ -192,6 +209,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * </pre>
      *
      * @return Deserialized content from response.
+     *
      * @throws NoSuchContentException        If content is not present
      * @throws UnsupportedOperationException if generic type is a Void
      * @see BasicResponseHandler#orElse(Object)
@@ -207,6 +225,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @return Deserialized content from response as optional instance.
+     *
      * @throws UnsupportedOperationException if generic type is a Void
      */
     Optional<T> getAsOptional() {
@@ -216,6 +235,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @return Returns the error text if the connection failed but the server sent useful data nonetheless.
+     *
      * @throws NoSuchElementException        If error text is not present
      * @throws UnsupportedOperationException if generic type is a Void
      */
@@ -267,6 +287,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * If has a content, invoke the specified consumer with the content, otherwise do nothing.
      *
      * @param consumer block to be executed if has a content
+     *
      * @throws IllegalArgumentException if {@code consumer} is null
      */
     public void ifHasContent(Consumer<? super T> consumer) {
@@ -280,7 +301,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * If status code is success , invoke the specified consumer with the responseHandler and returns {@code OtherwiseSupport} with ignore else {@code OtherwiseSupport} with not ignore.
      *
      * @param consumer block to be executed if status code is success.
+     *
      * @return OtherwiseSupport instance to support action otherwise.
+     *
      * @see OtherwiseSupport#otherwise(Consumer)
      */
     public OtherwiseSupport<T> ifSuccess(Consumer<ResponseHandler<T>> consumer) {
@@ -317,6 +340,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @return connectionFailureType.
+     *
      * @see ConnectionFailureType
      */
     //todo rename and make public
@@ -340,5 +364,30 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         if (isVoidType) {
             throw new UnsupportedOperationException("Content is not available. Generic type is a Void");
         }
+    }
+
+    @Override
+    public boolean containsHeader(String name) {
+        return headerGroup.containsHeader(name);
+    }
+
+    @Override
+    public Header[] getHeaders(String name) {
+        return headerGroup.getHeaders(name);
+    }
+
+    @Override
+    public Header getFirstHeader(String name) {
+        return headerGroup.getFirstHeader(name);
+    }
+
+    @Override
+    public Header getLastHeader(String name) {
+        return headerGroup.getLastHeader(name);
+    }
+
+    @Override
+    public Header[] getAllHeaders() {
+        return headerGroup.getAllHeaders();
     }
 }

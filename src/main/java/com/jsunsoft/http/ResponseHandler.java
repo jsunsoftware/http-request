@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +14,10 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
+package com.jsunsoft.http;
 
+import com.jsunsoft.http.annotations.Beta;
+import org.apache.http.Header;
 import org.apache.http.StatusLine;
 import org.apache.http.entity.ContentType;
 
@@ -54,14 +55,18 @@ public interface ResponseHandler<T> {
 
     /**
      * @param defaultValue value to return if content isn't present
+     *
      * @return Deserialized Content from response. If content isn't present returns defaultValue.
+     *
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T orElse(T defaultValue);
 
     /**
      * @param defaultValue value to return if status code is success and hasn't body
+     *
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
+     *
      * @throws UnexpectedStatusCodeException If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
@@ -70,7 +75,9 @@ public interface ResponseHandler<T> {
     /**
      * @param exceptionFunction Instance of type {@link Function} by parameter this which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
+     *
      * @return Deserialized content from response. If hasn't body returns {@code null}.
+     *
      * @throws X If status code isn't success.
      */
     <X extends Throwable> T orThrow(Function<ResponseHandler<? super T>, X> exceptionFunction) throws X;
@@ -79,7 +86,9 @@ public interface ResponseHandler<T> {
      * @param defaultValue      Value to return if content is {@code null}
      * @param exceptionFunction Instance of type {@link Function} by parameter this which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
+     *
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
+     *
      * @throws X If status code isn't success.
      */
     <X extends Throwable> T orThrow(T defaultValue, Function<ResponseHandler<? super T>, X> exceptionFunction) throws X;
@@ -87,7 +96,9 @@ public interface ResponseHandler<T> {
     /**
      * @param exceptionSupplier Instance of type {@link Supplier} which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
+     *
      * @return Deserialized content from response. If hasn't body returns {@code null}.
+     *
      * @throws X If status code isn't success.
      */
     <X extends Throwable> T getOrThrow(Supplier<X> exceptionSupplier) throws X;
@@ -96,13 +107,16 @@ public interface ResponseHandler<T> {
      * @param defaultValue      Value to return if content is {@code null}
      * @param exceptionSupplier Instance of type {@link Supplier} which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
+     *
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
+     *
      * @throws X If status code isn't success.
      */
     <X extends Throwable> T getOrThrow(T defaultValue, Supplier<X> exceptionSupplier) throws X;
 
     /**
      * @return Content from response. Returns null if hasn't body
+     *
      * @throws UnexpectedStatusCodeException If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
@@ -118,6 +132,7 @@ public interface ResponseHandler<T> {
      * </pre>
      *
      * @return Deserialized content from response.
+     *
      * @throws NoSuchContentException        If content is not present
      * @throws UnsupportedOperationException if generic type is a Void
      * @see ResponseHandler#orElse(Object)
@@ -127,6 +142,7 @@ public interface ResponseHandler<T> {
 
     /**
      * @return Returns the error text if the connection failed but the server sent useful data nonetheless.
+     *
      * @throws NoSuchElementException        If error text is not present
      * @throws UnsupportedOperationException if generic type is a Void
      */
@@ -165,6 +181,7 @@ public interface ResponseHandler<T> {
      * If has a content, invoke the specified consumer with the content, otherwise do nothing.
      *
      * @param consumer block to be executed if has a content
+     *
      * @throws IllegalArgumentException if {@code consumer} is null
      */
     void ifHasContent(Consumer<? super T> consumer);
@@ -173,7 +190,9 @@ public interface ResponseHandler<T> {
      * If status code is success , invoke the specified consumer with the responseHandler and returns {@code OtherwiseSupport} with ignore else {@code OtherwiseSupport} with not ignore.
      *
      * @param consumer block to be executed if status code is success.
+     *
      * @return OtherwiseSupport instance to support action otherwise.
+     *
      * @see OtherwiseSupport#otherwise(Consumer)
      */
     OtherwiseSupport<T> ifSuccess(Consumer<ResponseHandler<T>> consumer);
@@ -186,4 +205,28 @@ public interface ResponseHandler<T> {
     void ifNotSuccess(Consumer<ResponseHandler<T>> consumer);
 
     FilterSupport<T> filter(Predicate<ResponseHandler<T>> predicate);
+
+    boolean containsHeader(String name);
+
+    Header[] getHeaders(String name);
+
+    Header getFirstHeader(String name);
+
+    Header getLastHeader(String name);
+
+    Header[] getAllHeaders();
+
+    @Beta
+    default String getFirstHeaderValue(String name) {
+        Header header = getFirstHeader(name);
+
+        return header == null ? null : header.getValue();
+    }
+
+    @Beta
+    default String getLastHeaderValue(String name) {
+        Header header = getLastHeader(name);
+
+        return header == null ? null : header.getValue();
+    }
 }
