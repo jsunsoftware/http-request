@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2017-2021. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.apache.http.HttpHeaders.CONTENT_LENGTH;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 import static org.apache.http.entity.ContentType.APPLICATION_XML;
 import static org.junit.Assert.assertEquals;
@@ -67,6 +68,7 @@ public class HttpRequestSimpleTest {
                         aResponse()
                                 .withBody(xmlBody)
                                 .withHeader(CONTENT_TYPE, APPLICATION_XML.toString())
+                                .withHeader(CONTENT_LENGTH, String.valueOf(xmlBody.length()))
                                 .withStatus(200)
                 )
         );
@@ -79,6 +81,8 @@ public class HttpRequestSimpleTest {
 
         assertTrue(responseHandler.isSuccess());
         assertTrue(responseHandler.hasContent());
+        assertTrue(responseHandler.containsHeader(CONTENT_LENGTH));
+        assertEquals(String.valueOf(xmlBody.length()), responseHandler.getFirstHeaderValue(CONTENT_LENGTH));
 
         XmlWrapper parsedXml = webTarget.post(xmlBody, XmlWrapper.class).get();
 

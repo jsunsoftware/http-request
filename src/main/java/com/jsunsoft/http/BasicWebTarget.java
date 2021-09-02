@@ -26,6 +26,7 @@ import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.message.HeaderGroup;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -215,9 +216,13 @@ class BasicWebTarget implements WebTarget {
                     responseCode = SC_SERVICE_UNAVAILABLE;
                 }
             }
+
+            HeaderGroup headerGroup = new HeaderGroup();
+            headerGroup.setHeaders(response.getAllHeaders());
+
             ContentType responseContentType = ContentType.get(httpEntity);
             EntityUtils.consumeQuietly(httpEntity);
-            result = new BasicResponseHandler<>(content, responseCode, failedMessage, typeReference.getType(), responseContentType, response.getURI(), statusLine);
+            result = new BasicResponseHandler<>(content, responseCode, headerGroup, failedMessage, typeReference.getType(), responseContentType, response.getURI(), statusLine);
 
         } catch (ResponseException e) {
             result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getMessage(), typeReference.getType(), null, e.getURI(), e.getConnectionFailureType());

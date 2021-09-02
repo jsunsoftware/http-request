@@ -34,3 +34,11 @@ The `ResponseBodyReaderContext` become generic.
 # 2.2.0
 
 The `path` method of `WebTarget` now adds path to existed path instead of replacing, for replace use `setPath` method.
+
+# 2.2.1
+
+Starting with 2.2.1 can be used immutable web target. `HttpRequest.immutableTarget(uri)`
+
+# 2.2.2
+
+Headers are available from `ResponseHandler`
