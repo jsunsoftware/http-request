@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2022. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,15 @@ package com.jsunsoft.http;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.joda.time.LocalDate;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -74,6 +77,44 @@ public class SimpleHttpRequestToParseJsonResponseTest {
             "  ]\n" +
             "}";
 
+    private final String responseDataStringOverriddenDatePatten = "{\n" +
+            "  \"displayLength\": \"4\",\n" +
+            "  \"iTotal\": \"20\",\n" +
+            "  \"javaLocalDateTime\": \"11/05/1993 05:00:00\",\n" +
+            "  \"jodaLocalDate\": \"20170925\",\n" +
+            "  \"users\": [\n" +
+            "    {\n" +
+            "      \"id\": \"2\",\n" +
+            "      \"userName\": \"Test1\",\n" +
+            "      \"Group\": {   \"id\":1,\n" +
+            "        \"name\":\"Test-Admin\"\n" +
+            "      }\n" +
+            "    },\n" +
+            "    {\n" +
+            "      \"id\": \"17\",\n" +
+            "      \"userName\": \"Test2\",\n" +
+            "      \"Group\": {   \"id\":1,\n" +
+            "        \"name\":\"Test-Admin\"\n" +
+            "      }\n" +
+            "    },\n" +
+            "    {\n" +
+            "      \"id\": \"32\",\n" +
+            "      \"userName\": \"Test3\",\n" +
+            "      \"Group\": {   \"id\":1,\n" +
+            "        \"name\":\"Test-Admin\"\n" +
+            "      }\n" +
+            "    },\n" +
+            "    {\n" +
+            "      \"id\": \"35\",\n" +
+            "      \"userName\": \"Test4\",\n" +
+            "      \"Group\": {   \"id\":1,\n" +
+            "        \"name\":\"Test-Admin\"\n" +
+            "      }\n" +
+            "    }\n" +
+            "\n" +
+            "  ]\n" +
+            "}";
+
     private final String responseMapString = "{\n" +
             "  \"testKey\" : \"testValue\"\n" +
             "}";
@@ -81,6 +122,11 @@ public class SimpleHttpRequestToParseJsonResponseTest {
     private static final CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
 
     private static final HttpRequest HTTP_REQUEST = HttpRequestBuilder.create(closeableHttpClient)
+            .build();
+
+    private static final HttpRequest HTTP_REQUEST_DATE_PATTER_OVERRIDDEN = HttpRequestBuilder.create(closeableHttpClient)
+            .addDefaultDateDeserializationPattern(LocalDateTime.class, "dd/MM/yyyy HH:mm:ss")
+            .addDefaultDateDeserializationPattern(LocalDate.class, "yyyyMMdd")
             .build();
 
     private static final HttpRequest HTTP_REQUEST_WITH_BODY_READER = HttpRequestBuilder.create(closeableHttpClient)
@@ -123,6 +169,15 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                 )
         );
 
+        wireMockRule.stubFor(get(urlEqualTo("/getWithOverriddenDates"))
+                .willReturn(
+                        aResponse()
+                                .withBody(responseDataStringOverriddenDatePatten)
+                                .withHeader(CONTENT_TYPE, APPLICATION_JSON.getMimeType())
+                                .withStatus(200)
+                )
+        );
+
         wireMockRule.stubFor(get(urlEqualTo("/get/map"))
                 .willReturn(
                         aResponse()
@@ -147,6 +202,31 @@ public class SimpleHttpRequestToParseJsonResponseTest {
 
         ResponseData responseData = HTTP_REQUEST.target("http://localhost:8080/get").get()
                 .readEntity(ResponseData.class);
+
+        Optional<User> foundedUser = responseData.getUsers()
+                .stream()
+                .filter(user -> "Test1".equals(user.getUserName()))
+                .findFirst();
+        foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+    }
+
+    @Test
+    public void testParsingResponseDataWithDefaultBodyReaderDatePatternOverridden() {
+
+        HTTP_REQUEST_DATE_PATTER_OVERRIDDEN.target("http://localhost:8080/getWithOverriddenDates").get(ResponseData.class)
+                .ifHasContent(responseData -> {
+                    Optional<User> foundedUser = responseData.getUsers()
+                            .stream()
+                            .filter(user -> "Test1".equals(user.getUserName()))
+                            .findFirst();
+                    foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+                });
+
+        ResponseData responseData = HTTP_REQUEST_DATE_PATTER_OVERRIDDEN.target("http://localhost:8080/getWithOverriddenDates").get()
+                .readEntity(ResponseData.class);
+
+        Assert.assertEquals(LocalDateTime.of(1993, Month.MAY, 11, 5, 0, 0), responseData.getJavaLocalDateTime());
+        Assert.assertEquals(new LocalDate(2017, 9, 25), responseData.getJodaLocalDate());
 
         Optional<User> foundedUser = responseData.getUsers()
                 .stream()
@@ -192,6 +272,11 @@ public class SimpleHttpRequestToParseJsonResponseTest {
     static class ResponseData {
         private int displayLength;
         private int iTotal;
+
+
+        private LocalDateTime javaLocalDateTime;
+
+        private LocalDate jodaLocalDate;
         private List<User> users;
 
         public int getDisplayLength() {
@@ -208,6 +293,22 @@ public class SimpleHttpRequestToParseJsonResponseTest {
 
         public void setiTotal(int iTotal) {
             this.iTotal = iTotal;
+        }
+
+        public LocalDateTime getJavaLocalDateTime() {
+            return javaLocalDateTime;
+        }
+
+        public void setJavaLocalDateTime(LocalDateTime javaLocalDateTime) {
+            this.javaLocalDateTime = javaLocalDateTime;
+        }
+
+        public LocalDate getJodaLocalDate() {
+            return jodaLocalDate;
+        }
+
+        public void setJodaLocalDate(LocalDate jodaLocalDate) {
+            this.jodaLocalDate = jodaLocalDate;
         }
 
         public List<User> getUsers() {

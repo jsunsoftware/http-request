@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2022. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 package com.jsunsoft.http;
 
+import java.util.Map;
+
 public interface DateDeserializeContext {
-    String getDatePattern();
 
-    String getTimePattern();
-
-    String getDateTimePattern();
+    Map<Class<?>, String> getDateTypeToPattern();
 }

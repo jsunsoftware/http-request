@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021. Benik Arakelyan
+ * Copyright (c) 2022. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,7 @@ package com.jsunsoft.http;
  */
 
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.*;
 
 class ResponseBodyReaderConfig {
     private final ResponseBodyReader<?> defaultResponseBodyReader;
@@ -60,6 +57,8 @@ class ResponseBodyReaderConfig {
         private Collection<ResponseBodyReader<?>> responseBodyReaders;
         private boolean useDefaultReader = true;
 
+        private Map<Class<?>, String> dateTypeToPattern;
+
         private Builder() {
         }
 
@@ -84,9 +83,23 @@ class ResponseBodyReaderConfig {
             return this;
         }
 
+        Builder addDateDeserializationPattern(Class<?> dateType, String pattern) {
+            if (dateTypeToPattern == null) {
+                dateTypeToPattern = new HashMap<>();
+            }
+
+            dateTypeToPattern.put(dateType, pattern);
+
+            return this;
+        }
+
         ResponseBodyReaderConfig build() {
             if (useDefaultReader && defaultResponseBodyReader == null) {
-                defaultResponseBodyReader = new DefaultResponseBodyReader<>(BasicDateDeserializeContext.DEFAULT);
+
+                DateDeserializeContext dateDeserializeContext = dateTypeToPattern == null || dateTypeToPattern.isEmpty() ?
+                        DefaultDateDeserializeContext.DEFAULT : new BasicDateDeserializeContext(dateTypeToPattern);
+
+                defaultResponseBodyReader = new DefaultResponseBodyReader<>(dateDeserializeContext);
             }
 
             if (responseBodyReaders == null) {

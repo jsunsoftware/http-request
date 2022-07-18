@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021. Benik Arakelyan
+ * Copyright (c) 2022. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -197,8 +197,8 @@ class BasicWebTarget implements WebTarget {
 
                         LOGGER.trace("Result of Uri: [{}] is {}", response.getURI(), content);
                     } else if (HttpRequestUtils.isNonSuccess(responseCode)) {
-                        //todo find reader
-                        failedMessage = ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext<>(response, String.class, String.class));
+
+                        failedMessage = response.readEntityChecked(String.class);
                         String logMsg = "Unexpected Response. Url: [" + response.getURI() + "] Status code: " + responseCode + ", Error message: " + failedMessage;
                         if (responseCode == SC_BAD_REQUEST) {
                             LOGGER.warn(logMsg);

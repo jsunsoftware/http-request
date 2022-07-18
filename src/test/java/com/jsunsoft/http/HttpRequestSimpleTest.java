@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021. Benik Arakelyan
+ * Copyright (c) 2022. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.apache.http.HttpHeaders.CONTENT_LENGTH;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
+import static org.apache.http.entity.ContentType.APPLICATION_JSON;
 import static org.apache.http.entity.ContentType.APPLICATION_XML;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -46,7 +47,6 @@ public class HttpRequestSimpleTest {
             .build();
 
     private final HttpRequest httpRequestWithoutParse = HttpRequestBuilder.create((new ClientBuilder().build()))
-            .addBodyReader(ResponseBodyReader.stringReader())
             .build();
 
     @Test
@@ -104,6 +104,43 @@ public class HttpRequestSimpleTest {
                 .post(String.class);
 
         assertEquals("abcd", responseHandler.get());
+    }
+
+    @Test
+    public void withoutJsonParseTest() {
+        String jsonText = "{\n" +
+                "  \"testKey\" : \"testValue\"\n" +
+                "}";
+        wireMockRule.stubFor(post(urlEqualTo("/json"))
+                .willReturn(
+                        aResponse()
+                                .withHeader(CONTENT_TYPE, APPLICATION_JSON.toString())
+                                .withBody(jsonText)
+                                .withStatus(200)
+                )
+        );
+
+        ResponseHandler<String> responseHandler = httpRequestWithoutParse.target("http://localhost:8080/json")
+                .post(String.class);
+
+        assertEquals(jsonText, responseHandler.get());
+    }
+
+    @Test
+    public void withoutBadRequestTest() {
+        String text = "abcd";
+        wireMockRule.stubFor(post(urlEqualTo("/text"))
+                .willReturn(
+                        aResponse()
+                                .withBody(text)
+                                .withStatus(400)
+                )
+        );
+
+        ResponseHandler<String> responseHandler = httpRequestWithoutParse.target("http://localhost:8080/text")
+                .post(String.class);
+
+        assertEquals("abcd", responseHandler.getErrorText());
     }
 
     private static class XmlWrapper {
