@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2022. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.Header;
 import org.apache.http.NameValuePair;
@@ -40,7 +41,7 @@ public class HttpRequestBuilder {
 
     private List<NameValuePair> defaultRequestParameters;
     private Collection<Header> defaultHeaders;
-    private ResponseBodyReaderConfig.Builder responseBodyReaderConfigBuilder = ResponseBodyReaderConfig.create();
+    private final ResponseBodyReaderConfig.Builder responseBodyReaderConfigBuilder = ResponseBodyReaderConfig.create();
 
     private HttpRequestBuilder(CloseableHttpClient closeableHttpClient) {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
@@ -220,6 +221,30 @@ public class HttpRequestBuilder {
 
     public HttpRequestBuilder disableDefaultBodyReader() {
         responseBodyReaderConfigBuilder.setUseDefaultBodyReader(false);
+        return this;
+    }
+
+    /**
+     * Method defines by which pattern dates must be deserialized when default deserializer used.
+     * For example, you can do
+     * <pre>
+     *    httpRequestBuilder.addDateDeserializationPattern(LocalDateTime.class, "yyyy-MM-dd");
+     * </pre>
+     *
+     * @param dateType date type e.g {@code LocalDateTime.class}
+     * @param pattern  pattern by which date with given type must be deserialized
+     *
+     * @return HttpRequestBuilder instance
+     * <p>
+     * <p>
+     * Note: Default patterns are { LocalTime - HH:mm:ss, LocalDate - dd/MM/yyyy, LocalDateTime - dd/MM/yyyy HH:mm:ss}
+     *
+     * @see com.fasterxml.jackson.databind.ObjectMapper#configOverride(Class)
+     * @see com.fasterxml.jackson.databind.cfg.MutableConfigOverride#setFormat(JsonFormat.Value)
+     */
+    public HttpRequestBuilder addDefaultDateDeserializationPattern(Class<?> dateType, String pattern) {
+        responseBodyReaderConfigBuilder.addDateDeserializationPattern(dateType, pattern);
+
         return this;
     }
 

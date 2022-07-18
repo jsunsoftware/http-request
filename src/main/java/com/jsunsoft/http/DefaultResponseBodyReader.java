@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2022. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import org.apache.http.entity.ContentType;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalDateTime;
-import org.joda.time.LocalTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,24 +62,28 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
     @Override
     @SuppressWarnings("unchecked")
     public T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException, ResponseBodyReaderException {
-        ContentType contentType = bodyReaderContext.getContentType();
-        String mimeType = contentType == null ? null : contentType.getMimeType();
+
         T result;
 
-        if (APPLICATION_JSON.getMimeType().equals(mimeType)) {
-            result = deserialize(bodyReaderContext, jsonSerializer);
-        } else if (APPLICATION_XML.getMimeType().equals(mimeType)) {
-            result = deserialize(bodyReaderContext, xmlSerializer);
-        } else if (bodyReaderContext.getType() == String.class) {
+        if (bodyReaderContext.getType() == String.class) {
             result = (T) ResponseBodyReader.stringReader().read((ResponseBodyReaderContext<String>) bodyReaderContext);
         } else {
-            throw new InvalidMimeTypeException(mimeType, "DefaultDeserializer doesn't supported mimeType " + mimeType + " for converting response content to: " + bodyReaderContext.getType());
+            ContentType contentType = bodyReaderContext.getContentType();
+            String mimeType = contentType == null ? null : contentType.getMimeType();
+
+            if (APPLICATION_JSON.getMimeType().equals(mimeType)) {
+                result = deserialize(bodyReaderContext, jsonSerializer);
+            } else if (APPLICATION_XML.getMimeType().equals(mimeType)) {
+                result = deserialize(bodyReaderContext, xmlSerializer);
+            } else {
+                throw new InvalidMimeTypeException(mimeType, "DefaultDeserializer doesn't supported mimeType " + mimeType + " for converting response content to: " + bodyReaderContext.getType());
+            }
         }
         return result;
 
     }
 
-    private T deserialize(ResponseBodyReaderContext<T> responseBodyReaderContext, ObjectMapper objectMapper) throws ResponseBodyReaderException {
+    protected T deserialize(ResponseBodyReaderContext<T> responseBodyReaderContext, ObjectMapper objectMapper) throws ResponseBodyReaderException {
         try {
             return deserialize(responseBodyReaderContext.getContent(), responseBodyReaderContext.getGenericType(), objectMapper);
         } catch (IOException e) {
@@ -106,17 +108,18 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
 
     private ObjectMapper defaultInit(ObjectMapper objectMapper) {
 
-        objectMapper.configOverride(LocalDate.class).setFormat(JsonFormat.Value.forPattern(dateDeserializeContext.getDatePattern()));
-        objectMapper.configOverride(LocalTime.class).setFormat(JsonFormat.Value.forPattern(dateDeserializeContext.getTimePattern()));
-        objectMapper.configOverride(LocalDateTime.class).setFormat(JsonFormat.Value.forPattern(dateDeserializeContext.getDateTimePattern()));
-
-        objectMapper.configOverride(java.time.LocalDate.class).setFormat(JsonFormat.Value.forPattern(dateDeserializeContext.getDatePattern()));
-        objectMapper.configOverride(java.time.LocalTime.class).setFormat(JsonFormat.Value.forPattern(dateDeserializeContext.getTimePattern()));
-        objectMapper.configOverride(java.time.LocalDateTime.class).setFormat(JsonFormat.Value.forPattern(dateDeserializeContext.getDateTimePattern()));
+        dateDeserializeContext.getDateTypeToPattern()
+                .forEach((type, pattern) ->
+                        objectMapper.configOverride(type)
+                                .setFormat(
+                                        JsonFormat.Value.forPattern(pattern)
+                                )
+                );
 
         objectMapper.setSerializationInclusion(NON_NULL)
                 .disable(FAIL_ON_EMPTY_BEANS)
                 .disable(FAIL_ON_UNKNOWN_PROPERTIES)
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .registerModules(new JodaModule(),
                         new ParameterNamesModule(JsonCreator.Mode.PROPERTIES),
                         new Jdk8Module(), new JavaTimeModule()

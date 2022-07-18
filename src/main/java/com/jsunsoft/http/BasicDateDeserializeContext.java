@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2022. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,28 +16,20 @@
 
 package com.jsunsoft.http;
 
+import java.util.Collections;
+import java.util.Map;
+
 class BasicDateDeserializeContext implements DateDeserializeContext {
-    static final DateDeserializeContext DEFAULT = new BasicDateDeserializeContext("dd/MM/yyyy", "HH:mm:ss", "dd/MM/yyyy HH:mm:ss");
 
-    private final String datePattern;
-    private final String timePattern;
-    private final String dateTimePattern;
+    private final Map<Class<?>, String> dateTypeToPattern;
 
-    public BasicDateDeserializeContext(String datePattern, String timePattern, String dateTimePattern) {
-        this.datePattern = ArgsCheck.notNull(datePattern, "datePattern");
-        this.timePattern = ArgsCheck.notNull(timePattern, "timePattern");
-        this.dateTimePattern = ArgsCheck.notNull(dateTimePattern, "dateTimePattern");
+    BasicDateDeserializeContext(Map<Class<?>, String> dateTypeToPattern) {
+        this.dateTypeToPattern = Collections.unmodifiableMap(dateTypeToPattern);
     }
 
-    public String getDatePattern() {
-        return datePattern;
-    }
 
-    public String getTimePattern() {
-        return timePattern;
-    }
-
-    public String getDateTimePattern() {
-        return dateTimePattern;
+    @Override
+    public Map<Class<?>, String> getDateTypeToPattern() {
+        return dateTypeToPattern;
     }
 }

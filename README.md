@@ -120,6 +120,8 @@ SomeType someType = rh.get();
 Response r=httpRequest.target(uri).path(path).get();
 SomeType someType = r.readEntity(SomeType.class); 
 ```
+###### Note: If the SomeType contains dates default deserialization patterns are - LocalTime -> HH:mm:ss, LocalDate -> dd/MM/yyyy, LocalDateTime -> dd/MM/yyyy HH:mm:ss
+###### It can be overridden by HttpRequestBuilder#addDefaultDateDeserializationPattern
 
 **Perform http request read response as String**
 
