@@ -235,8 +235,10 @@ public class HttpRequestBuilder {
      * @param pattern  pattern by which date with given type must be deserialized
      *
      * @return HttpRequestBuilder instance
+     * <p>
+     * <p>
+     * Note: Default patterns are { LocalTime - HH:mm:ss, LocalDate - dd/MM/yyyy, LocalDateTime - dd/MM/yyyy HH:mm:ss}
      *
-     * @apiNote Default patterns are - LocalTime -> HH:mm:ss, LocalDate -> dd/MM/yyyy, LocalDateTime -> dd/MM/yyyy HH:mm:ss
      * @see com.fasterxml.jackson.databind.ObjectMapper#configOverride(Class)
      * @see com.fasterxml.jackson.databind.cfg.MutableConfigOverride#setFormat(JsonFormat.Value)
      */
