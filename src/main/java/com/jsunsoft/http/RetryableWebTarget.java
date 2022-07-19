@@ -23,6 +23,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
@@ -56,14 +57,27 @@ class RetryableWebTarget extends BasicWebTarget {
 
                 TimeUnit.SECONDS.sleep(retryContext.getRetryDelay(response));
 
+                closeResponse(response);
+
                 response = retryContext.beforeRetry(this).request(method);
                 retryCount--;
             }
         } catch (InterruptedException e) {
+            closeResponse(response);
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Thread was interrupted.", e);
         }
 
         return response;
+    }
+
+    private void closeResponse(Response response) {
+        if (response != null) {
+            try {
+                response.close();
+            } catch (IOException ex) {
+                LOGGER.warn("Failed to close response.", ex);
+            }
+        }
     }
 }

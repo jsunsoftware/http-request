@@ -21,6 +21,7 @@ import com.jsunsoft.http.annotations.Beta;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
+import org.slf4j.LoggerFactory;
 
 @Beta
 public interface RetryContext {
@@ -28,6 +29,7 @@ public interface RetryContext {
 
     /**
      * @param response last executed response instance
+     *
      * @return time in sec to wait before retry
      */
     default int getRetryDelay(Response response) {
@@ -37,7 +39,9 @@ public interface RetryContext {
         if (retryAfter != null) {
             try {
                 retryAfterSec = Integer.parseInt(retryAfter.getValue());
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException e) {
+                LoggerFactory.getLogger(HttpUriRequestBuilder.class)
+                        .warn("Can't parse {} header's value: {} to integer. {}", HttpHeaders.RETRY_AFTER, retryAfter.getValue(), e.getMessage());
             }
         }
 
@@ -46,6 +50,7 @@ public interface RetryContext {
 
     /**
      * @param response last executed response instance
+     *
      * @return if true the request will be retried else no action
      */
     default boolean mustBeRetried(Response response) {
@@ -56,6 +61,7 @@ public interface RetryContext {
      * The method will be called before retry
      *
      * @param webTarget current web target instance
+     *
      * @return the webTarget instance which is responsible to do retry
      */
     default WebTarget beforeRetry(WebTarget webTarget) {

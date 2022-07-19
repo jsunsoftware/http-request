@@ -26,6 +26,7 @@ import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.Args;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static org.apache.http.HttpHeaders.AUTHORIZATION;
@@ -259,8 +260,8 @@ public class HttpRequestBuilder {
      */
     public HttpRequestBuilder basicAuth(String username, String password) {
         String auth = username + ":" + password;
-        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes());
-        String authHeader = "Basic " + new String(encodedAuth);
+        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
+        String authHeader = "Basic " + new String(encodedAuth, StandardCharsets.UTF_8);
         return addDefaultHeader(AUTHORIZATION, authHeader);
     }
 
