@@ -234,15 +234,22 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         return content;
     }
 
-    /**
-     * @return Deserialized content from response as optional instance.
-     *
-     * @throws UnsupportedOperationException if generic type is a Void
-     */
     @Override
     public Optional<T> getAsOptional() {
         check();
+
         return Optional.ofNullable(content);
+    }
+
+    @Override
+    public Optional<T> getAsOptionalOrThrow() {
+        check();
+
+        if (isSuccess()) {
+            return Optional.ofNullable(content);
+        }
+
+        throw new UnexpectedStatusCodeException(statusCode, errorText, uri);
     }
 
     /**

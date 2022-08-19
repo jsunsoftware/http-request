@@ -143,11 +143,19 @@ public interface ResponseHandler<T> {
     T get();
 
     /**
-     * @return Deserialized Content from response as {@link Optional}. If content isn't present returns empty {@link Optional}.
+     * @return Deserialized Content from response as {@link Optional} instance. If content isn't present returns empty {@link Optional} instance.
      *
      * @throws UnsupportedOperationException if generic type is a Void
      */
     Optional<T> getAsOptional();
+
+    /**
+     * @return Deserialized Content from response as {@link Optional}. If content isn't present returns empty {@link Optional}.
+     *
+     * @throws UnsupportedOperationException if generic type is a Void
+     * @throws UnexpectedStatusCodeException If response code is not success
+     */
+    Optional<T> getAsOptionalOrThrow();
 
     /**
      * @return Returns the error text if the connection failed but the server sent useful data nonetheless.
