@@ -238,6 +238,7 @@ class BasicWebTarget implements WebTarget {
         return result;
     }
 
+    @Override
     public URI getURI() {
         URI uri;
         try {
