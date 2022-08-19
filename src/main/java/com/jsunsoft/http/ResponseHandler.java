@@ -23,6 +23,7 @@ import org.apache.http.entity.ContentType;
 
 import java.net.URI;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -136,9 +137,17 @@ public interface ResponseHandler<T> {
      * @throws NoSuchContentException        If content is not present
      * @throws UnsupportedOperationException if generic type is a Void
      * @see ResponseHandler#orElse(Object)
+     * @see ResponseHandler#getAsOptional()
      * @see ResponseHandler#ifHasContent(Consumer)
      */
     T get();
+
+    /**
+     * @return Deserialized Content from response as {@link Optional}. If content isn't present returns empty {@link Optional}.
+     *
+     * @throws UnsupportedOperationException if generic type is a Void
+     */
+    Optional<T> getAsOptional();
 
     /**
      * @return Returns the error text if the connection failed but the server sent useful data nonetheless.

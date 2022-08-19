@@ -73,6 +73,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @return {@code true} If content is present else {@code false}
      */
+    @Override
     public boolean hasContent() {
         return content != null;
     }
@@ -80,6 +81,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @return {@code true} If hasn't content else {@code false}
      */
+    @Override
     public boolean hasNotContent() {
         return content == null;
     }
@@ -87,6 +89,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @return Status code
      */
+    @Override
     public int getStatusCode() {
         return statusCode;
     }
@@ -98,6 +101,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      *
      * @throws UnsupportedOperationException if generic type is a Void
      */
+    @Override
     public T orElse(T defaultValue) {
         check();
         return content == null ? defaultValue : content;
@@ -111,6 +115,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * @throws UnexpectedStatusCodeException If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
+    @Override
     public T orElseThrow(T defaultValue) {
         check();
         if (isNonSuccess()) {
@@ -127,6 +132,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      *
      * @throws X If status code isn't success.
      */
+    @Override
     public <X extends Throwable> T orThrow(Function<ResponseHandler<? super T>, X> exceptionFunction) throws X {
         check();
         if (isNonSuccess()) {
@@ -144,6 +150,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      *
      * @throws X If status code isn't success.
      */
+    @Override
     public <X extends Throwable> T orThrow(T defaultValue, Function<ResponseHandler<? super T>, X> exceptionFunction) throws X {
         check();
         if (isNonSuccess()) {
@@ -160,6 +167,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      *
      * @throws X If status code isn't success.
      */
+    @Override
     public <X extends Throwable> T getOrThrow(Supplier<X> exceptionSupplier) throws X {
         check();
         if (isNonSuccess()) {
@@ -177,6 +185,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      *
      * @throws X If status code isn't success.
      */
+    @Override
     public <X extends Throwable> T getOrThrow(T defaultValue, Supplier<X> exceptionSupplier) throws X {
         check();
         if (isNonSuccess()) {
@@ -191,6 +200,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * @throws UnexpectedStatusCodeException If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
+    @Override
     public T orElseThrow() {
         check();
         if (isSuccess()) {
@@ -215,6 +225,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * @see BasicResponseHandler#orElse(Object)
      * @see BasicResponseHandler#ifHasContent(Consumer)
      */
+    @Override
     public T get() {
         check();
         if (content == null) {
@@ -228,7 +239,8 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      *
      * @throws UnsupportedOperationException if generic type is a Void
      */
-    Optional<T> getAsOptional() {
+    @Override
+    public Optional<T> getAsOptional() {
         check();
         return Optional.ofNullable(content);
     }
@@ -239,6 +251,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * @throws NoSuchElementException        If error text is not present
      * @throws UnsupportedOperationException if generic type is a Void
      */
+    @Override
     public String getErrorText() {
         if (errorText == null) {
             throw new IllegalStateException("Error text is not available: Response code: [" + statusCode + ']');
@@ -249,6 +262,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @return Returns the connection URI
      */
+    @Override
     public URI getURI() {
         return uri;
     }
@@ -258,6 +272,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      *
      * @return the status line.
      */
+    @Override
     public StatusLine getStatusLine() {
         return statusLine;
     }
@@ -265,6 +280,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @return Content type of response
      */
+    @Override
     public ContentType getContentType() {
         return contentType;
     }
@@ -272,6 +288,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @return Returns <b>true</b> if status code contains [200, 300) else <b>false</b>
      */
+    @Override
     public boolean isSuccess() {
         return success;
     }
@@ -279,6 +296,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @return Returns <b>true</b> if status code isn't contains [200, 300) else <b>false</b>
      */
+    @Override
     public boolean isNonSuccess() {
         return !isSuccess();
     }
@@ -290,6 +308,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      *
      * @throws IllegalArgumentException if {@code consumer} is null
      */
+    @Override
     public void ifHasContent(Consumer<? super T> consumer) {
         ArgsCheck.notNull(consumer, "consumer");
         if (content != null) {
@@ -306,6 +325,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      *
      * @see OtherwiseSupport#otherwise(Consumer)
      */
+    @Override
     public OtherwiseSupport<T> ifSuccess(Consumer<ResponseHandler<T>> consumer) {
         ArgsCheck.notNull(consumer, "consumer");
 
@@ -334,8 +354,34 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         }
     }
 
+    @Override
     public FilterSupport<T> filter(Predicate<ResponseHandler<T>> predicate) {
         return FilterSupport.create(this, predicate);
+    }
+
+    @Override
+    public boolean containsHeader(String name) {
+        return headerGroup.containsHeader(name);
+    }
+
+    @Override
+    public Header[] getHeaders(String name) {
+        return headerGroup.getHeaders(name);
+    }
+
+    @Override
+    public Header getFirstHeader(String name) {
+        return headerGroup.getFirstHeader(name);
+    }
+
+    @Override
+    public Header getLastHeader(String name) {
+        return headerGroup.getLastHeader(name);
+    }
+
+    @Override
+    public Header[] getAllHeaders() {
+        return headerGroup.getAllHeaders();
     }
 
     /**
@@ -364,30 +410,5 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         if (isVoidType) {
             throw new UnsupportedOperationException("Content is not available. Generic type is a Void");
         }
-    }
-
-    @Override
-    public boolean containsHeader(String name) {
-        return headerGroup.containsHeader(name);
-    }
-
-    @Override
-    public Header[] getHeaders(String name) {
-        return headerGroup.getHeaders(name);
-    }
-
-    @Override
-    public Header getFirstHeader(String name) {
-        return headerGroup.getFirstHeader(name);
-    }
-
-    @Override
-    public Header getLastHeader(String name) {
-        return headerGroup.getLastHeader(name);
-    }
-
-    @Override
-    public Header[] getAllHeaders() {
-        return headerGroup.getAllHeaders();
     }
 }

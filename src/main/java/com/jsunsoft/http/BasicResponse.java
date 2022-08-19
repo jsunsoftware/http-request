@@ -471,6 +471,7 @@ class BasicResponse implements Response {
         return content;
     }
 
+    @Override
     public URI getURI() {
         return uri;
     }
