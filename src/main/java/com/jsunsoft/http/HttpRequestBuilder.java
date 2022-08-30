@@ -17,6 +17,8 @@
 package com.jsunsoft.http;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.Header;
 import org.apache.http.NameValuePair;
@@ -232,19 +234,61 @@ public class HttpRequestBuilder {
      *    httpRequestBuilder.addDateDeserializationPattern(LocalDateTime.class, "yyyy-MM-dd");
      * </pre>
      *
+     * <p>
+     * Note: if methods {@link #setDefaultJsonMapper(ObjectMapper)} or {@link #setDefaultXmlMapper(ObjectMapper)} called
+     * result of this method will be ignored for that type of response.
+     * </p>
+     * <p>
+     * Default patterns are { LocalTime - HH:mm:ss, LocalDate - dd/MM/yyyy, LocalDateTime - dd/MM/yyyy HH:mm:ss}
+     * </p>
+     *
      * @param dateType date type e.g {@code LocalDateTime.class}
      * @param pattern  pattern by which date with given type must be deserialized
      *
      * @return HttpRequestBuilder instance
-     * <p>
-     * <p>
-     * Note: Default patterns are { LocalTime - HH:mm:ss, LocalDate - dd/MM/yyyy, LocalDateTime - dd/MM/yyyy HH:mm:ss}
      *
      * @see com.fasterxml.jackson.databind.ObjectMapper#configOverride(Class)
      * @see com.fasterxml.jackson.databind.cfg.MutableConfigOverride#setFormat(JsonFormat.Value)
      */
     public HttpRequestBuilder addDefaultDateDeserializationPattern(Class<?> dateType, String pattern) {
         responseBodyReaderConfigBuilder.addDateDeserializationPattern(dateType, pattern);
+
+        return this;
+    }
+
+    /**
+     * Set object mapper for default response body deserialization when response content type is {@link ContentType#APPLICATION_JSON}
+     *
+     * <p>
+     * </p>
+     * <p>
+     * Note: if this method called the result of addDefaultDateDeserializationPattern will be ignored for {@link ContentType#APPLICATION_JSON}.
+     * </p>
+     *
+     * @param defaultJsonMapper the ObjectMapper instance
+     *
+     * @return HttpRequestBuilder instance
+     */
+    public HttpRequestBuilder setDefaultJsonMapper(ObjectMapper defaultJsonMapper) {
+
+        responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
+
+        return this;
+    }
+
+    /**
+     * Set object mapper for default response body deserialization when response content type is {@link ContentType#APPLICATION_XML}
+     *
+     * @param defaultXmlMapper Mainly the {@link XmlMapper} instance
+     *
+     * @return HttpRequestBuilder instance
+     *
+     * <p>
+     * Note: if this method called the result of addDefaultDateDeserializationPattern will be ignored for {@link ContentType#APPLICATION_XML}.
+     * </p>
+     */
+    public HttpRequestBuilder setDefaultXmlMapper(ObjectMapper defaultXmlMapper) {
+        responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
 
         return this;
     }

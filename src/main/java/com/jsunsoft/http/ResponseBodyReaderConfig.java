@@ -22,7 +22,21 @@ package com.jsunsoft.http;
  */
 
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+
 import java.util.*;
+
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 
 class ResponseBodyReaderConfig {
     private final ResponseBodyReader<?> defaultResponseBodyReader;
@@ -56,6 +70,9 @@ class ResponseBodyReaderConfig {
         private ResponseBodyReader<?> defaultResponseBodyReader;
         private Collection<ResponseBodyReader<?>> responseBodyReaders;
         private boolean useDefaultReader = true;
+
+        private ObjectMapper defaultJsonMapper;
+        private ObjectMapper defaultXmlMapper;
 
         private Map<Class<?>, String> dateTypeToPattern;
 
@@ -93,13 +110,44 @@ class ResponseBodyReaderConfig {
             return this;
         }
 
+        public Builder setDefaultJsonMapper(ObjectMapper defaultJsonMapper) {
+            this.defaultJsonMapper = defaultJsonMapper;
+
+            return this;
+        }
+
+        public Builder setDefaultXmlMapper(ObjectMapper defaultXmlMapper) {
+            this.defaultXmlMapper = defaultXmlMapper;
+
+            return this;
+        }
+
+        public boolean isUseDefaultReader() {
+            return useDefaultReader;
+        }
+
         ResponseBodyReaderConfig build() {
             if (useDefaultReader && defaultResponseBodyReader == null) {
 
                 DateDeserializeContext dateDeserializeContext = dateTypeToPattern == null || dateTypeToPattern.isEmpty() ?
                         DefaultDateDeserializeContext.DEFAULT : new BasicDateDeserializeContext(dateTypeToPattern);
 
-                defaultResponseBodyReader = new DefaultResponseBodyReader<>(dateDeserializeContext);
+                ObjectMapper json = defaultJsonMapper != null ? defaultJsonMapper : defaultInit(new ObjectMapper(), dateDeserializeContext);
+                ObjectMapper xml = defaultXmlMapper != null ? defaultXmlMapper : defaultInit(new XmlMapper(), dateDeserializeContext);
+
+                defaultResponseBodyReader = new DefaultResponseBodyReader<>(json, xml);
+            } else {
+                if (defaultJsonMapper != null) {
+                    throw new IllegalArgumentException("Do not provide defaultJsonMapper if default body reader is not used.");
+                }
+
+                if (defaultXmlMapper != null) {
+                    throw new IllegalArgumentException("Do not provide defaultXmlMapper if default body reader is not used.");
+                }
+
+                if (dateTypeToPattern != null) {
+                    throw new IllegalArgumentException("Do not provide dateTypeToPattern if default body reader is not used.");
+                }
             }
 
             if (responseBodyReaders == null) {
@@ -108,5 +156,26 @@ class ResponseBodyReaderConfig {
 
             return new ResponseBodyReaderConfig(defaultResponseBodyReader, responseBodyReaders, useDefaultReader);
         }
+    }
+
+    static ObjectMapper defaultInit(ObjectMapper objectMapper, DateDeserializeContext dateDeserializeContext) {
+
+        dateDeserializeContext.getDateTypeToPattern()
+                .forEach((type, pattern) ->
+                        objectMapper.configOverride(type)
+                                .setFormat(
+                                        JsonFormat.Value.forPattern(pattern)
+                                )
+                );
+
+        objectMapper.setSerializationInclusion(NON_NULL)
+                .disable(FAIL_ON_EMPTY_BEANS)
+                .disable(FAIL_ON_UNKNOWN_PROPERTIES)
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .registerModules(new JodaModule(),
+                        new ParameterNamesModule(JsonCreator.Mode.PROPERTIES),
+                        new Jdk8Module(), new JavaTimeModule()
+                );
+        return objectMapper;
     }
 }

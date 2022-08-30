@@ -16,6 +16,8 @@
 
 package com.jsunsoft.http;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import org.apache.http.HttpResponse;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.entity.BasicHttpEntity;
@@ -58,7 +60,10 @@ public class ResponseBodyReaderTest {
 
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
-        ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(DEFAULT);
+        ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
+                ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), DEFAULT),
+                ResponseBodyReaderConfig.defaultInit(new XmlMapper(), DEFAULT)
+        );
         Result result = responseBodyReader.read(responseContext);
         Assert.assertEquals(1L, result.value);
         Assert.assertEquals("Test message", result.message);
@@ -96,7 +101,8 @@ public class ResponseBodyReaderTest {
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
-                dateDeserializeContext
+                ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), dateDeserializeContext),
+                ResponseBodyReaderConfig.defaultInit(new XmlMapper(), dateDeserializeContext)
         );
         Result result = responseBodyReader.read(responseContext);
         Assert.assertEquals(1L, result.value);
