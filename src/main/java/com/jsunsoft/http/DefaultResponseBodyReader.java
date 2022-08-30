@@ -16,16 +16,8 @@
 
 package com.jsunsoft.http;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.joda.JodaModule;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import org.apache.hc.core5.http.ContentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,9 +26,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
-import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static org.apache.hc.core5.http.ContentType.APPLICATION_JSON;
 import static org.apache.hc.core5.http.ContentType.APPLICATION_XML;
 
@@ -46,12 +35,9 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
     private final ObjectMapper jsonSerializer;
     private final ObjectMapper xmlSerializer;
 
-    private final DateDeserializeContext dateDeserializeContext;
-
-    DefaultResponseBodyReader(DateDeserializeContext dateDeserializeContext) {
-        this.dateDeserializeContext = dateDeserializeContext;
-        jsonSerializer = defaultInit(new ObjectMapper());
-        xmlSerializer = defaultInit(new XmlMapper());
+    DefaultResponseBodyReader(ObjectMapper jsonSerializer, ObjectMapper xmlSerializer) {
+        this.jsonSerializer = jsonSerializer;
+        this.xmlSerializer = xmlSerializer;
     }
 
     @Override
@@ -103,27 +89,5 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
         }
 
         return result;
-    }
-
-
-    private ObjectMapper defaultInit(ObjectMapper objectMapper) {
-
-        dateDeserializeContext.getDateTypeToPattern()
-                .forEach((type, pattern) ->
-                        objectMapper.configOverride(type)
-                                .setFormat(
-                                        JsonFormat.Value.forPattern(pattern)
-                                )
-                );
-
-        objectMapper.setSerializationInclusion(NON_NULL)
-                .disable(FAIL_ON_EMPTY_BEANS)
-                .disable(FAIL_ON_UNKNOWN_PROPERTIES)
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .registerModules(new JodaModule(),
-                        new ParameterNamesModule(JsonCreator.Mode.PROPERTIES),
-                        new Jdk8Module(), new JavaTimeModule()
-                );
-        return objectMapper;
     }
 }

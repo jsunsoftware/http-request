@@ -22,7 +22,6 @@ import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.ByteArrayEntity;
 import org.apache.hc.core5.http.io.entity.HttpEntities;
 import org.apache.hc.core5.http.io.entity.StringEntity;
-import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
 import org.apache.hc.core5.http.message.HeaderGroup;
@@ -265,7 +264,7 @@ class HttpUriRequestBuilder {
 
     public List<NameValuePair> getParameters() {
         return parameters != null ? new ArrayList<>(parameters) :
-                new ArrayList<NameValuePair>();
+                new ArrayList<>();
     }
 
     public HttpUriRequestBuilder addParameter(final NameValuePair nvp) {

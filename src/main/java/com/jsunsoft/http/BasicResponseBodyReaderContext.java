@@ -19,7 +19,6 @@ package com.jsunsoft.http;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
-import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 
 import java.io.IOException;
 import java.io.InputStream;
