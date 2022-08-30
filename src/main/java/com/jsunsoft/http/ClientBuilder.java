@@ -17,29 +17,26 @@ package com.jsunsoft.http;
  */
 
 
-import org.apache.http.Header;
-import org.apache.http.HttpHost;
-import org.apache.http.client.RedirectStrategy;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.config.Registry;
-import org.apache.http.config.RegistryBuilder;
-import org.apache.http.conn.routing.HttpRoute;
-import org.apache.http.conn.routing.HttpRoutePlanner;
-import org.apache.http.conn.socket.ConnectionSocketFactory;
-import org.apache.http.conn.socket.PlainConnectionSocketFactory;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustAllStrategy;
-import org.apache.http.entity.ContentType;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultRedirectStrategy;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.LaxRedirectStrategy;
-import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.ssl.SSLContexts;
+import org.apache.hc.client5.http.HttpRoute;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.impl.routing.DefaultProxyRoutePlanner;
+import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
+import org.apache.hc.client5.http.protocol.RedirectStrategy;
+import org.apache.hc.client5.http.routing.HttpRoutePlanner;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.client5.http.ssl.TrustAllStrategy;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.ssl.SSLContexts;
+import org.apache.hc.core5.util.Timeout;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -54,7 +51,8 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.function.Consumer;
 
-import static org.apache.http.HttpHeaders.CONTENT_TYPE;
+import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
+
 
 /**
  * Builder for {@link CloseableHttpClient}.
@@ -66,18 +64,20 @@ import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 public class ClientBuilder {
     private RedirectStrategy redirectStrategy;
 
-    private RequestConfig.Builder defaultRequestConfigBuilder = RequestConfig.custom()
-            .setSocketTimeout(30000)
-            .setConnectTimeout(5000)
-            .setConnectionRequestTimeout(30000);
+    private final RequestConfig.Builder defaultRequestConfigBuilder = RequestConfig.custom()
+            .setResponseTimeout(Timeout.ofSeconds(30))
+            .setConnectTimeout(Timeout.ofSeconds(10))
+            .setConnectionRequestTimeout(Timeout.ofSeconds(30));
+
     private Collection<Consumer<HttpClientBuilder>> httpClientBuilderCustomizers;
     private Collection<Consumer<RequestConfig.Builder>> defaultRequestConfigBuilderCustomizers;
     private Collection<Header> defaultHeaders;
     private HttpHost proxy;
     private boolean useDefaultProxy;
-    private SSLContext sslContext;
-    private HostnameVerifier hostnameVerifier;
-    private HostPoolConfig hostPoolConfig = HostPoolConfig.create();
+
+    private SSLConnectionSocketFactoryBuilder sslConnectionSocketFactoryBuilder;
+
+    private final HostPoolConfig hostPoolConfig = HostPoolConfig.create();
 
     ClientBuilder() {
 
@@ -91,40 +91,60 @@ public class ClientBuilder {
      * A negative value is interpreted as undefined (system default).
      * </p>
      * <p>
-     * Default: {@code 5000ms}
+     * Default: {@code 10 seconds}
      * </p>
      * Note: Can be overridden by {@linkplain #addDefaultRequestConfigCustomizer}
      *
      * @param connectTimeout The Connection Timeout (http.connection.timeout) – the time to establish the connection with the remote host.
+     *
      * @return ClientBuilder instance
-     * @see RequestConfig.Builder#setConnectTimeout
+     *
+     * @see RequestConfig.Builder#setConnectTimeout(Timeout)
      */
-    public ClientBuilder setConnectTimeout(int connectTimeout) {
+    public ClientBuilder setConnectTimeout(Timeout connectTimeout) {
         defaultRequestConfigBuilder.setConnectTimeout(connectTimeout);
         return this;
     }
 
     /**
-     * Defines the socket timeout ({@code SO_TIMEOUT}) in milliseconds,
-     * which is the timeout for waiting for data  or, put differently,
-     * a maximum period inactivity between two consecutive data packets).
+     * @see #setConnectTimeout(Timeout)
+     */
+    public ClientBuilder setConnectTimeout(int connectTimeout) {
+
+        return setConnectTimeout(Timeout.ofMilliseconds(connectTimeout));
+    }
+
+    /**
+     * Determines the timeout until arrival of a response from the opposite
+     * endpoint.
      * <p>
      * A timeout value of zero is interpreted as an infinite timeout.
-     * A negative value is interpreted as undefined (system default).
      * </p>
      * <p>
-     * Default: {@code 30000ms}
+     * Please note that response timeout may be unsupported by
+     * HTTP transports with message multiplexing.
+     * </p>
+     * <p>
+     * Default: {@code 30 seconds}
      * </p>
      * Note: Can be overridden by {@linkplain #addDefaultRequestConfigCustomizer}
      *
-     * @param socketTimeOut The Socket Timeout (http.socket.timeout) – the time waiting for data – after the connection was established;
-     *                      maximum time of inactivity between two data packets.
+     * @param responseTimeout The timeout waiting for data – after the connection was established.
+     *
      * @return ClientBuilder instance
-     * @see RequestConfig.Builder#setSocketTimeout
+     *
+     * @see RequestConfig.Builder#setResponseTimeout(Timeout)
      */
-    public ClientBuilder socketTimeOut(int socketTimeOut) {
-        defaultRequestConfigBuilder.setSocketTimeout(socketTimeOut);
+    public ClientBuilder setResponseTimeout(Timeout responseTimeout) {
+        defaultRequestConfigBuilder.setResponseTimeout(responseTimeout);
         return this;
+    }
+
+    /**
+     * @see #setResponseTimeout(Timeout)
+     */
+    public ClientBuilder setResponseTimeout(int responseTimeout) {
+        return setResponseTimeout(Timeout.ofMilliseconds(responseTimeout));
     }
 
     /**
@@ -136,25 +156,34 @@ public class ClientBuilder {
      * A negative value is interpreted as undefined (system default).
      * </p>
      * <p>
-     * Default: {@code 30000ms}
+     * Default: {@code 30 seconds}
      * </p>
      * <p>
      * Note: Can be overridden by {@linkplain #addDefaultRequestConfigCustomizer}
      *
      * @param connectionRequestTimeout The Connection Manager Timeout (http.connection-manager.timeout) –
      *                                 the time to wait for a connection from the connection manager/pool.
-     *                                 By default 30000ms
+     *
      * @return ClientBuilder instance
+     *
      * @see RequestConfig.Builder#setConnectionRequestTimeout
      * @see #addDefaultRequestConfigCustomizer
      */
-    public ClientBuilder connectionRequestTimeout(int connectionRequestTimeout) {
+    public ClientBuilder setConnectionRequestTimeout(Timeout connectionRequestTimeout) {
         defaultRequestConfigBuilder.setConnectionRequestTimeout(connectionRequestTimeout);
         return this;
     }
 
     /**
+     * @see #setConnectionRequestTimeout
+     */
+    public ClientBuilder setConnectionRequestTimeout(int connectionRequestTimeout) {
+        return setConnectionRequestTimeout(Timeout.ofMilliseconds(connectionRequestTimeout));
+    }
+
+    /**
      * @param defaultRequestConfigBuilderConsumer the consumer instance which provides {@link RequestConfig.Builder} to customize default request config
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultRequestConfigCustomizer(Consumer<RequestConfig.Builder> defaultRequestConfigBuilderConsumer) {
@@ -170,6 +199,7 @@ public class ClientBuilder {
      * the {@link CloseableHttpClient} before the http-request is built
      *
      * @param httpClientCustomizer consumer instance
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addHttpClientCustomizer(Consumer<HttpClientBuilder> httpClientCustomizer) {
@@ -182,6 +212,7 @@ public class ClientBuilder {
 
     /**
      * @param maxPoolSize see documentation of {@link HostPoolConfig#setMaxPoolSize(int)}
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder setMaxPoolSize(int maxPoolSize) {
@@ -191,6 +222,7 @@ public class ClientBuilder {
 
     /**
      * @param defaultMaxPoolSizePerRoute see documentation of {@link HostPoolConfig#setDefaultMaxPoolSizePerRoute(int)}
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
@@ -203,6 +235,7 @@ public class ClientBuilder {
      *
      * @param httpHost         httpHost
      * @param maxRoutePoolSize maxRoutePoolSize
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder setMaxPoolSizePerRoute(HttpHost httpHost, int maxRoutePoolSize) {
@@ -211,33 +244,8 @@ public class ClientBuilder {
     }
 
     /**
-     * By default, only GET requests resulting in a redirect are automatically followed.
-     * If a POST requests is answered with either HTTP 301 Moved Permanently or with 302 Found – the redirect is not automatically followed.
-     * <p>
-     * If the 301 status code is received in response to a request other than GET or HEAD,
-     * the user agent MUST NOT automatically redirect the request unless it can be confirmed by the user,
-     * since this might change the conditions under which the request was issued.
-     * <p>By default disabled.
-     *
      * @return ClientBuilder instance
-     * @see LaxRedirectStrategy
-     */
-
-    public ClientBuilder enableLaxRedirectStrategy() {
-        this.redirectStrategy = LaxRedirectStrategy.INSTANCE;
-        return this;
-    }
-
-    /**
-     * By default, only GET requests resulting in a redirect are automatically followed.
-     * If a POST requests is answered with either HTTP 301 Moved Permanently or with 302 Found – the redirect is not automatically followed.
-     * <p>
-     * If the 301 status code is received in response to a request other than GET or HEAD,
-     * the user agent MUST NOT automatically redirect the request unless it can be confirmed by the user,
-     * since this might change the conditions under which the request was issued.
-     * <p>By default disabled.
      *
-     * @return ClientBuilder instance
      * @see DefaultRedirectStrategy
      */
     public ClientBuilder enableDefaultRedirectStrategy() {
@@ -249,7 +257,9 @@ public class ClientBuilder {
      * <p>By default disabled.
      *
      * @param redirectStrategy RedirectStrategy instance
+     *
      * @return ClientBuilder instance
+     *
      * @see RedirectStrategy
      */
     public ClientBuilder redirectStrategy(RedirectStrategy redirectStrategy) {
@@ -262,6 +272,7 @@ public class ClientBuilder {
      *
      * @param name  name of header. Can't be null
      * @param value value of header
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultHeader(String name, String value) {
@@ -274,6 +285,7 @@ public class ClientBuilder {
      * Header needs to be the same for all requests which go through the built CloseableHttpClient
      *
      * @param header header instance. Can't be null
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultHeader(Header header) {
@@ -290,6 +302,7 @@ public class ClientBuilder {
      * Headers need to be the same for all requests which go through the built CloseableHttpClient
      *
      * @param headers varargs of headers. Can't be null
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultHeaders(Header... headers) {
@@ -302,6 +315,7 @@ public class ClientBuilder {
      * Headers need to be the same for all requests which go through the built CloseableHttpClient
      *
      * @param headers collections of headers
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultHeaders(Collection<? extends Header> headers) {
@@ -315,6 +329,7 @@ public class ClientBuilder {
      * Sets content type to header
      *
      * @param contentType content type of request header
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addContentType(ContentType contentType) {
@@ -327,6 +342,7 @@ public class ClientBuilder {
      * If has proxy instance method {@link ClientBuilder#useDefaultProxy()} will be ignored
      *
      * @param proxy {@link HttpHost} instance to proxy
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(HttpHost proxy) {
@@ -339,15 +355,23 @@ public class ClientBuilder {
      * If has proxy instance method {@link ClientBuilder#useDefaultProxy()} will be ignored.
      *
      * @param proxyUri {@link URI} instance to proxy
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(URI proxyUri) {
-        return proxy(new HttpHost(proxyUri.getHost(), proxyUri.getPort(), proxyUri.getScheme()));
+        return proxy(
+                new HttpHost(
+                        proxyUri.getScheme(),
+                        proxyUri.getHost(),
+                        proxyUri.getPort()
+                )
+        );
     }
 
     /**
      * @param host host of proxy
      * @param port port of proxy
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(String host, int port) {
@@ -370,10 +394,13 @@ public class ClientBuilder {
      * Sets {@link SSLContext}
      *
      * @param sslContext SSLContext instance
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder sslContext(SSLContext sslContext) {
-        this.sslContext = sslContext;
+        initializeSslConnectionSocketFactoryBuilder();
+
+        sslConnectionSocketFactoryBuilder.setSslContext(sslContext);
         return this;
     }
 
@@ -381,10 +408,13 @@ public class ClientBuilder {
      * Sets {@link HostnameVerifier}
      *
      * @param hostnameVerifier HostnameVerifier instance
+     *
      * @return ClientBuilder instance
      */
     public ClientBuilder hostnameVerifier(HostnameVerifier hostnameVerifier) {
-        this.hostnameVerifier = hostnameVerifier;
+        initializeSslConnectionSocketFactoryBuilder();
+
+        sslConnectionSocketFactoryBuilder.setHostnameVerifier(hostnameVerifier);
         return this;
     }
 
@@ -392,12 +422,18 @@ public class ClientBuilder {
      * Accept all certificates
      *
      * @return ClientBuilder instance
+     *
      * @throws HttpRequestBuildException when can't build ssl.
      */
     public ClientBuilder trustAllCertificates() {
+        initializeSslConnectionSocketFactoryBuilder();
+
         try {
-            sslContext = SSLContexts.custom()
+            SSLContext sslContext = SSLContexts.custom()
                     .loadTrustMaterial(null, TrustAllStrategy.INSTANCE).build();
+
+            sslConnectionSocketFactoryBuilder.setSslContext(sslContext);
+
         } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
             throw new HttpRequestBuildException(e);
         }
@@ -410,7 +446,9 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder trustAllHosts() {
-        hostnameVerifier = NoopHostnameVerifier.INSTANCE;
+        initializeSslConnectionSocketFactoryBuilder();
+
+        sslConnectionSocketFactoryBuilder.setHostnameVerifier(NoopHostnameVerifier.INSTANCE);
         return this;
     }
 
@@ -426,42 +464,23 @@ public class ClientBuilder {
 
         RequestConfig requestConfig = defaultRequestConfigBuilder.build();
 
-        Registry<ConnectionSocketFactory> socketFactoryRegistry = null;
         HttpClientBuilder clientBuilder = HttpClientBuilder.create();
 
-        SSLConnectionSocketFactory sslSocketFactory = null;
+        PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
-        if (sslContext != null) {
-            clientBuilder.setSSLContext(sslContext);
-            sslSocketFactory = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
+        if (sslConnectionSocketFactoryBuilder != null) {
+            cmBuilder.setSSLSocketFactory(sslConnectionSocketFactoryBuilder.build());
         }
 
-        if (hostnameVerifier != null) {
-            clientBuilder.setSSLHostnameVerifier(hostnameVerifier);
-            if (sslContext == null) {
-                sslSocketFactory = new SSLConnectionSocketFactory(SSLContexts.createDefault(), hostnameVerifier);
-            }
-        }
-
-        if (sslSocketFactory != null) {
-            socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory>create()
-                    .register("http", PlainConnectionSocketFactory.getSocketFactory())
-                    .register("https", sslSocketFactory)
-                    .build();
-        }
-
-        PoolingHttpClientConnectionManager connectionManager = socketFactoryRegistry == null ?
-                new PoolingHttpClientConnectionManager() : new PoolingHttpClientConnectionManager(socketFactoryRegistry);
-
-
-        connectionManager.setDefaultMaxPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute());
+        PoolingHttpClientConnectionManager connectionManager = cmBuilder
+                .setMaxConnPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute())
+                .setMaxConnTotal(hostPoolConfig.getMaxPoolSize())
+                .build();
 
         hostPoolConfig.getHttpHostToMaxPoolSize().forEach((httpHost, maxPerRoute) -> {
             HttpRoute httpRoute = new HttpRoute(httpHost);
             connectionManager.setMaxPerRoute(httpRoute, maxPerRoute);
-
         });
-        connectionManager.setMaxTotal(hostPoolConfig.getMaxPoolSize());
 
         HttpRoutePlanner routePlanner = null;
 
@@ -498,6 +517,12 @@ public class ClientBuilder {
 
 
         return clientBuilder.build();
+    }
+
+    private void initializeSslConnectionSocketFactoryBuilder() {
+        if (sslConnectionSocketFactoryBuilder == null) {
+            sslConnectionSocketFactoryBuilder = SSLConnectionSocketFactoryBuilder.create();
+        }
     }
 
     public static ClientBuilder create() {

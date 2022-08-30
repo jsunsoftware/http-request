@@ -18,7 +18,7 @@ package com.jsunsoft.http;
 
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
-import org.apache.http.HttpHeaders;
+import org.apache.hc.core5.http.HttpHeaders;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;

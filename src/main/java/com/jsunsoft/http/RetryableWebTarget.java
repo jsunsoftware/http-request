@@ -17,9 +17,9 @@
 package com.jsunsoft.http;
 
 import com.jsunsoft.http.annotations.Beta;
-import org.apache.http.Header;
-import org.apache.http.NameValuePair;
-import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.NameValuePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ class RetryableWebTarget extends BasicWebTarget {
 
         try {
             while (retryCount > 0 && retryContext.mustBeRetried(response)) {
-                LOGGER.debug("Request to URI: [{}] has been retried. Response code: [{}]", response.getURI(), response.getStatusCode());
+                LOGGER.debug("Request to URI: [{}] has been retried. Response code: [{}]", response.getURI(), response.getCode());
 
                 TimeUnit.SECONDS.sleep(retryContext.getRetryDelay(response));
 

@@ -16,34 +16,31 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.HttpRequest;
-import org.apache.http.*;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.*;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.client.utils.URLEncodedUtils;
-import org.apache.http.entity.ContentType;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.message.HeaderGroup;
-import org.apache.http.protocol.HTTP;
-import org.apache.http.util.Args;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.io.entity.ByteArrayEntity;
+import org.apache.hc.core5.http.io.entity.HttpEntities;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
+import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.http.message.BasicNameValuePair;
+import org.apache.hc.core5.http.message.HeaderGroup;
+import org.apache.hc.core5.net.URIBuilder;
+import org.apache.hc.core5.util.Args;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 class HttpUriRequestBuilder {
 
     private String method;
+    private URI uri;
     private Charset charset;
     private ProtocolVersion version;
-    private URI uri;
     private HeaderGroup headerGroup;
     private HttpEntity entity;
     private List<NameValuePair> parameters;
@@ -51,24 +48,35 @@ class HttpUriRequestBuilder {
 
     HttpUriRequestBuilder(final String method) {
         super();
-        this.charset = Consts.UTF_8;
+        this.charset = StandardCharsets.UTF_8;
         this.method = method;
+    }
+
+    HttpUriRequestBuilder(final Method method) {
+        this(method.name());
     }
 
     HttpUriRequestBuilder(final String method, final URI uri) {
         super();
         this.method = method;
         this.uri = uri;
+        this.charset = StandardCharsets.UTF_8;
+    }
+
+    HttpUriRequestBuilder(final Method method, final URI uri) {
+        this(method.name(), uri);
     }
 
     HttpUriRequestBuilder(final String method, final String uri) {
-        super();
-        this.method = method;
-        this.uri = uri != null ? URI.create(uri) : null;
+        this(method, uri != null ? URI.create(uri) : null);
+    }
+
+    HttpUriRequestBuilder(final Method method, final String uri) {
+        this(method.name(), uri);
     }
 
     HttpUriRequestBuilder() {
-        this(null);
+        this((String) null);
     }
 
     public static HttpUriRequestBuilder create(final String method) {
@@ -76,74 +84,21 @@ class HttpUriRequestBuilder {
         return new HttpUriRequestBuilder(method);
     }
 
-    public HttpUriRequestBuilder setMethod(String method) {
-        this.method = method;
-        return this;
-    }
-
-    public static HttpUriRequestBuilder copy(final HttpRequest request) {
-        Args.notNull(request, "HTTP request");
-        return new HttpUriRequestBuilder().doCopy(request);
-    }
-
-    private HttpUriRequestBuilder doCopy(final HttpRequest request) {
-        if (request == null) {
-            return this;
-        }
-        method = request.getRequestLine().getMethod();
-        version = request.getRequestLine().getProtocolVersion();
-
-        if (headerGroup == null) {
-            headerGroup = new HeaderGroup();
-        }
-        headerGroup.clear();
-        headerGroup.setHeaders(request.getAllHeaders());
-
-        parameters = null;
-        entity = null;
-
-        if (request instanceof HttpEntityEnclosingRequest) {
-            final HttpEntity originalEntity = ((HttpEntityEnclosingRequest) request).getEntity();
-            final ContentType contentType = ContentType.get(originalEntity);
-            if (contentType != null &&
-                    contentType.getMimeType().equals(ContentType.APPLICATION_FORM_URLENCODED.getMimeType())) {
-                try {
-                    final List<NameValuePair> formParams = URLEncodedUtils.parse(originalEntity);
-                    if (!formParams.isEmpty()) {
-                        parameters = formParams;
-                    }
-                } catch (final IOException ignore) {
-                }
-            } else {
-                entity = originalEntity;
-            }
-        }
-
-        if (request instanceof HttpUriRequest) {
-            uri = ((HttpUriRequest) request).getURI();
-        } else {
-            uri = URI.create(request.getRequestLine().getUri());
-        }
-
-        if (request instanceof Configurable) {
-            config = ((Configurable) request).getConfig();
-        } else {
-            config = null;
-        }
-        return this;
-    }
-
     HttpUriRequestBuilder copyBuilder() {
         HttpUriRequestBuilder copyHttpUriRequestBuilder = new HttpUriRequestBuilder();
 
         copyHttpUriRequestBuilder.method = method;
+        copyHttpUriRequestBuilder.uri = uri;
         copyHttpUriRequestBuilder.charset = charset;
         copyHttpUriRequestBuilder.version = version;
-        copyHttpUriRequestBuilder.uri = uri;
 
         if (headerGroup != null) {
             copyHttpUriRequestBuilder.headerGroup = new HeaderGroup();
-            copyHttpUriRequestBuilder.headerGroup.setHeaders(headerGroup.getAllHeaders());
+            Header[] oldHeaders = headerGroup.getHeaders();
+
+            Header[] copyHeaders = Arrays.copyOf(oldHeaders, oldHeaders.length);
+
+            copyHttpUriRequestBuilder.headerGroup.setHeaders(copyHeaders);
         }
 
         if (entity != null) {
@@ -168,6 +123,11 @@ class HttpUriRequestBuilder {
 
     public Charset getCharset() {
         return charset;
+    }
+
+    public HttpUriRequestBuilder setMethod(String method) {
+        this.method = method;
+        return this;
     }
 
     public String getMethod() {
@@ -197,16 +157,33 @@ class HttpUriRequestBuilder {
         return this;
     }
 
+    public RequestConfig getConfig() {
+        return config;
+    }
+
+    public HttpUriRequestBuilder setConfig(final RequestConfig config) {
+        this.config = config;
+        return this;
+    }
+
+    public Header[] getHeaders(final String name) {
+        return headerGroup != null ? headerGroup.getHeaders(name) : null;
+    }
+
+    public HttpUriRequestBuilder setHeaders(final Header... headers) {
+        if (headerGroup == null) {
+            headerGroup = new HeaderGroup();
+        }
+        headerGroup.setHeaders(headers);
+        return this;
+    }
+
     public Header getFirstHeader(final String name) {
         return headerGroup != null ? headerGroup.getFirstHeader(name) : null;
     }
 
     public Header getLastHeader(final String name) {
         return headerGroup != null ? headerGroup.getLastHeader(name) : null;
-    }
-
-    public Header[] getHeaders(final String name) {
-        return headerGroup != null ? headerGroup.getHeaders(name) : null;
     }
 
     public HttpUriRequestBuilder addHeader(final Header header) {
@@ -237,8 +214,8 @@ class HttpUriRequestBuilder {
         if (name == null || headerGroup == null) {
             return this;
         }
-        for (final HeaderIterator i = headerGroup.iterator(); i.hasNext(); ) {
-            final Header header = i.nextHeader();
+        for (final Iterator<Header> i = headerGroup.headerIterator(); i.hasNext(); ) {
+            final Header header = i.next();
             if (name.equalsIgnoreCase(header.getName())) {
                 i.remove();
             }
@@ -250,7 +227,7 @@ class HttpUriRequestBuilder {
         if (headerGroup == null) {
             headerGroup = new HeaderGroup();
         }
-        this.headerGroup.updateHeader(header);
+        this.headerGroup.setHeader(header);
         return this;
     }
 
@@ -258,7 +235,7 @@ class HttpUriRequestBuilder {
         if (headerGroup == null) {
             headerGroup = new HeaderGroup();
         }
-        this.headerGroup.updateHeader(new BasicHeader(name, value));
+        this.headerGroup.setHeader(new BasicHeader(name, value));
         return this;
     }
 
@@ -271,9 +248,24 @@ class HttpUriRequestBuilder {
         return this;
     }
 
+    public HttpUriRequestBuilder setEntity(final String content, final ContentType contentType) {
+        this.entity = new StringEntity(content, contentType);
+        return this;
+    }
+
+    public HttpUriRequestBuilder setEntity(final String content) {
+        this.entity = new StringEntity(content);
+        return this;
+    }
+
+    public HttpUriRequestBuilder setEntity(final byte[] content, final ContentType contentType) {
+        this.entity = new ByteArrayEntity(content, contentType);
+        return this;
+    }
+
     public List<NameValuePair> getParameters() {
         return parameters != null ? new ArrayList<>(parameters) :
-                new ArrayList<>();
+                new ArrayList<NameValuePair>();
     }
 
     public HttpUriRequestBuilder addParameter(final NameValuePair nvp) {
@@ -296,26 +288,16 @@ class HttpUriRequestBuilder {
         return this;
     }
 
-    public RequestConfig getConfig() {
-        return config;
-    }
-
-    public HttpUriRequestBuilder setConfig(final RequestConfig config) {
-        this.config = config;
-        return this;
-    }
-
-    public HttpUriRequest build() {
-        final HttpRequestBase result;
-        URI uriNotNull = this.uri != null ? this.uri : URI.create("/");
+    public ClassicHttpRequest build() {
+        URI uriCopy = this.uri != null ? this.uri : URI.create("/");
         HttpEntity entityCopy = this.entity;
+
         if (parameters != null && !parameters.isEmpty()) {
-            if (entityCopy == null && (HttpPost.METHOD_NAME.equalsIgnoreCase(method)
-                    || HttpPut.METHOD_NAME.equalsIgnoreCase(method))) {
-                entityCopy = new UrlEncodedFormEntity(parameters, charset != null ? charset : HTTP.DEF_CONTENT_CHARSET);
+            if (entityCopy == null && (Method.POST.isSame(method) || Method.PUT.isSame(method))) {
+                entityCopy = HttpEntities.createUrlEncoded(parameters, charset);
             } else {
                 try {
-                    uriNotNull = new URIBuilder(uriNotNull)
+                    uriCopy = new URIBuilder(uriCopy)
                             .setCharset(this.charset)
                             .addParameters(parameters)
                             .build();
@@ -324,74 +306,39 @@ class HttpUriRequestBuilder {
                 }
             }
         }
-        if (entityCopy == null) {
-            result = new InternalRequest(method);
-        } else {
-            final InternalEntityEclosingRequest request = new InternalEntityEclosingRequest(method);
-            request.setEntity(entityCopy);
-            result = request;
+
+        if (entityCopy != null && Method.TRACE.isSame(method)) {
+            throw new IllegalStateException(Method.TRACE + " requests may not include an entity");
         }
-        result.setProtocolVersion(this.version);
-        result.setURI(uriNotNull);
+
+        final HttpUriRequestBase result = new HttpUriRequestBase(method, uriCopy);
+        result.setVersion(this.version != null ? this.version : HttpVersion.HTTP_1_1);
         if (this.headerGroup != null) {
-            result.setHeaders(this.headerGroup.getAllHeaders());
+            result.setHeaders(this.headerGroup.getHeaders());
         }
-        result.setConfig(this.config);
+        result.setEntity(entityCopy);
+        result.setConfig(config);
         return result;
-    }
-
-    static class InternalRequest extends HttpRequestBase {
-
-        private final String method;
-
-        InternalRequest(final String method) {
-            super();
-            this.method = method;
-        }
-
-        @Override
-        public String getMethod() {
-            return this.method;
-        }
-
-    }
-
-    static class InternalEntityEclosingRequest extends HttpEntityEnclosingRequestBase {
-
-        private final String method;
-
-        InternalEntityEclosingRequest(final String method) {
-            super();
-            this.method = method;
-        }
-
-        @Override
-        public String getMethod() {
-            return this.method;
-        }
-
     }
 
     @Override
     public String toString() {
         final StringBuilder builder = new StringBuilder();
-        builder.append("RequestBuilder [method=")
-                .append(method)
-                .append(", charset=")
-                .append(charset)
-                .append(", version=")
-                .append(version)
-                .append(", uri=")
-                .append(uri)
-                .append(", headerGroup=")
-                .append(headerGroup)
-                .append(", entity=")
-                .append(entity)
-                .append(", parameters=")
-                .append(parameters)
-                .append(", config=")
-                .append(config)
-                .append("]");
+        builder.append("HttpUriRequestBuilder [method=");
+        builder.append(method);
+        builder.append(", charset=");
+        builder.append(charset);
+        builder.append(", version=");
+        builder.append(version);
+        builder.append(", uri=");
+        builder.append(uri);
+        builder.append(", headerGroup=");
+        builder.append(headerGroup);
+        builder.append(", entity=");
+        builder.append(entity != null ? entity.getClass() : null);
+        builder.append(", parameters=");
+        builder.append(parameters);
+        builder.append("]");
         return builder.toString();
     }
 }

@@ -16,7 +16,7 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
@@ -28,7 +28,7 @@ public class HttpRequestConnectionManagementLiveTest {
 
     @Test
     public final void whenConnectionsNeededGreaterThanMaxTotal_thenReuseConnections() throws InterruptedException {
-        HttpRequest httpRequest = HttpRequestBuilder.create(ClientBuilder.create().connectionRequestTimeout(5).build()).build();
+        HttpRequest httpRequest = HttpRequestBuilder.create(ClientBuilder.create().setConnectionRequestTimeout(5).build()).build();
 
         int validThreadSize = 128;
         final HttpRequestThread[] threads = new HttpRequestThread[validThreadSize];
@@ -91,7 +91,7 @@ public class HttpRequestConnectionManagementLiveTest {
 
     @Test
     public final void whenConnectionsNeededGreaterThanMaxTotal_thenReuseConnectionsImmutableWebTarget() throws InterruptedException {
-        HttpRequest httpRequest = HttpRequestBuilder.create(ClientBuilder.create().connectionRequestTimeout(5).build()).build();
+        HttpRequest httpRequest = HttpRequestBuilder.create(ClientBuilder.create().setConnectionRequestTimeout(5).build()).build();
 
         int validThreadSize = 128;
         final HttpRequestThread[] threads = new HttpRequestThread[validThreadSize];

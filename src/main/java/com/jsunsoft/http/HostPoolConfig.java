@@ -16,7 +16,7 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
-import org.apache.http.HttpHost;
+import org.apache.hc.core5.http.HttpHost;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +24,7 @@ import java.util.Map;
 class HostPoolConfig {
     private int maxPoolSize = 128;
     private int defaultMaxPoolSizePerRoute = 128;
-    private Map<HttpHost, Integer> httpHostToMaxRoutePoolSize = new HashMap<>();
+    private final Map<HttpHost, Integer> httpHostToMaxRoutePoolSize = new HashMap<>();
 
     private HostPoolConfig() {
     }
@@ -33,6 +33,7 @@ class HostPoolConfig {
      * Set the connection pool max size of concurrent connections, which is 128 by default.
      *
      * @param maxPoolSize value
+     *
      * @return Builder instance
      */
     public HostPoolConfig setMaxPoolSize(int maxPoolSize) {
@@ -44,6 +45,7 @@ class HostPoolConfig {
      * Set the connection pool default max size of concurrent connections to a specific route, which is 128 by default.
      *
      * @param defaultMaxPoolSizePerRoute value
+     *
      * @return Builder instance
      */
     public HostPoolConfig setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
@@ -56,6 +58,7 @@ class HostPoolConfig {
      *
      * @param httpHost         httpHost
      * @param maxRoutePoolSize maxRoutePoolSize
+     *
      * @return HostPoolConfig
      */
     public HostPoolConfig setMaxPoolSizePerRoute(HttpHost httpHost, int maxRoutePoolSize) {

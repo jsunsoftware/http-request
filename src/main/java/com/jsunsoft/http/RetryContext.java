@@ -18,9 +18,9 @@ package com.jsunsoft.http;
 
 
 import com.jsunsoft.http.annotations.Beta;
-import org.apache.http.Header;
-import org.apache.http.HttpHeaders;
-import org.apache.http.HttpStatus;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpHeaders;
+import org.apache.hc.core5.http.HttpStatus;
 import org.slf4j.LoggerFactory;
 
 @Beta
@@ -54,7 +54,7 @@ public interface RetryContext {
      * @return if true the request will be retried else no action
      */
     default boolean mustBeRetried(Response response) {
-        return response.getStatusCode() == HttpStatus.SC_SERVICE_UNAVAILABLE;
+        return response.getCode() == HttpStatus.SC_SERVICE_UNAVAILABLE;
     }
 
     /**

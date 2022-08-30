@@ -16,24 +16,25 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.*;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.util.EntityUtils;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Optional;
 
 class BasicResponse implements Response {
 
-    private final CloseableHttpResponse closeableHttpResponse;
+    private final ClassicHttpResponse classicHttpResponse;
     private final ResponseBodyReaderConfig responseBodyReaderConfig;
     private final URI uri;
 
-    public BasicResponse(CloseableHttpResponse closeableHttpResponse, ResponseBodyReaderConfig responseBodyReaderConfig, URI uri) {
-        this.closeableHttpResponse = closeableHttpResponse;
+    public BasicResponse(ClassicHttpResponse classicHttpResponse, ResponseBodyReaderConfig responseBodyReaderConfig, URI uri) {
+        this.classicHttpResponse = classicHttpResponse;
         this.responseBodyReaderConfig = responseBodyReaderConfig;
         this.uri = uri;
     }
@@ -48,349 +49,219 @@ class BasicResponse implements Response {
         try {
             EntityUtils.consume(getEntity());
         } catch (IOException e) {
-            closeableHttpResponse.close();
+            classicHttpResponse.close();
             throw e;
         }
 
-        closeableHttpResponse.close();
+        classicHttpResponse.close();
     }
 
     /**
-     * Obtains the status line of this response.
-     * The status line can be set using one of the
-     * {@link #setStatusLine setStatusLine} methods,
-     * or it can be initialized in a constructor.
-     *
-     * @return the status line, or {@code null} if not yet set
+     * {@inheritDoc}
      */
     @Override
-    public StatusLine getStatusLine() {
-        return closeableHttpResponse.getStatusLine();
+    public int getCode() {
+        return classicHttpResponse.getCode();
     }
 
     /**
-     * Sets the status line of this response.
-     *
-     * @param statusline the status line of this response
+     * {@inheritDoc}
      */
     @Override
-    public void setStatusLine(StatusLine statusline) {
-        closeableHttpResponse.setStatusLine(statusline);
+    public void setCode(int code) throws IllegalStateException {
+        classicHttpResponse.setCode(code);
     }
 
     /**
-     * Sets the status line of this response.
-     * The reason phrase will be determined based on the current
-     * {@link #getLocale locale}.
-     *
-     * @param ver  the HTTP version
-     * @param code the status code
+     * {@inheritDoc}
      */
     @Override
-    public void setStatusLine(ProtocolVersion ver, int code) {
-        closeableHttpResponse.setStatusLine(ver, code);
+    public String getReasonPhrase() {
+        return classicHttpResponse.getReasonPhrase();
     }
 
     /**
-     * Sets the status line of this response with a reason phrase.
-     *
-     * @param ver    the HTTP version
-     * @param code   the status code
-     * @param reason the reason phrase, or {@code null} to omit
-     */
-    @Override
-    public void setStatusLine(ProtocolVersion ver, int code, String reason) {
-        closeableHttpResponse.setStatusLine(ver, code, reason);
-    }
-
-    /**
-     * Updates the status line of this response with a new status code.
-     *
-     * @param code the HTTP status code.
-     *
-     * @throws IllegalStateException if the status line has not be set
-     * @see HttpStatus
-     * @see #setStatusLine(StatusLine)
-     * @see #setStatusLine(ProtocolVersion, int)
-     */
-    @Override
-    public void setStatusCode(int code) throws IllegalStateException {
-        closeableHttpResponse.setStatusCode(code);
-    }
-
-    /**
-     * Updates the status line of this response with a new reason phrase.
-     *
-     * @param reason the new reason phrase as a single-line string, or
-     *               {@code null} to unset the reason phrase
-     *
-     * @throws IllegalStateException if the status line has not be set
-     * @see #setStatusLine(StatusLine)
-     * @see #setStatusLine(ProtocolVersion, int)
+     * {@inheritDoc}
      */
     @Override
     public void setReasonPhrase(String reason) throws IllegalStateException {
-        closeableHttpResponse.setReasonPhrase(reason);
+        classicHttpResponse.setReasonPhrase(reason);
     }
 
     /**
-     * Obtains the message entity of this response, if any.
-     * The entity is provided by calling {@link #setEntity setEntity}.
-     *
-     * @return the response entity, or
-     * {@code null} if there is none
+     * {@inheritDoc}
      */
     @Override
     public HttpEntity getEntity() {
-        return closeableHttpResponse.getEntity();
+        return classicHttpResponse.getEntity();
     }
 
     /**
-     * Associates a response entity with this response.
-     * <p>
-     * Please note that if an entity has already been set for this response and it depends on
-     * an input stream ({@link HttpEntity#isStreaming()} returns {@code true}),
-     * it must be fully consumed in order to ensure release of resources.
-     *
-     * @param entity the entity to associate with this response, or
-     *               {@code null} to unset
-     *
-     * @see HttpEntity#isStreaming()
-     * @see EntityUtils#updateEntity(HttpResponse, HttpEntity)
+     * {@inheritDoc}
      */
     @Override
     public void setEntity(HttpEntity entity) {
-        closeableHttpResponse.setEntity(entity);
+        classicHttpResponse.setEntity(entity);
     }
 
     /**
-     * Obtains the locale of this response.
-     * The locale is used to determine the reason phrase
-     * for the {@link #setStatusCode status code}.
-     * It can be changed using {@link #setLocale setLocale}.
-     *
-     * @return the locale of this response, never {@code null}
+     * {@inheritDoc}
      */
     @Override
     public Locale getLocale() {
-        return closeableHttpResponse.getLocale();
+        return classicHttpResponse.getLocale();
     }
 
     /**
-     * Changes the locale of this response.
-     *
-     * @param loc the new locale
+     * {@inheritDoc}
      */
     @Override
     public void setLocale(Locale loc) {
-        closeableHttpResponse.setLocale(loc);
+        classicHttpResponse.setLocale(loc);
     }
 
     /**
-     * Returns the protocol version this message is compatible with.
+     * {@inheritDoc}
      */
     @Override
-    public ProtocolVersion getProtocolVersion() {
-        return closeableHttpResponse.getProtocolVersion();
+    public ProtocolVersion getVersion() {
+        return classicHttpResponse.getVersion();
     }
 
     /**
-     * Checks if a certain header is present in this message. Header values are
-     * ignored.
-     *
-     * @param name the header name to check for.
-     *
-     * @return true if at least one header with this name is present.
+     * {@inheritDoc}
+     */
+    @Override
+    public void setVersion(ProtocolVersion version) {
+        classicHttpResponse.setVersion(version);
+    }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public boolean containsHeader(String name) {
-        return closeableHttpResponse.containsHeader(name);
+        return classicHttpResponse.containsHeader(name);
     }
 
     /**
-     * Returns all the headers with a specified name of this message. Header values
-     * are ignored. Headers are orderd in the sequence they will be sent over a
-     * connection.
-     *
-     * @param name the name of the headers to return.
-     *
-     * @return the headers whose name property equals {@code name}.
+     * {@inheritDoc}
+     */
+    @Override
+    public int countHeaders(String name) {
+        return classicHttpResponse.countHeaders(name);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Header getHeader(String name) throws ProtocolException {
+        return classicHttpResponse.getHeader(name);
+    }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public Header[] getHeaders(String name) {
-        return closeableHttpResponse.getHeaders(name);
+        return classicHttpResponse.getHeaders(name);
     }
 
     /**
-     * Returns the first header with a specified name of this message. Header
-     * values are ignored. If there is more than one matching header in the
-     * message the first element of {@link #getHeaders(String)} is returned.
-     * If there is no matching header in the message {@code null} is
-     * returned.
-     *
-     * @param name the name of the header to return.
-     *
-     * @return the first header whose name property equals {@code name}
-     * or {@code null} if no such header could be found.
+     * {@inheritDoc}
      */
     @Override
     public Header getFirstHeader(String name) {
-        return closeableHttpResponse.getFirstHeader(name);
+        return classicHttpResponse.getFirstHeader(name);
     }
 
     /**
-     * Returns the last header with a specified name of this message. Header values
-     * are ignored. If there is more than one matching header in the message the
-     * last element of {@link #getHeaders(String)} is returned. If there is no
-     * matching header in the message {@code null} is returned.
-     *
-     * @param name the name of the header to return.
-     *
-     * @return the last header whose name property equals {@code name}.
-     * or {@code null} if no such header could be found.
+     * {@inheritDoc}
      */
     @Override
     public Header getLastHeader(String name) {
-        return closeableHttpResponse.getLastHeader(name);
+        return classicHttpResponse.getLastHeader(name);
     }
 
     /**
-     * Returns all the headers of this message. Headers are orderd in the sequence
-     * they will be sent over a connection.
-     *
-     * @return all the headers of this message
+     * {@inheritDoc}
      */
     @Override
-    public Header[] getAllHeaders() {
-        return closeableHttpResponse.getAllHeaders();
+    public Header[] getHeaders() {
+        return classicHttpResponse.getHeaders();
     }
 
     /**
-     * Adds a header to this message. The header will be appended to the end of
-     * the list.
-     *
-     * @param header the header to append.
+     * {@inheritDoc}
      */
     @Override
     public void addHeader(Header header) {
-        closeableHttpResponse.addHeader(header);
+        classicHttpResponse.addHeader(header);
     }
 
     /**
-     * Adds a header to this message. The header will be appended to the end of
-     * the list.
-     *
-     * @param name  the name of the header.
-     * @param value the value of the header.
+     * {@inheritDoc}
      */
     @Override
-    public void addHeader(String name, String value) {
-        closeableHttpResponse.addHeader(name, value);
+    public void addHeader(String name, Object value) {
+        classicHttpResponse.addHeader(name, value);
     }
 
     /**
-     * Overwrites the first header with the same name. The new header will be appended to
-     * the end of the list, if no header with the given name can be found.
-     *
-     * @param header the header to set.
+     * {@inheritDoc}
      */
     @Override
     public void setHeader(Header header) {
-        closeableHttpResponse.setHeader(header);
+        classicHttpResponse.setHeader(header);
     }
 
     /**
-     * Overwrites the first header with the same name. The new header will be appended to
-     * the end of the list, if no header with the given name can be found.
-     *
-     * @param name  the name of the header.
-     * @param value the value of the header.
+     * {@inheritDoc}
      */
     @Override
-    public void setHeader(String name, String value) {
-        closeableHttpResponse.setHeader(name, value);
+    public void setHeader(String name, Object value) {
+        classicHttpResponse.setHeader(name, value);
     }
 
     /**
-     * Overwrites all the headers in the message.
-     *
-     * @param headers the array of headers to set.
+     * {@inheritDoc}
      */
     @Override
     public void setHeaders(Header[] headers) {
-        closeableHttpResponse.setHeaders(headers);
+        classicHttpResponse.setHeaders(headers);
     }
 
     /**
-     * Removes a header from this message.
-     *
-     * @param header the header to remove.
+     * {@inheritDoc}
      */
     @Override
-    public void removeHeader(Header header) {
-        closeableHttpResponse.removeHeader(header);
+    public boolean removeHeader(Header header) {
+        return classicHttpResponse.removeHeader(header);
     }
 
     /**
-     * Removes all headers with a certain name from this message.
-     *
-     * @param name The name of the headers to remove.
+     * {@inheritDoc}
      */
     @Override
-    public void removeHeaders(String name) {
-        closeableHttpResponse.removeHeaders(name);
+    public boolean removeHeaders(String name) {
+        return classicHttpResponse.removeHeaders(name);
     }
 
     /**
-     * Returns an iterator of all the headers.
-     *
-     * @return Iterator that returns Header objects in the sequence they are
-     * sent over a connection.
+     * {@inheritDoc}
      */
     @Override
-    public HeaderIterator headerIterator() {
-        return closeableHttpResponse.headerIterator();
+    public Iterator<Header> headerIterator() {
+        return classicHttpResponse.headerIterator();
     }
 
     /**
-     * Returns an iterator of the headers with a given name.
-     *
-     * @param name the name of the headers over which to iterate, or
-     *             {@code null} for all headers
-     *
-     * @return Iterator that returns Header objects with the argument name
-     * in the sequence they are sent over a connection.
+     * {@inheritDoc}
      */
     @Override
-    public HeaderIterator headerIterator(String name) {
-        return closeableHttpResponse.headerIterator(name);
-    }
-
-    /**
-     * Returns the parameters effective for this message as set by
-     * {@link #setParams(org.apache.http.params.HttpParams)}.
-     *
-     * @deprecated (4.3) use configuration classes provided 'org.apache.http.config'
-     * and 'org.apache.http.client.config'
-     */
-    @Override
-    @Deprecated
-    public org.apache.http.params.HttpParams getParams() {
-        return closeableHttpResponse.getParams();
-    }
-
-    /**
-     * Provides parameters to be used for the processing of this message.
-     *
-     * @param params the parameters
-     *
-     * @deprecated (4.3) use configuration classes provided 'org.apache.http.config'
-     * and 'org.apache.http.client.config'
-     */
-    @Override
-    @Deprecated
-    public void setParams(org.apache.http.params.HttpParams params) {
-        closeableHttpResponse.setParams(params);
+    public Iterator<Header> headerIterator(String name) {
+        return classicHttpResponse.headerIterator(name);
     }
 
     @Override

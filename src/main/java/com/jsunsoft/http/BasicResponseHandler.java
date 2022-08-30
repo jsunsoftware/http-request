@@ -16,10 +16,9 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.Header;
-import org.apache.http.StatusLine;
-import org.apache.http.entity.ContentType;
-import org.apache.http.message.HeaderGroup;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.message.HeaderGroup;
 
 import java.lang.reflect.Type;
 import java.net.URI;
@@ -47,17 +46,16 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     private final URI uri;
     private final boolean success;
     private final ConnectionFailureType connectionFailureType;
-    private final StatusLine statusLine;
 
     BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
-        this(content, statusCode, new HeaderGroup(), errorText, type, contentType, uri, connectionFailureType, null);
+        this(content, statusCode, new HeaderGroup(), errorText, type, contentType, uri, connectionFailureType);
     }
 
-    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, StatusLine statusLine) {
-        this(content, statusCode, headerGroup, errorText, type, contentType, uri, BasicConnectionFailureType.NONE, statusLine);
+    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri) {
+        this(content, statusCode, headerGroup, errorText, type, contentType, uri, BasicConnectionFailureType.NONE);
     }
 
-    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, StatusLine statusLine) {
+    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
         this.statusCode = statusCode;
         this.content = content;
         this.headerGroup = headerGroup;
@@ -67,7 +65,6 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         this.uri = ArgsCheck.notNull(uri, "uri");
         this.success = HttpRequestUtils.isSuccess(statusCode);
         this.connectionFailureType = ArgsCheck.notNull(connectionFailureType, "connectionFailureType");
-        this.statusLine = statusLine;
     }
 
     /**
@@ -86,11 +83,8 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         return content == null;
     }
 
-    /**
-     * @return Status code
-     */
     @Override
-    public int getStatusCode() {
+    public int getCode() {
         return statusCode;
     }
 
@@ -275,16 +269,6 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     }
 
     /**
-     * Obtains the status line of this response.
-     *
-     * @return the status line.
-     */
-    @Override
-    public StatusLine getStatusLine() {
-        return statusLine;
-    }
-
-    /**
      * @return Content type of response
      */
     @Override
@@ -387,8 +371,8 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     }
 
     @Override
-    public Header[] getAllHeaders() {
-        return headerGroup.getAllHeaders();
+    public Header[] getHeaders() {
+        return headerGroup.getHeaders();
     }
 
     /**
@@ -409,7 +393,6 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
                 ", errorText='" + errorText + '\'' +
                 ", uri=" + uri +
                 ", connectionFailureType=" + connectionFailureType +
-                ", statusLine=" + statusLine +
                 '}';
     }
 
