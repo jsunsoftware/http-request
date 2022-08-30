@@ -19,7 +19,6 @@ package com.jsunsoft.http;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.http.Header;
 import org.apache.http.NameValuePair;
 import org.apache.http.entity.ContentType;
@@ -304,7 +303,7 @@ public class HttpRequestBuilder {
      */
     public HttpRequestBuilder basicAuth(String username, String password) {
         String auth = username + ":" + password;
-        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
+        byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8));
         String authHeader = "Basic " + new String(encodedAuth, StandardCharsets.UTF_8);
         return addDefaultHeader(AUTHORIZATION, authHeader);
     }
