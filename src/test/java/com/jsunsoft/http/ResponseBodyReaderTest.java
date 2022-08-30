@@ -64,6 +64,7 @@ public class ResponseBodyReaderTest {
                 ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), DEFAULT),
                 ResponseBodyReaderConfig.defaultInit(new XmlMapper(), DEFAULT)
         );
+
         Result result = responseBodyReader.read(responseContext);
         Assert.assertEquals(1L, result.value);
         Assert.assertEquals("Test message", result.message);
@@ -104,6 +105,7 @@ public class ResponseBodyReaderTest {
                 ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), dateDeserializeContext),
                 ResponseBodyReaderConfig.defaultInit(new XmlMapper(), dateDeserializeContext)
         );
+
         Result result = responseBodyReader.read(responseContext);
         Assert.assertEquals(1L, result.value);
         Assert.assertEquals("Test message", result.message);

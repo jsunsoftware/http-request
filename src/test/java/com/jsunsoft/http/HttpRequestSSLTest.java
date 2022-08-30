@@ -33,6 +33,6 @@ public class HttpRequestSSLTest {
     //disabled due to the uri https://mms.nw.ru/ become not valid. todo replace uri with valid
     public final void ignoreSSLAndHostsTest() throws Exception {
 
-        assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getStatusCode());
+        assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getCode());
     }
 }

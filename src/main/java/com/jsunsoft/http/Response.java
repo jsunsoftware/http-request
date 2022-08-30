@@ -104,9 +104,22 @@ public interface Response extends CloseableHttpResponse {
     }
 
     /**
-     * @return Status code
+     * @return the status code.
+     *
+     * @see #getCode()
+     * @deprecated use getCode instead
      */
+    @Deprecated
     default int getStatusCode() {
+        return getCode();
+    }
+
+    /**
+     * Obtains the code of this response message.
+     *
+     * @return the status code
+     */
+    default int getCode() {
         return getStatusLine().getStatusCode();
     }
 

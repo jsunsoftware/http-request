@@ -90,7 +90,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * @return Status code
      */
     @Override
-    public int getStatusCode() {
+    public int getCode() {
         return statusCode;
     }
 

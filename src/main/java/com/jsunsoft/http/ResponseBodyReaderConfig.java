@@ -122,10 +122,6 @@ class ResponseBodyReaderConfig {
             return this;
         }
 
-        public boolean isUseDefaultReader() {
-            return useDefaultReader;
-        }
-
         ResponseBodyReaderConfig build() {
             if (useDefaultReader && defaultResponseBodyReader == null) {
 
