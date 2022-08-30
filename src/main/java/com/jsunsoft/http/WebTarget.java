@@ -16,16 +16,13 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.utils.URLEncodedUtils;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.Args;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.http.message.BasicNameValuePair;
+import org.apache.hc.core5.net.URLEncodedUtils;
+import org.apache.hc.core5.util.Args;
 
 import java.net.URI;
 import java.nio.charset.Charset;
@@ -34,7 +31,6 @@ import java.util.Collection;
 import java.util.Map;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 
 /**
  * A resource target identified by the resource URI.
@@ -268,6 +264,8 @@ public interface WebTarget {
      */
     WebTarget addHeader(final Header header);
 
+    WebTarget setCharset(final Charset charset);
+
     /**
      * The same as {@link #request(HttpMethod, HttpEntity, Class)} wrapped {@code payload} into {@link StringEntity}
      *
@@ -353,7 +351,7 @@ public interface WebTarget {
      * @return WebTarget instance
      */
     default WebTarget addContentType(final ContentType contentType) {
-        addHeader(CONTENT_TYPE, contentType.toString());
+        addHeader(HttpHeaders.CONTENT_TYPE, contentType.toString());
         return this;
     }
 

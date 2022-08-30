@@ -16,8 +16,10 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.HttpStatus;
-import org.apache.http.client.utils.URIBuilder;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.net.URIBuilder;
 
 import java.lang.reflect.Type;
 
@@ -85,5 +87,9 @@ class HttpRequestUtils {
         }
 
         return uriBuilder.setPath(newPath);
+    }
+
+    static ContentType getContentTypeFromHttpEntity(HttpEntity httpEntity) {
+        return httpEntity == null ? null : ContentType.parse(httpEntity.getContentType());
     }
 }

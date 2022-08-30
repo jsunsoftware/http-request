@@ -16,9 +16,9 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.Header;
-import org.apache.http.NameValuePair;
-import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.NameValuePair;
 
 import java.net.URI;
 import java.net.URISyntaxException;

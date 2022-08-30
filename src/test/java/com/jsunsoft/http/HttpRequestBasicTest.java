@@ -16,7 +16,7 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.HttpStatus;
+import org.apache.hc.core5.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -34,7 +34,7 @@ public class HttpRequestBasicTest {
         Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.target("https://en.wikipedia.org/")
                 .path("wiki/List_of_least_concern_birds")
                 .get()
-                .getStatusCode());
+                .getCode());
     }
 
     @Test
@@ -50,7 +50,7 @@ public class HttpRequestBasicTest {
         Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.immutableTarget("https://en.wikipedia.org/")
                 .path("wiki/List_of_least_concern_birds")
                 .get()
-                .getStatusCode());
+                .getCode());
     }
 
     @Test

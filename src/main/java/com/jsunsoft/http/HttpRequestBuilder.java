@@ -17,20 +17,21 @@
 package com.jsunsoft.http;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.http.Header;
-import org.apache.http.NameValuePair;
-import org.apache.http.entity.ContentType;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.Args;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.NameValuePair;
+import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.http.message.BasicNameValuePair;
+import org.apache.hc.core5.util.Args;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-import static org.apache.http.HttpHeaders.AUTHORIZATION;
-import static org.apache.http.HttpHeaders.CONTENT_TYPE;
+import static org.apache.hc.core5.http.HttpHeaders.AUTHORIZATION;
+import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 
 /**
  * Http request builder
@@ -232,19 +233,61 @@ public class HttpRequestBuilder {
      *    httpRequestBuilder.addDateDeserializationPattern(LocalDateTime.class, "yyyy-MM-dd");
      * </pre>
      *
+     * <p>
+     * Note: if methods {@link #setDefaultJsonMapper(ObjectMapper)} or {@link #setDefaultXmlMapper(ObjectMapper)} called
+     * result of this method will be ignored for that type of response.
+     * </p>
+     * <p>
+     * Default patterns are { LocalTime - HH:mm:ss, LocalDate - dd/MM/yyyy, LocalDateTime - dd/MM/yyyy HH:mm:ss}
+     * </p>
+     *
      * @param dateType date type e.g {@code LocalDateTime.class}
      * @param pattern  pattern by which date with given type must be deserialized
      *
      * @return HttpRequestBuilder instance
-     * <p>
-     * <p>
-     * Note: Default patterns are { LocalTime - HH:mm:ss, LocalDate - dd/MM/yyyy, LocalDateTime - dd/MM/yyyy HH:mm:ss}
      *
      * @see com.fasterxml.jackson.databind.ObjectMapper#configOverride(Class)
      * @see com.fasterxml.jackson.databind.cfg.MutableConfigOverride#setFormat(JsonFormat.Value)
      */
     public HttpRequestBuilder addDefaultDateDeserializationPattern(Class<?> dateType, String pattern) {
         responseBodyReaderConfigBuilder.addDateDeserializationPattern(dateType, pattern);
+
+        return this;
+    }
+
+    /**
+     * Set object mapper for default response body deserialization when response content type is {@link ContentType#APPLICATION_JSON}
+     *
+     * <p>
+     * </p>
+     * <p>
+     * Note: if this method called the result of addDefaultDateDeserializationPattern will be ignored for {@link ContentType#APPLICATION_JSON}.
+     * </p>
+     *
+     * @param defaultJsonMapper the ObjectMapper instance
+     *
+     * @return HttpRequestBuilder instance
+     */
+    public HttpRequestBuilder setDefaultJsonMapper(ObjectMapper defaultJsonMapper) {
+
+        responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
+
+        return this;
+    }
+
+    /**
+     * Set object mapper for default response body deserialization when response content type is {@link ContentType#APPLICATION_XML}
+     *
+     * @param defaultXmlMapper Mainly the {@link XmlMapper} instance
+     *
+     * @return HttpRequestBuilder instance
+     *
+     * <p>
+     * Note: if this method called the result of addDefaultDateDeserializationPattern will be ignored for {@link ContentType#APPLICATION_XML}.
+     * </p>
+     */
+    public HttpRequestBuilder setDefaultXmlMapper(ObjectMapper defaultXmlMapper) {
+        responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
 
         return this;
     }
@@ -260,7 +303,7 @@ public class HttpRequestBuilder {
      */
     public HttpRequestBuilder basicAuth(String username, String password) {
         String auth = username + ":" + password;
-        byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
+        byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8));
         String authHeader = "Basic " + new String(encodedAuth, StandardCharsets.UTF_8);
         return addDefaultHeader(AUTHORIZATION, authHeader);
     }

@@ -16,12 +16,11 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.entity.BasicHttpEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.message.BasicHttpResponse;
-import org.apache.http.message.BasicStatusLine;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.io.entity.BasicHttpEntity;
+import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.joda.time.LocalDate;
 import org.junit.Assert;
 import org.junit.Test;
@@ -58,7 +57,11 @@ public class ResponseBodyReaderTest {
 
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
-        ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(DEFAULT);
+        ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
+                ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), DEFAULT),
+                ResponseBodyReaderConfig.defaultInit(new XmlMapper(), DEFAULT)
+        );
+
         Result result = responseBodyReader.read(responseContext);
         Assert.assertEquals(1L, result.value);
         Assert.assertEquals("Test message", result.message);
@@ -96,8 +99,10 @@ public class ResponseBodyReaderTest {
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
-                dateDeserializeContext
+                ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), dateDeserializeContext),
+                ResponseBodyReaderConfig.defaultInit(new XmlMapper(), dateDeserializeContext)
         );
+
         Result result = responseBodyReader.read(responseContext);
         Assert.assertEquals(1L, result.value);
         Assert.assertEquals("Test message", result.message);
@@ -110,13 +115,11 @@ public class ResponseBodyReaderTest {
     }
 
     private ResponseBodyReaderContext<Result> resolveResponseContext(String content) throws UnsupportedEncodingException {
-        InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8.name()));
+        InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
 
-        BasicHttpEntity basicHttpEntity = new BasicHttpEntity();
-        basicHttpEntity.setContent(inputStream);
-        basicHttpEntity.setContentLength(content.length());
-        basicHttpEntity.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-        HttpResponse httpResponse = new BasicHttpResponse(new BasicStatusLine(new ProtocolVersion("", 1, 1), 200, ""));
+        BasicHttpEntity basicHttpEntity = new BasicHttpEntity(inputStream, content.length(), ContentType.APPLICATION_JSON);
+
+        BasicClassicHttpResponse httpResponse = new BasicClassicHttpResponse(200);
         httpResponse.setEntity(basicHttpEntity);
 
         return new BasicResponseBodyReaderContext<>(httpResponse, Result.class, Result.class);

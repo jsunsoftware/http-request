@@ -16,10 +16,11 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.HttpStatus;
+import org.apache.hc.core5.http.HttpStatus;
+import org.junit.Test;
 
-import static org.apache.http.HttpHeaders.ACCEPT;
-import static org.apache.http.entity.ContentType.APPLICATION_XML;
+import static org.apache.hc.core5.http.ContentType.APPLICATION_XML;
+import static org.apache.hc.core5.http.HttpHeaders.ACCEPT;
 import static org.junit.Assert.assertEquals;
 
 public class HttpRequestSSLTest {
@@ -30,9 +31,9 @@ public class HttpRequestSSLTest {
             .build()
     ).build();
 
-    //disabled due to the uri https://mms.nw.ru/ become not valid. todo replace uri with valid
+    @Test
     public final void ignoreSSLAndHostsTest() throws Exception {
 
-        assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getStatusCode());
+        assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getCode());
     }
 }

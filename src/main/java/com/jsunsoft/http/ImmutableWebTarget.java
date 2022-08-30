@@ -17,15 +17,16 @@
 package com.jsunsoft.http;
 
 import com.jsunsoft.http.annotations.Beta;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.NameValuePair;
+import org.apache.hc.core5.net.URIBuilder;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.Collection;
 
 @Beta
@@ -103,6 +104,16 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder(),
                 getHttpUriRequestBuilder().addHeader(header),
+                getResponseBodyReaderConfig()
+        );
+    }
+
+    @Override
+    public WebTarget setCharset(Charset charset) {
+        return new ImmutableWebTarget(
+                getCloseableHttpClient(),
+                getUriBuilder(),
+                getHttpUriRequestBuilder().setCharset(charset),
                 getResponseBodyReaderConfig()
         );
     }

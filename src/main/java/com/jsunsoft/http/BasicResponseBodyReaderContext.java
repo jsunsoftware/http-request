@@ -16,21 +16,20 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.entity.ContentType;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpEntity;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 
 final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderContext<T> {
-    private final HttpResponse httpResponse;
+    private final ClassicHttpResponse httpResponse;
     private final Class<T> type;
     private final Type genericType;
 
-    BasicResponseBodyReaderContext(HttpResponse httpResponse, Class<T> type, Type genericType) {
+    BasicResponseBodyReaderContext(ClassicHttpResponse httpResponse, Class<T> type, Type genericType) {
         this.httpResponse = ArgsCheck.notNull(httpResponse, "httpResponse");
         this.type = ArgsCheck.notNull(type, "type");
         this.genericType = ArgsCheck.notNull(genericType, "genericType");
@@ -42,13 +41,8 @@ final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderConte
     }
 
     @Override
-    public String getContentAsString() throws IOException {
-        return ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class));
-    }
-
-    @Override
     public ContentType getContentType() {
-        return ContentType.get(getHttpEntity());
+        return HttpRequestUtils.getContentTypeFromHttpEntity(getHttpEntity());
     }
 
     @Override
@@ -72,8 +66,8 @@ final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderConte
     }
 
     @Override
-    public StatusLine getStatusLine() {
-        return httpResponse.getStatusLine();
+    public int getStatusCode() {
+        return httpResponse.getCode();
     }
 
     @Override

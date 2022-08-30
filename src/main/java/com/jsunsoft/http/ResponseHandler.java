@@ -17,9 +17,8 @@
 package com.jsunsoft.http;
 
 import com.jsunsoft.http.annotations.Beta;
-import org.apache.http.Header;
-import org.apache.http.StatusLine;
-import org.apache.http.entity.ContentType;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.Header;
 
 import java.net.URI;
 import java.util.NoSuchElementException;
@@ -50,9 +49,20 @@ public interface ResponseHandler<T> {
     }
 
     /**
-     * @return Status code
+     * @return the status code
+     *
+     * @deprecated use {@link #getCode()} instead.
      */
-    int getStatusCode();
+    default int getStatusCode() {
+        return getCode();
+    }
+
+    /**
+     * Obtains the code of this response message.
+     *
+     * @return the status code
+     */
+    int getCode();
 
     /**
      * @param defaultValue value to return if content isn't present
@@ -170,12 +180,6 @@ public interface ResponseHandler<T> {
      */
     URI getURI();
 
-    /**
-     * Obtains the status line of this response.
-     *
-     * @return the status line.
-     */
-    StatusLine getStatusLine();
 
     /**
      * @return Content type of response
@@ -231,7 +235,10 @@ public interface ResponseHandler<T> {
 
     Header getLastHeader(String name);
 
-    Header[] getAllHeaders();
+    /**
+     * @return all headers
+     */
+    Header[] getHeaders();
 
     @Beta
     default String getFirstHeaderValue(String name) {

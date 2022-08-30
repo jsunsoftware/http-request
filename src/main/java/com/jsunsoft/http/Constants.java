@@ -16,7 +16,7 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.NameValuePair;
+import org.apache.hc.core5.http.NameValuePair;
 
 final class Constants {
     static final NameValuePair[] EMPTY_NAME_VALUE_PAIRS = new NameValuePair[0];

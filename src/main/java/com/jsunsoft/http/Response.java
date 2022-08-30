@@ -18,13 +18,13 @@ package com.jsunsoft.http;
 
 
 import com.jsunsoft.http.annotations.Beta;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.entity.ContentType;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.ContentType;
 
 import java.io.IOException;
 import java.net.URI;
 
-public interface Response extends CloseableHttpResponse {
+public interface Response extends ClassicHttpResponse {
 
     /**
      * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
@@ -100,21 +100,26 @@ public interface Response extends CloseableHttpResponse {
      * @return Content type of response
      */
     default ContentType getContentType() {
-        return ContentType.get(getEntity());
+
+        return HttpRequestUtils.getContentTypeFromHttpEntity(getEntity());
     }
 
     /**
-     * @return Status code
+     * @return the status code.
+     *
+     * @see #getCode()
+     * @deprecated use getCode instead
      */
+    @Deprecated
     default int getStatusCode() {
-        return getStatusLine().getStatusCode();
+        return getCode();
     }
 
     /**
      * @return Returns <b>true</b> if status code contains [200, 300) else <b>false</b>
      */
     default boolean isSuccess() {
-        return HttpRequestUtils.isSuccess(getStatusCode());
+        return HttpRequestUtils.isSuccess(getCode());
     }
 
     /**

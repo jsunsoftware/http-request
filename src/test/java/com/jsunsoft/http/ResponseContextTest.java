@@ -16,13 +16,10 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.entity.BasicHttpEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.message.BasicHttpResponse;
-import org.apache.http.message.BasicStatusLine;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.io.entity.BasicHttpEntity;
+import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,18 +37,14 @@ public class ResponseContextTest {
     @Before
     public final void before() throws UnsupportedEncodingException {
         content = "String to test";
-        InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8.name()));
+        InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
 
-        BasicHttpEntity basicHttpEntity = new BasicHttpEntity();
-        basicHttpEntity.setContent(inputStream);
-        basicHttpEntity.setContentLength(content.length());
-        basicHttpEntity.setContentType(ContentType.APPLICATION_JSON.getMimeType());
-        httpEntity = basicHttpEntity;
+        httpEntity = new BasicHttpEntity(inputStream, content.length(), ContentType.APPLICATION_JSON);
     }
 
     @Test
     public void testBasicResponseContextMethods() throws IOException {
-        HttpResponse httpResponse = new BasicHttpResponse(new BasicStatusLine(new ProtocolVersion("", 1, 1), 200, ""));
+        BasicClassicHttpResponse httpResponse = new BasicClassicHttpResponse(200);
         httpResponse.setEntity(httpEntity);
         ResponseBodyReaderContext<String> responseContext = new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class);
         Assert.assertEquals(content.length(), responseContext.getContentLength());

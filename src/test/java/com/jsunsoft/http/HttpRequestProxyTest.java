@@ -17,7 +17,7 @@
 package com.jsunsoft.http;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
-import org.apache.http.HttpHost;
+import org.apache.hc.core5.http.HttpHost;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -50,7 +50,7 @@ public class HttpRequestProxyTest {
                 .willReturn(aResponse().withStatus(200)));
 
         //then
-        assertEquals(httpRequestToSimpleProxy.target("http://localhost:8089/private").get(Void.class).getStatusCode(), 200);
+        assertEquals(200, httpRequestToSimpleProxy.target("http://localhost:8089/private").get(Void.class).getCode());
         proxyMock.verify(getRequestedFor(urlEqualTo("/private")));
         serviceMock.verify(getRequestedFor(urlEqualTo("/private")));
     }
@@ -64,7 +64,7 @@ public class HttpRequestProxyTest {
                 .willReturn(aResponse().withStatus(200)));
 
         //then
-        assertEquals(httpRequestToProxyAuth.target("http://localhost:8089/private").get(Void.class).getStatusCode(), 200);
+        assertEquals(200, httpRequestToProxyAuth.target("http://localhost:8089/private").get(Void.class).getCode());
         proxyMock.verify(getRequestedFor(urlEqualTo("/private")).withHeader("Authorization", containing("Basic")));
         serviceMock.verify(getRequestedFor(urlEqualTo("/private")));
     }

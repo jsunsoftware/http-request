@@ -18,7 +18,7 @@ package com.jsunsoft.http;
 
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
-import org.apache.http.HttpHeaders;
+import org.apache.hc.core5.http.HttpHeaders;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -43,7 +43,7 @@ public class HttpRetryableRequestTest {
 
         @Override
         public boolean mustBeRetried(Response response) {
-            return response.getStatusCode() == 401;
+            return response.getCode() == 401;
         }
 
         @Override
@@ -79,7 +79,7 @@ public class HttpRetryableRequestTest {
                 httpRequest.retryableTarget("http://localhost:8080/header", retryContext)
                         .addHeader(HttpHeaders.AUTHORIZATION, "old header")
                         .rawGet()
-                        .getStatusCode()
+                        .getCode()
         );
     }
 
@@ -90,7 +90,7 @@ public class HttpRetryableRequestTest {
                 httpRequest.retryableTarget("http://localhost:8080/header", retryContext)
                         .addHeader(HttpHeaders.AUTHORIZATION, "not retryable")
                         .rawGet()
-                        .getStatusCode()
+                        .getCode()
         );
     }
 }
