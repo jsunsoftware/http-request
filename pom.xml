@@ -22,7 +22,7 @@
 
     <groupId>com.jsunsoft.http</groupId>
     <artifactId>http-request</artifactId>
-    <version>2.3.3</version>
+    <version>2.3.4</version>
     <packaging>jar</packaging>
 
     <name>http-request</name>
@@ -53,7 +53,7 @@
         <endorsed.dir>${project.build.directory}/endorsed</endorsed.dir>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.13.3</jackson.version>
-        <joda.time.version>2.10.14</joda.time.version>
+        <joda.time.version>2.11.1</joda.time.version>
         <junit.version>4.13.1</junit.version>
         <httpclient.version>4.5.13</httpclient.version>
         <wiremock.version>2.10.1</wiremock.version>
