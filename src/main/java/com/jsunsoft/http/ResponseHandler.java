@@ -53,6 +53,7 @@ public interface ResponseHandler<T> {
      *
      * @deprecated use {@link #getCode()} instead.
      */
+    @Deprecated
     default int getStatusCode() {
         return getCode();
     }

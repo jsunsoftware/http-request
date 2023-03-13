@@ -21,7 +21,7 @@ import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
-import org.apache.hc.core5.net.URLEncodedUtils;
+import org.apache.hc.core5.net.WWWFormCodec;
 import org.apache.hc.core5.util.Args;
 
 import java.net.URI;
@@ -45,8 +45,23 @@ public interface WebTarget {
      * @return target instance.
      *
      * @throws NullPointerException if path is {@code null}.
+     * @deprecated use {@link #appendPath(String)} instead. Will be removed in future versions.
      */
-    WebTarget path(final String path);
+    @Deprecated
+    default WebTarget path(final String path) {
+        return appendPath(path);
+    }
+
+    /**
+     * Append path to the URI of the current target instance.
+     *
+     * @param path the path.
+     *
+     * @return target instance.
+     *
+     * @throws NullPointerException if path is {@code null}.
+     */
+    WebTarget appendPath(final String path);
 
     /**
      * Set path to the URI of the current target instance.
@@ -417,7 +432,7 @@ public interface WebTarget {
         ArgsCheck.notNull(queryString, "queryString");
         ArgsCheck.notNull(charset, "charset");
 
-        return addParameters(URLEncodedUtils.parse(queryString, charset));
+        return addParameters(WWWFormCodec.parse(queryString, charset));
     }
 
     /**
