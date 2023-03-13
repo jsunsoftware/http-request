@@ -18,6 +18,7 @@ package com.jsunsoft.http;
 
 
 import org.apache.hc.client5.http.HttpRoute;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -66,8 +67,12 @@ public class ClientBuilder {
 
     private final RequestConfig.Builder defaultRequestConfigBuilder = RequestConfig.custom()
             .setResponseTimeout(Timeout.ofSeconds(30))
-            .setConnectTimeout(Timeout.ofSeconds(10))
             .setConnectionRequestTimeout(Timeout.ofSeconds(30));
+
+    private final ConnectionConfig.Builder defaultConnectionConfigBuilder = ConnectionConfig.custom()
+            .setConnectTimeout(Timeout.ofSeconds(10))
+            .setSocketTimeout(Timeout.ofSeconds(30))
+            .setTimeToLive(Timeout.ofSeconds(30));
 
     private Collection<Consumer<HttpClientBuilder>> httpClientBuilderCustomizers;
     private Collection<Consumer<RequestConfig.Builder>> defaultRequestConfigBuilderCustomizers;
@@ -93,16 +98,16 @@ public class ClientBuilder {
      * <p>
      * Default: {@code 10 seconds}
      * </p>
-     * Note: Can be overridden by {@linkplain #addDefaultRequestConfigCustomizer}
+     * Note: Can be overridden by {@linkplain #addDefaultConnectionConfigCustomizer}
      *
      * @param connectTimeout The Connection Timeout (http.connection.timeout) – the time to establish the connection with the remote host.
      *
      * @return ClientBuilder instance
      *
-     * @see RequestConfig.Builder#setConnectTimeout(Timeout)
+     * @see ConnectionConfig.Builder#setConnectTimeout(Timeout)
      */
     public ClientBuilder setConnectTimeout(Timeout connectTimeout) {
-        defaultRequestConfigBuilder.setConnectTimeout(connectTimeout);
+        defaultConnectionConfigBuilder.setConnectTimeout(connectTimeout);
         return this;
     }
 
@@ -475,12 +480,15 @@ public class ClientBuilder {
         PoolingHttpClientConnectionManager connectionManager = cmBuilder
                 .setMaxConnPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute())
                 .setMaxConnTotal(hostPoolConfig.getMaxPoolSize())
+
                 .build();
 
         hostPoolConfig.getHttpHostToMaxPoolSize().forEach((httpHost, maxPerRoute) -> {
             HttpRoute httpRoute = new HttpRoute(httpHost);
             connectionManager.setMaxPerRoute(httpRoute, maxPerRoute);
         });
+
+        connectionManager.setDefaultConnectionConfig(defaultConnectionConfigBuilder.build());
 
         HttpRoutePlanner routePlanner = null;
 
