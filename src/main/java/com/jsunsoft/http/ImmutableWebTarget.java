@@ -22,6 +22,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.NameValuePair;
+import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.net.URIBuilder;
 
 import java.net.URI;
@@ -164,8 +165,8 @@ class ImmutableWebTarget extends BasicWebTarget {
     }
 
     @Override
-    public Response request(HttpMethod method) {
-        return toBasicWebTarget().request(method);
+    public Response request(HttpMethod method, HttpContext context) {
+        return toBasicWebTarget().request(method, context);
     }
 
     @Override

@@ -18,6 +18,7 @@ package com.jsunsoft.http;
 
 
 import org.apache.hc.client5.http.HttpRoute;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -66,11 +67,15 @@ public class ClientBuilder {
 
     private final RequestConfig.Builder defaultRequestConfigBuilder = RequestConfig.custom()
             .setResponseTimeout(Timeout.ofSeconds(30))
-            .setConnectTimeout(Timeout.ofSeconds(10))
             .setConnectionRequestTimeout(Timeout.ofSeconds(30));
+
+    private final ConnectionConfig.Builder defaultConnectionConfigBuilder = ConnectionConfig.custom()
+            .setConnectTimeout(Timeout.ofSeconds(10))
+            .setSocketTimeout(Timeout.ofSeconds(30));
 
     private Collection<Consumer<HttpClientBuilder>> httpClientBuilderCustomizers;
     private Collection<Consumer<RequestConfig.Builder>> defaultRequestConfigBuilderCustomizers;
+    private Collection<Consumer<ConnectionConfig.Builder>> defaultConnectionConfigBuilderCustomizers;
     private Collection<Header> defaultHeaders;
     private HttpHost proxy;
     private boolean useDefaultProxy;
@@ -93,16 +98,16 @@ public class ClientBuilder {
      * <p>
      * Default: {@code 10 seconds}
      * </p>
-     * Note: Can be overridden by {@linkplain #addDefaultRequestConfigCustomizer}
+     * Note: Can be overridden by {@linkplain #addDefaultConnectionConfigCustomizer}
      *
      * @param connectTimeout The Connection Timeout (http.connection.timeout) – the time to establish the connection with the remote host.
      *
      * @return ClientBuilder instance
      *
-     * @see RequestConfig.Builder#setConnectTimeout(Timeout)
+     * @see ConnectionConfig.Builder#setConnectTimeout(Timeout)
      */
     public ClientBuilder setConnectTimeout(Timeout connectTimeout) {
-        defaultRequestConfigBuilder.setConnectTimeout(connectTimeout);
+        defaultConnectionConfigBuilder.setConnectTimeout(connectTimeout);
         return this;
     }
 
@@ -191,6 +196,54 @@ public class ClientBuilder {
             defaultRequestConfigBuilderCustomizers = new LinkedHashSet<>();
         }
         defaultRequestConfigBuilderCustomizers.add(defaultRequestConfigBuilderConsumer);
+        return this;
+    }
+
+    /**
+     * Defines the socket timeout ({@code SO_TIMEOUT}) in milliseconds,
+     * which is the timeout for waiting for data  or, put differently,
+     * a maximum period inactivity between two consecutive data packets.
+     * <p>
+     * A timeout value of zero is interpreted as an infinite timeout.
+     * A negative value is interpreted as undefined (system default).
+     * </p>
+     * <p>
+     * Default: {@code 30000ms}
+     * </p>
+     * Note: Can be overridden by {@linkplain #addDefaultConnectionConfigCustomizer(Consumer)}
+     *
+     * @param socketTimeOut The Socket Timeout (http.socket.timeout) – the time waiting for data – after the connection was established;
+     *                      maximum time of inactivity between two data packets.
+     *
+     * @return ClientBuilder instance
+     *
+     * @see ConnectionConfig.Builder#setSocketTimeout
+     * @see #addDefaultConnectionConfigCustomizer(Consumer)
+     */
+    public ClientBuilder setSocketTimeout(Timeout socketTimeOut) {
+        defaultConnectionConfigBuilder.setSocketTimeout(socketTimeOut);
+        return this;
+    }
+
+    /**
+     * @see #setSocketTimeout
+     */
+    public ClientBuilder setSocketTimeout(int socketTimeOutMillis) {
+        setSocketTimeout(Timeout.ofMilliseconds(socketTimeOutMillis));
+        return this;
+    }
+
+
+    /**
+     * @param defaultConnectionConfigBuilderConsumer the consumer instance which provides {@link ConnectionConfig.Builder} to customize default request config
+     *
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder addDefaultConnectionConfigCustomizer(Consumer<ConnectionConfig.Builder> defaultConnectionConfigBuilderConsumer) {
+        if (defaultConnectionConfigBuilderCustomizers == null) {
+            defaultConnectionConfigBuilderCustomizers = new LinkedHashSet<>();
+        }
+        defaultConnectionConfigBuilderCustomizers.add(defaultConnectionConfigBuilderConsumer);
         return this;
     }
 
@@ -464,7 +517,11 @@ public class ClientBuilder {
 
         RequestConfig requestConfig = defaultRequestConfigBuilder.build();
 
-        HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+        if (defaultConnectionConfigBuilderCustomizers != null) {
+            defaultConnectionConfigBuilderCustomizers.forEach(defaultrequestconfigbuilderconsumer -> defaultrequestconfigbuilderconsumer.accept(defaultConnectionConfigBuilder));
+        }
+
+        ConnectionConfig connectionConfig = defaultConnectionConfigBuilder.build();
 
         PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
@@ -476,6 +533,8 @@ public class ClientBuilder {
                 .setMaxConnPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute())
                 .setMaxConnTotal(hostPoolConfig.getMaxPoolSize())
                 .build();
+
+        connectionManager.setDefaultConnectionConfig(connectionConfig);
 
         hostPoolConfig.getHttpHostToMaxPoolSize().forEach((httpHost, maxPerRoute) -> {
             HttpRoute httpRoute = new HttpRoute(httpHost);
@@ -490,11 +549,12 @@ public class ClientBuilder {
             routePlanner = new SystemDefaultRoutePlanner(ProxySelector.getDefault());
         }
 
-        clientBuilder
-                .setDefaultRequestConfig(requestConfig)
-                .setConnectionManager(connectionManager)
-                .disableCookieManagement()
-                .disableAutomaticRetries();
+        HttpClientBuilder clientBuilder =
+                HttpClientBuilder.create()
+                        .setDefaultRequestConfig(requestConfig)
+                        .setConnectionManager(connectionManager)
+                        .disableCookieManagement()
+                        .disableAutomaticRetries();
 
 
         if (routePlanner != null) {

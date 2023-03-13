@@ -21,9 +21,11 @@ import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.apache.hc.client5.http.HttpHostConnectException;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.routing.RoutingSupport;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.message.HeaderGroup;
+import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.net.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,7 +134,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
-    public Response request(HttpMethod method) {
+    public Response request(HttpMethod method, HttpContext context) {
         ArgsCheck.notNull(method, "method");
 
         ClassicHttpRequest request = resolveRequest(method);
@@ -140,7 +142,9 @@ class BasicWebTarget implements WebTarget {
         URI uri = resolveRequestURI(request);
 
         try {
-            return new BasicResponse(closeableHttpClient.execute(request), responseBodyReaderConfig, uri);
+            HttpHost httpHost = resolveHttpHost(request);
+
+            return new BasicResponse(closeableHttpClient.executeOpen(httpHost, request, context), responseBodyReaderConfig, uri);
         } catch (ConnectionRequestTimeoutException e) {
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection pool is empty for request on uri: [" + request.getRequestUri() + "]. Status code: " + SC_SERVICE_UNAVAILABLE, uri, CONNECTION_POOL_IS_EMPTY, e);
         } catch (ConnectTimeoutException e) {
@@ -160,6 +164,14 @@ class BasicWebTarget implements WebTarget {
     private ClassicHttpRequest resolveRequest(HttpMethod method) {
 
         return httpUriRequestBuilder.setMethod(method.name()).setUri(getURI()).build();
+    }
+
+    private HttpHost resolveHttpHost(ClassicHttpRequest request) throws ClientProtocolException {
+        try {
+            return RoutingSupport.determineHost(request);
+        } catch (final HttpException ex) {
+            throw new ClientProtocolException(ex);
+        }
     }
 
     private URI resolveRequestURI(ClassicHttpRequest request) {

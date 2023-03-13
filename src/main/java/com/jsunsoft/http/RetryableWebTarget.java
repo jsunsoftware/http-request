@@ -20,6 +20,7 @@ import com.jsunsoft.http.annotations.Beta;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.NameValuePair;
+import org.apache.hc.core5.http.protocol.HttpContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,8 +47,8 @@ class RetryableWebTarget extends BasicWebTarget {
     }
 
     @Override
-    public Response request(HttpMethod method) {
-        Response response = super.request(method);
+    public Response request(HttpMethod method, HttpContext context) {
+        Response response = super.request(method, context);
 
         int retryCount = retryContext.getRetryCount();
 
@@ -59,7 +60,7 @@ class RetryableWebTarget extends BasicWebTarget {
 
                 closeResponse(response);
 
-                response = retryContext.beforeRetry(this).request(method);
+                response = retryContext.beforeRetry(this).request(method, context);
                 retryCount--;
             }
         } catch (InterruptedException e) {
