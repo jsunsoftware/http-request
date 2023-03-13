@@ -21,6 +21,7 @@ import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
+import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.net.WWWFormCodec;
 import org.apache.hc.core5.util.Args;
 
@@ -78,18 +79,29 @@ public interface WebTarget {
     WebTarget setPath(final String path);
 
     /**
+     * Invoke {@linkplain #request(HttpMethod, HttpContext)} with default http context
+     *
+     * @see #request(HttpMethod, HttpContext)
+     */
+    default Response request(final HttpMethod method) {
+        return request(method, (HttpContext) null);
+    }
+
+    /**
      * Invoke an arbitrary method for the current request.
      *
-     * @param method the http method.
+     * @param method  the http method.
+     * @param context the {@linkplain HttpContext}
      *
      * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
      * Whether redirects or authentication challenges will be returned
      * or handled automatically depends on the implementation and configuration of this client.
      *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
-     * @throws RequestException  in case of an http protocol error.
+     * @throws RequestException  in case of a http protocol error.
+     * @see HttpContext
      */
-    Response request(final HttpMethod method);
+    Response request(final HttpMethod method, HttpContext context);
 
     /**
      * Invoke an arbitrary method for the current request.
