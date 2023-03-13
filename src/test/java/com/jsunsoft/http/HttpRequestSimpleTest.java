@@ -127,6 +127,20 @@ public class HttpRequestSimpleTest {
     }
 
     @Test
+    public void addParametersAsQueryStringTest() {
+        wireMockRule.stubFor(get(urlPathMatching("/get-param"))
+                .withQueryParam("test", equalTo("testValue"))
+                .willReturn(aResponse().withStatus(200)));
+
+        assertTrue(
+                httpRequestWithoutParse.target("http://localhost:8080/get-param")
+                        .addParameters("test=testValue&param2=param2")
+                        .get(Void.class)
+                        .isSuccess()
+        );
+    }
+
+    @Test
     public void withoutBadRequestTest() {
         String text = "abcd";
         wireMockRule.stubFor(post(urlEqualTo("/text"))
