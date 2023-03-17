@@ -46,23 +46,8 @@ public interface WebTarget {
      * @return target instance.
      *
      * @throws NullPointerException if path is {@code null}.
-     * @deprecated use {@link #appendPath(String)} instead. Will be removed in future versions.
      */
-    @Deprecated
-    default WebTarget path(final String path) {
-        return appendPath(path);
-    }
-
-    /**
-     * Append path to the URI of the current target instance.
-     *
-     * @param path the path.
-     *
-     * @return target instance.
-     *
-     * @throws NullPointerException if path is {@code null}.
-     */
-    WebTarget appendPath(final String path);
+    WebTarget path(final String path);
 
     /**
      * Set path to the URI of the current target instance.

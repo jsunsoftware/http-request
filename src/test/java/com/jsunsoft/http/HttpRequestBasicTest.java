@@ -32,7 +32,7 @@ public class HttpRequestBasicTest {
     @Test
     public void getResponseCode() {
         Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.target("https://en.wikipedia.org/")
-                .appendPath("wiki/List_of_least_concern_birds")
+                .path("wiki/List_of_least_concern_birds")
                 .get()
                 .getCode());
     }
@@ -40,7 +40,7 @@ public class HttpRequestBasicTest {
     @Test
     public void largeResponseTest() {
         ResponseHandler<String> responseHandler = HTTP_REQUEST_TO_GET_LARGE_RESPONSE.target("https://en.wikipedia.org/")
-                .appendPath("wiki/List_of_least_concern_birds")
+                .path("wiki/List_of_least_concern_birds")
                 .get(String.class);
         Assert.assertTrue(responseHandler.orElse("").length() > 16348);
     }
@@ -48,7 +48,7 @@ public class HttpRequestBasicTest {
     @Test
     public void getResponseCodeImmutable() {
         Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.immutableTarget("https://en.wikipedia.org/")
-                .appendPath("wiki/List_of_least_concern_birds")
+                .path("wiki/List_of_least_concern_birds")
                 .get()
                 .getCode());
     }
@@ -56,7 +56,7 @@ public class HttpRequestBasicTest {
     @Test
     public void largeResponseTestImmutable() {
         ResponseHandler<String> responseHandler = HTTP_REQUEST_TO_GET_LARGE_RESPONSE.immutableTarget("https://en.wikipedia.org/")
-                .appendPath("wiki/List_of_least_concern_birds")
+                .path("wiki/List_of_least_concern_birds")
                 .get(String.class);
         Assert.assertTrue(responseHandler.orElse("").length() > 16348);
     }

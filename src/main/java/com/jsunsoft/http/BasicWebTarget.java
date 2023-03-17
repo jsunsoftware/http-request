@@ -86,7 +86,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
-    public WebTarget appendPath(String path) {
+    public WebTarget path(String path) {
         ArgsCheck.notNull(path, "path");
 
         HttpRequestUtils.appendPath(uriBuilder, path);

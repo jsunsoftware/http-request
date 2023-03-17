@@ -50,7 +50,7 @@ class ImmutableWebTarget extends BasicWebTarget {
     }
 
     @Override
-    public WebTarget appendPath(String path) {
+    public WebTarget path(String path) {
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 HttpRequestUtils.appendPath(getUriBuilder(), path),
