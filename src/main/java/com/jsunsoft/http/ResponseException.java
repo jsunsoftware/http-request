@@ -63,4 +63,14 @@ public class ResponseException extends RuntimeException {
     ConnectionFailureType getConnectionFailureType() {
         return connectionFailureType;
     }
+
+    @Override
+    public String toString() {
+        return "ResponseException{" +
+                "statusCode=" + statusCode +
+                ", uri=" + uri +
+                ", connectionFailureType=" + connectionFailureType +
+                ", message=" + getMessage() +
+                '}';
+    }
 }
