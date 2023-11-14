@@ -16,10 +16,10 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.StatusLine;
 import org.apache.http.entity.ContentType;
 
 import java.lang.reflect.Type;
+import java.net.URI;
 
 public interface ResponseBodyReadableContext {
 
@@ -61,11 +61,6 @@ public interface ResponseBodyReadableContext {
     Type getGenericType();
 
     /**
-     * @return the status line of response
-     */
-    StatusLine getStatusLine();
-
-    /**
      * @return {@code true} if response has entity otherwise {@code false}
      */
     boolean hasEntity();
@@ -73,9 +68,12 @@ public interface ResponseBodyReadableContext {
     /**
      * @return the status code
      */
-    default int getStatusCode() {
-        return getStatusLine().getStatusCode();
-    }
+    int getStatusCode();
+
+    /**
+     * @return the request uri
+     */
+    URI getURI();
 
     default boolean isSuccess() {
         return HttpRequestUtils.isSuccess(getStatusCode());

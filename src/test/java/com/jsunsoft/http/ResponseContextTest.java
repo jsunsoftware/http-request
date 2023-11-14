@@ -31,6 +31,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
 public class ResponseContextTest {
@@ -53,7 +54,7 @@ public class ResponseContextTest {
     public void testBasicResponseContextMethods() throws IOException {
         HttpResponse httpResponse = new BasicHttpResponse(new BasicStatusLine(new ProtocolVersion("", 1, 1), 200, ""));
         httpResponse.setEntity(httpEntity);
-        ResponseBodyReaderContext<String> responseContext = new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class);
+        ResponseBodyReaderContext<String> responseContext = new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class, URI.create(""));
         Assert.assertEquals(content.length(), responseContext.getContentLength());
         Assert.assertEquals(content, ResponseBodyReader.stringReader().read(responseContext));
         Assert.assertEquals(ContentType.APPLICATION_JSON.getMimeType(), responseContext.getContentType().getMimeType());

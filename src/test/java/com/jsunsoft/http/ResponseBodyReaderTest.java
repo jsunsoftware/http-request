@@ -32,6 +32,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
@@ -127,7 +128,7 @@ public class ResponseBodyReaderTest {
         HttpResponse httpResponse = new BasicHttpResponse(new BasicStatusLine(new ProtocolVersion("", 1, 1), 200, ""));
         httpResponse.setEntity(basicHttpEntity);
 
-        return new BasicResponseBodyReaderContext<>(httpResponse, Result.class, Result.class);
+        return new BasicResponseBodyReaderContext<>(httpResponse, Result.class, Result.class, URI.create(""));
     }
 
     private static class Result {

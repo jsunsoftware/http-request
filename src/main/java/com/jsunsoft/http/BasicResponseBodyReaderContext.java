@@ -18,32 +18,29 @@ package com.jsunsoft.http;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
 import org.apache.http.entity.ContentType;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.net.URI;
 
 final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderContext<T> {
     private final HttpResponse httpResponse;
     private final Class<T> type;
     private final Type genericType;
+    private final URI uri;
 
-    BasicResponseBodyReaderContext(HttpResponse httpResponse, Class<T> type, Type genericType) {
+    BasicResponseBodyReaderContext(HttpResponse httpResponse, Class<T> type, Type genericType, URI uri) {
         this.httpResponse = ArgsCheck.notNull(httpResponse, "httpResponse");
         this.type = ArgsCheck.notNull(type, "type");
         this.genericType = ArgsCheck.notNull(genericType, "genericType");
+        this.uri = ArgsCheck.notNull(uri, "uri");
     }
 
     @Override
     public InputStream getContent() throws IOException {
         return httpResponse.getEntity().getContent();
-    }
-
-    @Override
-    public String getContentAsString() throws IOException {
-        return ResponseBodyReader.stringReader().read(new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class));
     }
 
     @Override
@@ -72,8 +69,13 @@ final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderConte
     }
 
     @Override
-    public StatusLine getStatusLine() {
-        return httpResponse.getStatusLine();
+    public int getStatusCode() {
+        return httpResponse.getStatusLine().getStatusCode();
+    }
+
+    @Override
+    public URI getURI() {
+        return uri;
     }
 
     @Override
