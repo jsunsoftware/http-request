@@ -19,6 +19,7 @@ package com.jsunsoft.http;
 import org.apache.hc.core5.http.ContentType;
 
 import java.lang.reflect.Type;
+import java.net.URI;
 
 public interface ResponseBodyReadableContext {
 
@@ -68,6 +69,11 @@ public interface ResponseBodyReadableContext {
      * @return the status code
      */
     int getStatusCode();
+
+    /**
+     * @return the request uri
+     */
+    URI getURI();
 
     default boolean isSuccess() {
         return HttpRequestUtils.isSuccess(getStatusCode());

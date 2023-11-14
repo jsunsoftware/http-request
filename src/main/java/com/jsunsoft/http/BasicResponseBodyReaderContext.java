@@ -23,16 +23,19 @@ import org.apache.hc.core5.http.HttpEntity;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.net.URI;
 
 final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderContext<T> {
     private final ClassicHttpResponse httpResponse;
     private final Class<T> type;
     private final Type genericType;
+    private final URI uri;
 
-    BasicResponseBodyReaderContext(ClassicHttpResponse httpResponse, Class<T> type, Type genericType) {
+    BasicResponseBodyReaderContext(ClassicHttpResponse httpResponse, Class<T> type, Type genericType, URI uri) {
         this.httpResponse = ArgsCheck.notNull(httpResponse, "httpResponse");
         this.type = ArgsCheck.notNull(type, "type");
         this.genericType = ArgsCheck.notNull(genericType, "genericType");
+        this.uri = ArgsCheck.notNull(uri, "uri");
     }
 
     @Override
@@ -68,6 +71,11 @@ final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderConte
     @Override
     public int getStatusCode() {
         return httpResponse.getCode();
+    }
+
+    @Override
+    public URI getURI() {
+        return uri;
     }
 
     @Override
