@@ -144,7 +144,7 @@ class BasicWebTarget implements WebTarget {
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection pool is empty for request on uri: [" + request.getURI() + "]. Status code: " + SC_SERVICE_UNAVAILABLE, request.getURI(), CONNECTION_POOL_IS_EMPTY, e);
         } catch (SocketTimeoutException | NoHttpResponseException e) {
             //todo support retry when NoHttpResponseException
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + request.getURI() + "] is high loaded. Status code: " + SC_SERVICE_UNAVAILABLE, request.getURI(), REMOTE_SERVER_HIGH_LOADED, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + request.getURI() + "] didn't respond with specified time. Status code: " + SC_SERVICE_UNAVAILABLE, request.getURI(), REMOTE_SERVER_HIGH_LOADED, e);
         } catch (ConnectTimeoutException e) {
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "HttpRequest is unable to establish a connection with the: [" + request.getURI() + "] within the given period of time. Status code: " + SC_SERVICE_UNAVAILABLE, request.getURI(), CONNECT_TIMEOUT_EXPIRED, e);
 
