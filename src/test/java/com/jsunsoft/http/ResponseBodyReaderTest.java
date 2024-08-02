@@ -127,19 +127,13 @@ public class ResponseBodyReaderTest {
     }
 
     private static class Result {
-        private String message;
-        private long value;
-        private List<Relation> relations;
+        private final String message;
+        private final long value;
+        private final List<Relation> relations;
 
-        public void setMessage(String message) {
+        public Result(String message, long value, List<Relation> relations) {
             this.message = message;
-        }
-
-        public void setValue(long value) {
             this.value = value;
-        }
-
-        public void setRelations(List<Relation> relations) {
             this.relations = relations;
         }
 
@@ -157,16 +151,14 @@ public class ResponseBodyReaderTest {
     }
 
     private static class Relation {
-        private String string;
-        private LocalDate localDate;
-        private java.time.LocalDate javaLocalDate;
+        private final String string;
+        private final LocalDate localDate;
+        private final java.time.LocalDate javaLocalDate;
 
-        public void setString(String string) {
+        public Relation(String string, LocalDate localDate, java.time.LocalDate javaLocalDate) {
             this.string = string;
-        }
-
-        public void setLocalDate(LocalDate localDate) {
             this.localDate = localDate;
+            this.javaLocalDate = javaLocalDate;
         }
 
         public String getString() {
@@ -177,8 +169,5 @@ public class ResponseBodyReaderTest {
             return localDate;
         }
 
-        public void setJavaLocalDate(java.time.LocalDate javaLocalDate) {
-            this.javaLocalDate = javaLocalDate;
-        }
     }
 }

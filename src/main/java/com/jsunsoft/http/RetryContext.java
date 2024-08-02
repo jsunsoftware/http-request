@@ -40,7 +40,7 @@ public interface RetryContext {
             try {
                 retryAfterSec = Integer.parseInt(retryAfter.getValue());
             } catch (NumberFormatException e) {
-                LoggerFactory.getLogger(HttpUriRequestBuilder.class)
+                LoggerFactory.getLogger(RetryContext.class)
                         .warn("Can't parse {} header's value: {} to integer. {}", HttpHeaders.RETRY_AFTER, retryAfter.getValue(), e.getMessage());
             }
         }

@@ -90,9 +90,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @param defaultValue value to return if content isn't present
-     *
      * @return Deserialized Content from response. If content isn't present returns defaultValue.
-     *
      * @throws UnsupportedOperationException if generic type is a Void
      */
     @Override
@@ -103,9 +101,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @param defaultValue value to return if status code is success and hasn't body
-     *
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
-     *
      * @throws UnexpectedStatusCodeException If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
@@ -121,9 +117,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @param exceptionFunction Instance of type {@link Function} by parameter this which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
-     *
      * @return Deserialized content from response. If hasn't body returns {@code null}.
-     *
      * @throws X If status code isn't success.
      */
     @Override
@@ -139,9 +133,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * @param defaultValue      Value to return if content is {@code null}
      * @param exceptionFunction Instance of type {@link Function} by parameter this which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
-     *
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
-     *
      * @throws X If status code isn't success.
      */
     @Override
@@ -156,9 +148,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @param exceptionSupplier Instance of type {@link Supplier} which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
-     *
      * @return Deserialized content from response. If hasn't body returns {@code null}.
-     *
      * @throws X If status code isn't success.
      */
     @Override
@@ -174,9 +164,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * @param defaultValue      Value to return if content is {@code null}
      * @param exceptionSupplier Instance of type {@link Supplier} which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
-     *
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
-     *
      * @throws X If status code isn't success.
      */
     @Override
@@ -190,7 +178,6 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @return Content from response. Returns null if hasn't body
-     *
      * @throws UnexpectedStatusCodeException If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
@@ -213,7 +200,6 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * </pre>
      *
      * @return Deserialized content from response.
-     *
      * @throws NoSuchContentException        If content is not present
      * @throws UnsupportedOperationException if generic type is a Void
      * @see BasicResponseHandler#orElse(Object)
@@ -226,6 +212,22 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
             throw new NoSuchContentException("Content is not present: Response code: [" + statusCode + ']');
         }
         return content;
+    }
+
+    @Override
+    public T requiredGet() {
+        check();
+
+        if (isSuccess()) {
+            if (hasContent()) {
+                return content;
+            } else {
+                throw new MissingResponseBodyException(statusCode, uri);
+            }
+        } else {
+            throw new UnexpectedStatusCodeException(statusCode, errorText, uri);
+        }
+
     }
 
     @Override
@@ -248,7 +250,6 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @return Returns the error text if the connection failed but the server sent useful data nonetheless.
-     *
      * @throws NoSuchElementException        If error text is not present
      * @throws UnsupportedOperationException if generic type is a Void
      */
@@ -296,7 +297,6 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * If has a content, invoke the specified consumer with the content, otherwise do nothing.
      *
      * @param consumer block to be executed if has a content
-     *
      * @throws IllegalArgumentException if {@code consumer} is null
      */
     @Override
@@ -311,9 +311,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * If status code is success , invoke the specified consumer with the responseHandler and returns {@code OtherwiseSupport} with ignore else {@code OtherwiseSupport} with not ignore.
      *
      * @param consumer block to be executed if status code is success.
-     *
      * @return OtherwiseSupport instance to support action otherwise.
-     *
      * @see OtherwiseSupport#otherwise(Consumer)
      */
     @Override
@@ -377,7 +375,6 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @return connectionFailureType.
-     *
      * @see ConnectionFailureType
      */
     //todo rename and make public

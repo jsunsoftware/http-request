@@ -228,7 +228,7 @@ class BasicResponse implements Response {
      * {@inheritDoc}
      */
     @Override
-    public void setHeaders(Header[] headers) {
+    public void setHeaders(Header... headers) {
         classicHttpResponse.setHeaders(headers);
     }
 

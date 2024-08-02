@@ -38,6 +38,7 @@ import java.util.Deque;
  *  TypeReference ref = new TypeReference&lt;List&lt;Integer&gt;&gt;() { };
  *  </pre>
  */
+@SuppressWarnings("rawtypes")
 public class TypeReference<T> implements Comparable<TypeReference<T>> {
 
     /**

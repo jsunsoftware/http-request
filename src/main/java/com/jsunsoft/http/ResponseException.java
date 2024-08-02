@@ -23,6 +23,7 @@ import static com.jsunsoft.http.BasicConnectionFailureType.UNDEFINED;
 /**
  * Signals an HTTP response processing error
  */
+@SuppressWarnings("serial")
 public class ResponseException extends RuntimeException {
 
     private final int statusCode;
