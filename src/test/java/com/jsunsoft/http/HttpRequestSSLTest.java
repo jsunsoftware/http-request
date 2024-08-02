@@ -17,6 +17,7 @@
 package com.jsunsoft.http;
 
 import org.apache.http.HttpStatus;
+import org.junit.Test;
 
 import static org.apache.http.HttpHeaders.ACCEPT;
 import static org.apache.http.entity.ContentType.APPLICATION_XML;
@@ -30,8 +31,8 @@ public class HttpRequestSSLTest {
             .build()
     ).build();
 
-    //disabled due to the uri https://mms.nw.ru/ become not valid. todo replace uri with valid
-    public final void ignoreSSLAndHostsTest() throws Exception {
+    @Test
+    public final void ignoreSSLAndHostsTest() {
 
         assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getCode());
     }

@@ -140,6 +140,14 @@ public interface ResponseHandler<T> {
     T get();
 
     /**
+     * @return Deserialized Content from response.
+     * @throws MissingResponseBodyException  If content isn't present
+     * @throws UnexpectedStatusCodeException If response code is not success
+     * @throws UnsupportedOperationException if generic type is a Void
+     */
+    T requiredGet();
+
+    /**
      * @return Deserialized Content from response as {@link Optional} instance. If content isn't present returns empty {@link Optional} instance.
      * @throws UnsupportedOperationException if generic type is a Void
      */

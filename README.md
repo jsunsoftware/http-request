@@ -80,6 +80,9 @@ ResponseHandler<SomeType> rh = httpRequest.target(uri).path(path).request(HttpMe
 SomeType someType = rh.get(); //see javadoc of get method
 //or
 SomeType someType = rh.orElseThrow(); //throws UnexpectedStatusCodeException If response code is not success
+
+SomeType someType = rh.requiredGet(); //throws UnexpectedStatusCodeException If response code is not success, MissingResponseBodyException if response code is success but response body is missing
+
 ```
 
 Using lazy converting -> the Response's readEntity:
