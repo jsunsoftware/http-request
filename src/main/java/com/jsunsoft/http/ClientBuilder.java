@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +14,7 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
+package com.jsunsoft.http;
 
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.config.ConnectionConfig;
@@ -27,6 +26,7 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.impl.routing.DefaultProxyRoutePlanner;
 import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
+import org.apache.hc.client5.http.io.HttpClientConnectionManager;
 import org.apache.hc.client5.http.protocol.RedirectStrategy;
 import org.apache.hc.client5.http.routing.HttpRoutePlanner;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
@@ -63,29 +63,28 @@ import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
  * It is therefore advised to construct only a small number of {@link CloseableHttpClient} instances in the application.
  */
 public class ClientBuilder {
-    private RedirectStrategy redirectStrategy;
-
     private final RequestConfig.Builder defaultRequestConfigBuilder = RequestConfig.custom()
             .setResponseTimeout(Timeout.ofSeconds(30))
             .setConnectionRequestTimeout(Timeout.ofSeconds(30));
-
     private final ConnectionConfig.Builder defaultConnectionConfigBuilder = ConnectionConfig.custom()
             .setConnectTimeout(Timeout.ofSeconds(10))
             .setSocketTimeout(Timeout.ofSeconds(30));
-
+    private final HostPoolConfig hostPoolConfig = HostPoolConfig.create();
+    private RedirectStrategy redirectStrategy;
     private Collection<Consumer<HttpClientBuilder>> httpClientBuilderCustomizers;
     private Collection<Consumer<RequestConfig.Builder>> defaultRequestConfigBuilderCustomizers;
     private Collection<Consumer<ConnectionConfig.Builder>> defaultConnectionConfigBuilderCustomizers;
     private Collection<Header> defaultHeaders;
     private HttpHost proxy;
     private boolean useDefaultProxy;
-
     private SSLConnectionSocketFactoryBuilder sslConnectionSocketFactoryBuilder;
-
-    private final HostPoolConfig hostPoolConfig = HostPoolConfig.create();
 
     ClientBuilder() {
 
+    }
+
+    public static ClientBuilder create() {
+        return new ClientBuilder();
     }
 
     /**
@@ -101,9 +100,7 @@ public class ClientBuilder {
      * Note: Can be overridden by {@linkplain #addDefaultConnectionConfigCustomizer}
      *
      * @param connectTimeout The Connection Timeout (http.connection.timeout) – the time to establish the connection with the remote host.
-     *
      * @return ClientBuilder instance
-     *
      * @see ConnectionConfig.Builder#setConnectTimeout(Timeout)
      */
     public ClientBuilder setConnectTimeout(Timeout connectTimeout) {
@@ -135,9 +132,7 @@ public class ClientBuilder {
      * Note: Can be overridden by {@linkplain #addDefaultRequestConfigCustomizer}
      *
      * @param responseTimeout The timeout waiting for data – after the connection was established.
-     *
      * @return ClientBuilder instance
-     *
      * @see RequestConfig.Builder#setResponseTimeout(Timeout)
      */
     public ClientBuilder setResponseTimeout(Timeout responseTimeout) {
@@ -168,9 +163,7 @@ public class ClientBuilder {
      *
      * @param connectionRequestTimeout The Connection Manager Timeout (http.connection-manager.timeout) –
      *                                 the time to wait for a connection from the connection manager/pool.
-     *
      * @return ClientBuilder instance
-     *
      * @see RequestConfig.Builder#setConnectionRequestTimeout
      * @see #addDefaultRequestConfigCustomizer
      */
@@ -188,7 +181,6 @@ public class ClientBuilder {
 
     /**
      * @param defaultRequestConfigBuilderConsumer the consumer instance which provides {@link RequestConfig.Builder} to customize default request config
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultRequestConfigCustomizer(Consumer<RequestConfig.Builder> defaultRequestConfigBuilderConsumer) {
@@ -214,9 +206,7 @@ public class ClientBuilder {
      *
      * @param socketTimeOut The Socket Timeout (http.socket.timeout) – the time waiting for data – after the connection was established;
      *                      maximum time of inactivity between two data packets.
-     *
      * @return ClientBuilder instance
-     *
      * @see ConnectionConfig.Builder#setSocketTimeout
      * @see #addDefaultConnectionConfigCustomizer(Consumer)
      */
@@ -233,10 +223,8 @@ public class ClientBuilder {
         return this;
     }
 
-
     /**
      * @param defaultConnectionConfigBuilderConsumer the consumer instance which provides {@link ConnectionConfig.Builder} to customize default request config
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultConnectionConfigCustomizer(Consumer<ConnectionConfig.Builder> defaultConnectionConfigBuilderConsumer) {
@@ -252,7 +240,6 @@ public class ClientBuilder {
      * the {@link CloseableHttpClient} before the http-request is built
      *
      * @param httpClientCustomizer consumer instance
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addHttpClientCustomizer(Consumer<HttpClientBuilder> httpClientCustomizer) {
@@ -265,7 +252,6 @@ public class ClientBuilder {
 
     /**
      * @param maxPoolSize see documentation of {@link HostPoolConfig#setMaxPoolSize(int)}
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder setMaxPoolSize(int maxPoolSize) {
@@ -275,7 +261,6 @@ public class ClientBuilder {
 
     /**
      * @param defaultMaxPoolSizePerRoute see documentation of {@link HostPoolConfig#setDefaultMaxPoolSizePerRoute(int)}
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
@@ -288,7 +273,6 @@ public class ClientBuilder {
      *
      * @param httpHost         httpHost
      * @param maxRoutePoolSize maxRoutePoolSize
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder setMaxPoolSizePerRoute(HttpHost httpHost, int maxRoutePoolSize) {
@@ -298,7 +282,6 @@ public class ClientBuilder {
 
     /**
      * @return ClientBuilder instance
-     *
      * @see DefaultRedirectStrategy
      */
     public ClientBuilder enableDefaultRedirectStrategy() {
@@ -310,9 +293,7 @@ public class ClientBuilder {
      * <p>By default disabled.
      *
      * @param redirectStrategy RedirectStrategy instance
-     *
      * @return ClientBuilder instance
-     *
      * @see RedirectStrategy
      */
     public ClientBuilder redirectStrategy(RedirectStrategy redirectStrategy) {
@@ -325,7 +306,6 @@ public class ClientBuilder {
      *
      * @param name  name of header. Can't be null
      * @param value value of header
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultHeader(String name, String value) {
@@ -338,7 +318,6 @@ public class ClientBuilder {
      * Header needs to be the same for all requests which go through the built CloseableHttpClient
      *
      * @param header header instance. Can't be null
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultHeader(Header header) {
@@ -355,7 +334,6 @@ public class ClientBuilder {
      * Headers need to be the same for all requests which go through the built CloseableHttpClient
      *
      * @param headers varargs of headers. Can't be null
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultHeaders(Header... headers) {
@@ -368,7 +346,6 @@ public class ClientBuilder {
      * Headers need to be the same for all requests which go through the built CloseableHttpClient
      *
      * @param headers collections of headers
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultHeaders(Collection<? extends Header> headers) {
@@ -382,7 +359,6 @@ public class ClientBuilder {
      * Sets content type to header
      *
      * @param contentType content type of request header
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder addContentType(ContentType contentType) {
@@ -395,7 +371,6 @@ public class ClientBuilder {
      * If has proxy instance method {@link ClientBuilder#useDefaultProxy()} will be ignored
      *
      * @param proxy {@link HttpHost} instance to proxy
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(HttpHost proxy) {
@@ -408,7 +383,6 @@ public class ClientBuilder {
      * If has proxy instance method {@link ClientBuilder#useDefaultProxy()} will be ignored.
      *
      * @param proxyUri {@link URI} instance to proxy
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(URI proxyUri) {
@@ -424,13 +398,11 @@ public class ClientBuilder {
     /**
      * @param host host of proxy
      * @param port port of proxy
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(String host, int port) {
         return proxy(new HttpHost(host, port));
     }
-
 
     /**
      * Instruct HttpClient to use the standard JRE proxy selector to obtain proxy.
@@ -442,12 +414,10 @@ public class ClientBuilder {
         return this;
     }
 
-
     /**
      * Sets {@link SSLContext}
      *
      * @param sslContext SSLContext instance
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder sslContext(SSLContext sslContext) {
@@ -461,7 +431,6 @@ public class ClientBuilder {
      * Sets {@link HostnameVerifier}
      *
      * @param hostnameVerifier HostnameVerifier instance
-     *
      * @return ClientBuilder instance
      */
     public ClientBuilder hostnameVerifier(HostnameVerifier hostnameVerifier) {
@@ -475,7 +444,6 @@ public class ClientBuilder {
      * Accept all certificates
      *
      * @return ClientBuilder instance
-     *
      * @throws HttpRequestBuildException when can't build ssl.
      */
     public ClientBuilder trustAllCertificates() {
@@ -511,6 +479,10 @@ public class ClientBuilder {
      * @return {@link CloseableHttpClient} instance by build parameters
      */
     public CloseableHttpClient build() {
+        return buildClientWithContext().getClient();
+    }
+
+    ClientContextHolder buildClientWithContext() {
         if (defaultRequestConfigBuilderCustomizers != null) {
             defaultRequestConfigBuilderCustomizers.forEach(defaultRequestConfigBuilderConsumer -> defaultRequestConfigBuilderConsumer.accept(defaultRequestConfigBuilder));
         }
@@ -532,9 +504,9 @@ public class ClientBuilder {
         PoolingHttpClientConnectionManager connectionManager = cmBuilder
                 .setMaxConnPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute())
                 .setMaxConnTotal(hostPoolConfig.getMaxPoolSize())
+                .setDefaultConnectionConfig(connectionConfig)
                 .build();
 
-        connectionManager.setDefaultConnectionConfig(connectionConfig);
 
         hostPoolConfig.getHttpHostToMaxPoolSize().forEach((httpHost, maxPerRoute) -> {
             HttpRoute httpRoute = new HttpRoute(httpHost);
@@ -576,7 +548,10 @@ public class ClientBuilder {
         }
 
 
-        return clientBuilder.build();
+        return new ClientContextHolder(
+                clientBuilder.build(),
+                connectionManager
+        );
     }
 
     private void initializeSslConnectionSocketFactoryBuilder() {
@@ -585,7 +560,21 @@ public class ClientBuilder {
         }
     }
 
-    public static ClientBuilder create() {
-        return new ClientBuilder();
+    static class ClientContextHolder {
+        private final CloseableHttpClient client;
+        private final HttpClientConnectionManager connectionManager;
+
+        ClientContextHolder(CloseableHttpClient client, HttpClientConnectionManager connectionManager) {
+            this.client = client;
+            this.connectionManager = connectionManager;
+        }
+
+        public CloseableHttpClient getClient() {
+            return client;
+        }
+
+        public HttpClientConnectionManager getConnectionManager() {
+            return connectionManager;
+        }
     }
 }
