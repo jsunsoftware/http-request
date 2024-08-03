@@ -18,6 +18,7 @@ package com.jsunsoft.http;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -33,7 +34,6 @@ import java.util.Collection;
 import java.util.Map;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 
 /**
  * A resource target identified by the resource URI.
@@ -44,9 +44,7 @@ public interface WebTarget {
      * Append path to the URI of the current target instance.
      *
      * @param path the path.
-     *
      * @return target instance.
-     *
      * @throws NullPointerException if path is {@code null}.
      */
     WebTarget path(final String path);
@@ -58,9 +56,7 @@ public interface WebTarget {
      * Note: If path already existed this will replace it.
      *
      * @param path the path.
-     *
      * @return target instance.
-     *
      * @throws NullPointerException if path is {@code null}.
      */
     WebTarget setPath(final String path);
@@ -73,7 +69,6 @@ public interface WebTarget {
      * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
      * Whether redirects or authentication challenges will be returned
      * or handled automatically depends on the implementation and configuration of this client.
-     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      */
@@ -84,11 +79,9 @@ public interface WebTarget {
      *
      * @param method     the http method.
      * @param httpEntity httpEntity
-     *
      * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
      * Whether redirects or authentication challenges will be returned
      * or handled automatically depends on the implementation and configuration of this client.
-     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      */
@@ -101,10 +94,8 @@ public interface WebTarget {
      * @param httpEntity   httpEntity
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
-     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
-     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod, HttpEntity)
@@ -119,10 +110,8 @@ public interface WebTarget {
      * @param httpEntity   httpEntity
      * @param responseType representation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          response entity type.
-     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
-     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod, HttpEntity)
@@ -136,10 +125,8 @@ public interface WebTarget {
      * @param method       the http method.
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
-     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
-     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -153,10 +140,8 @@ public interface WebTarget {
      * @param method       the http method.
      * @param responseType epresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          response entity type.
-     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
-     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -172,10 +157,8 @@ public interface WebTarget {
      * Any attempt to get content from {@code ResponseHandler} will be thrown exception
      *
      * @param method the http method.
-     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
-     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -194,10 +177,8 @@ public interface WebTarget {
      *
      * @param method     the http method.
      * @param httpEntity httpEntity
-     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
-     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -216,10 +197,8 @@ public interface WebTarget {
      *
      * @param method  the http method.
      * @param payload payload
-     *
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
-     *
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
      * @see #request(HttpMethod)
@@ -230,10 +209,28 @@ public interface WebTarget {
     }
 
     /**
+     * Invoke an arbitrary method for the current request with serializing body depends on a Content-type.
+     * <p>
+     * Mainly designed to use in case when response body aren't interested.
+     * </p>
+     * Any attempt to get content from {@code ResponseHandler} will be thrown exception
+     *
+     * @param method the http method.
+     * @param body   payload object
+     * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
+     * or handled automatically depends on the implementation and configuration of this client.
+     * @throws ResponseException in case of any IO problem or the connection was aborted.
+     * @throws RequestException  in case of an http protocol error or body serialization failed.
+     * @see #request(HttpMethod, String)
+     * @see #request(HttpMethod)
+     * @see ResponseHandler
+     */
+    ResponseHandler<?> rawRequest(final HttpMethod method, final Object body);
+
+    /**
      * Removes the given header.
      *
      * @param header the header to remove
-     *
      * @return WebTarget instance
      */
     WebTarget removeHeader(final Header header);
@@ -252,7 +249,6 @@ public interface WebTarget {
      *
      * @param header the new header that should replace the first header with the same
      *               name if present in the list.
-     *
      * @return WebTarget instance
      */
     WebTarget updateHeader(final Header header);
@@ -261,10 +257,11 @@ public interface WebTarget {
      * Adds the given header to the request. The order in which this header was added is preserved.
      *
      * @param header header instance. Can't be null
-     *
      * @return WebTarget instance
      */
     WebTarget addHeader(final Header header);
+
+    WebTarget setCharset(final Charset charset);
 
     /**
      * The same as {@link #request(HttpMethod, HttpEntity, Class)} wrapped {@code payload} into {@link StringEntity}
@@ -273,8 +270,7 @@ public interface WebTarget {
      * @param payload      payload
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type
-     *
-     * @return WebTarget instance
+     * @return ResponseHandler instance
      */
     default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
         ArgsCheck.notNull(method, "method");
@@ -284,6 +280,17 @@ public interface WebTarget {
         return request(method, new StringEntity(payload, UTF_8), responseType);
     }
 
+    /**
+     * The same as {@link #request(HttpMethod, String, Class)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param method       the http method.
+     * @param body         payload
+     * @param responseType Java type the response entity will be converted to.
+     * @param <T>          response entity type
+     * @return ResponseHandler instance
+     */
+    <T> ResponseHandler<T> request(final HttpMethod method, final Object body, Class<T> responseType);
+
     default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType) {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(payload, "payload");
@@ -292,6 +299,8 @@ public interface WebTarget {
         return request(method, new StringEntity(payload, UTF_8), responseType);
     }
 
+    <T> ResponseHandler<T> request(final HttpMethod method, final Object body, TypeReference<T> responseType);
+
     default Response request(final HttpMethod method, final String payload) {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(payload, "payload");
@@ -299,12 +308,13 @@ public interface WebTarget {
         return request(method, new StringEntity(payload, UTF_8));
     }
 
+    Response request(final HttpMethod method, final Object body);
+
     /**
      * Adds the given name and value as header to the request.
      *
      * @param name  name of header. Can't be null
      * @param value value of header
-     *
      * @return WebTarget instance
      */
     default WebTarget addHeader(final String name, final String value) {
@@ -317,7 +327,6 @@ public interface WebTarget {
      * Adds the given headers to the request. The order in which this header was added is preserved.
      *
      * @param headers collections of headers
-     *
      * @return WebTarget instance
      */
     default WebTarget addHeaders(final Collection<? extends Header> headers) {
@@ -338,7 +347,6 @@ public interface WebTarget {
      *
      * @param name  name of header. Can't be null
      * @param value value of header
-     *
      * @return WebTarget instance
      */
     default WebTarget updateHeader(final String name, final String value) {
@@ -351,20 +359,17 @@ public interface WebTarget {
      * Sets content type to header
      *
      * @param contentType content type of request header
-     *
      * @return WebTarget instance
      */
     default WebTarget addContentType(final ContentType contentType) {
-        return addHeader(CONTENT_TYPE, contentType.toString());
+        return addHeader(HttpHeaders.CONTENT_TYPE, contentType.toString());
     }
 
     /**
      * Sets the {@code requestConfig} to the request
      *
      * @param requestConfig requestConfig
-     *
      * @return WebTarget instance
-     *
      * @see RequestConfig
      */
     WebTarget setRequestConfig(final RequestConfig requestConfig);
@@ -373,7 +378,6 @@ public interface WebTarget {
      * Added parameter into request
      *
      * @param nameValuePair nameValuePair
-     *
      * @return WebTarget instance
      */
     WebTarget addParameter(final NameValuePair nameValuePair);
@@ -392,7 +396,6 @@ public interface WebTarget {
      * Add parameters into request
      *
      * @param parameters nameValuePairs
-     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final NameValuePair... parameters) {
@@ -418,7 +421,6 @@ public interface WebTarget {
      *
      * @param queryString queryString
      * @param charset     charset
-     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final String queryString, final Charset charset) {
@@ -438,7 +440,6 @@ public interface WebTarget {
      * Default charset is "UTF-8".
      *
      * @param queryString queryString
-     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final String queryString) {
@@ -450,9 +451,7 @@ public interface WebTarget {
      * name1 = nameValues[0], value1 = nameValues[1]; name2 = nameValues[1], value2 = nameValues[2] ... e.t.c.
      *
      * @param nameValues array of nameValue
-     *
      * @return WebTarget instance
-     *
      * @throws IllegalArgumentException When length of parameter nameValues is odd or ZERO.
      * @throws NullPointerException     when param nameValues is null
      */
@@ -476,7 +475,6 @@ public interface WebTarget {
      * Add parameters into request
      *
      * @param parameters nameValuePairs
-     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final Collection<? extends NameValuePair> parameters) {
@@ -495,7 +493,6 @@ public interface WebTarget {
      * Add parameters into request key as request parameter name Value as request parameter value
      *
      * @param parameters parameters
-     *
      * @return WebTarget instance
      */
     default WebTarget addParameters(final Map<String, String> parameters) {
@@ -517,7 +514,6 @@ public interface WebTarget {
      *
      * @param name  request parameter name
      * @param value request parameter value
-     *
      * @return WebTarget instance
      */
     default WebTarget addParameter(final String name, final String value) {
@@ -531,7 +527,6 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @return the response to the request.
-     *
      * @see #request(HttpMethod)
      */
     default Response get() {
@@ -542,7 +537,6 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod)
      */
     default ResponseHandler<?> rawGet() {
@@ -553,7 +547,6 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawGet(final HttpEntity httpEntity) {
@@ -564,7 +557,6 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawGet(final String payload) {
@@ -572,12 +564,20 @@ public interface WebTarget {
     }
 
     /**
+     * The same as {@link #rawGet(String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawGet(String)
+     */
+    ResponseHandler<?> rawGet(final Object body);
+
+    <T> ResponseHandler<T> get(Object body, Class<T> responseType);
+
+    /**
      * Invoke HTTP GET method for the current request
      *
      * @param httpEntity httpEntity
-     *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #request(HttpMethod, HttpEntity)
      */
     default Response get(final HttpEntity httpEntity) {
@@ -600,6 +600,8 @@ public interface WebTarget {
         return request(HttpMethod.GET, payload, responseType);
     }
 
+    <T> ResponseHandler<T> get(final Object body, TypeReference<T> responseType);
+
     default <T> ResponseHandler<T> get(Class<T> responseType) {
         return request(HttpMethod.GET, responseType);
     }
@@ -611,6 +613,8 @@ public interface WebTarget {
     default Response get(final String payload) {
         return request(HttpMethod.GET, payload);
     }
+
+    Response get(final Object body);
 
     default Response put() {
         return request(HttpMethod.PUT);
@@ -624,7 +628,6 @@ public interface WebTarget {
      * Invoke HTTP PUT method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawPut(final HttpEntity httpEntity) {
@@ -635,12 +638,19 @@ public interface WebTarget {
      * Invoke HTTP PUT method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawPut(final String payload) {
         return rawRequest(HttpMethod.PUT, payload);
     }
+
+    /**
+     * The same as {@link #rawPut(String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawPut(String)
+     */
+    ResponseHandler<?> rawPut(final Object body);
 
     default Response put(final HttpEntity httpEntity) {
         return request(HttpMethod.PUT, httpEntity);
@@ -658,13 +668,19 @@ public interface WebTarget {
         return request(HttpMethod.PUT, payload, responseType);
     }
 
+    <T> ResponseHandler<T> put(final Object body, Class<T> responseType);
+
     default <T> ResponseHandler<T> put(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.PUT, payload, responseType);
     }
 
+    <T> ResponseHandler<T> put(final Object body, TypeReference<T> responseType);
+
     default Response put(final String payload) {
         return request(HttpMethod.PUT, payload);
     }
+
+    Response put(final Object body);
 
     default <T> ResponseHandler<T> put(Class<T> responseType) {
         return request(HttpMethod.PUT, responseType);
@@ -686,7 +702,6 @@ public interface WebTarget {
      * Invoke HTTP POST method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawPost(final HttpEntity httpEntity) {
@@ -697,12 +712,19 @@ public interface WebTarget {
      * Invoke HTTP POST method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawPost(final String payload) {
         return rawRequest(HttpMethod.POST, payload);
     }
+
+    /**
+     * The same as {@link #rawPost(String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawPost(String)
+     */
+    ResponseHandler<?> rawPost(final Object body);
 
     default Response post(final HttpEntity httpEntity) {
         return request(HttpMethod.POST, httpEntity);
@@ -720,13 +742,19 @@ public interface WebTarget {
         return request(HttpMethod.POST, payload, responseType);
     }
 
+    <T> ResponseHandler<T> post(final Object body, Class<T> responseType);
+
     default <T> ResponseHandler<T> post(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.POST, payload, responseType);
     }
 
+    <T> ResponseHandler<T> post(final Object body, TypeReference<T> responseType);
+
     default Response post(final String payload) {
         return request(HttpMethod.POST, payload);
     }
+
+    Response post(final Object body);
 
     default <T> ResponseHandler<T> post(Class<T> responseType) {
         return request(HttpMethod.POST, responseType);
@@ -748,7 +776,6 @@ public interface WebTarget {
      * Invoke HTTP HEAD method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawHead(final HttpEntity httpEntity) {
@@ -759,12 +786,19 @@ public interface WebTarget {
      * Invoke HTTP HEAD method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawHead(final String payload) {
         return rawRequest(HttpMethod.HEAD, payload);
     }
+
+    /**
+     * The same as {@link #rawHead(String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawHead(String)
+     */
+    ResponseHandler<?> rawHead(final Object body);
 
     default Response head(final HttpEntity httpEntity) {
         return request(HttpMethod.HEAD, httpEntity);
@@ -782,13 +816,19 @@ public interface WebTarget {
         return request(HttpMethod.HEAD, payload, responseType);
     }
 
+    <T> ResponseHandler<T> head(final Object body, Class<T> responseType);
+
     default <T> ResponseHandler<T> head(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.HEAD, payload, responseType);
     }
 
+    <T> ResponseHandler<T> head(final Object body, TypeReference<T> responseType);
+
     default Response head(final String payload) {
         return request(HttpMethod.HEAD, payload);
     }
+
+    Response head(final Object body);
 
     default <T> ResponseHandler<T> head(Class<T> responseType) {
         return request(HttpMethod.HEAD, responseType);
@@ -810,7 +850,6 @@ public interface WebTarget {
      * Invoke HTTP DELETE method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawDelete(final HttpEntity httpEntity) {
@@ -821,12 +860,19 @@ public interface WebTarget {
      * Invoke HTTP DELETE method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawDelete(final String payload) {
         return rawRequest(HttpMethod.DELETE, payload);
     }
+
+    /**
+     * The same as {@link #rawDelete(String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawDelete(String)
+     */
+    ResponseHandler<?> rawDelete(final Object body);
 
     default Response delete(final HttpEntity httpEntity) {
         return request(HttpMethod.DELETE, httpEntity);
@@ -844,13 +890,19 @@ public interface WebTarget {
         return request(HttpMethod.DELETE, payload, responseType);
     }
 
+    <T> ResponseHandler<T> delete(final Object body, Class<T> responseType);
+
     default <T> ResponseHandler<T> delete(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.DELETE, payload, responseType);
     }
 
+    <T> ResponseHandler<T> delete(final Object body, TypeReference<T> responseType);
+
     default Response delete(final String payload) {
         return request(HttpMethod.DELETE, payload);
     }
+
+    Response delete(final Object body);
 
     default <T> ResponseHandler<T> delete(Class<T> responseType) {
         return request(HttpMethod.DELETE, responseType);
@@ -872,7 +924,6 @@ public interface WebTarget {
      * Invoke HTTP OPTIONS method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawOptions(final HttpEntity httpEntity) {
@@ -883,12 +934,19 @@ public interface WebTarget {
      * Invoke HTTP OPTIONS method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawOptions(final String payload) {
         return rawRequest(HttpMethod.OPTIONS, payload);
     }
+
+    /**
+     * The same as {@link #rawOptions(String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawOptions(String)
+     */
+    ResponseHandler<?> rawOptions(final Object body);
 
     default Response options(final HttpEntity httpEntity) {
         return request(HttpMethod.OPTIONS, httpEntity);
@@ -906,13 +964,19 @@ public interface WebTarget {
         return request(HttpMethod.OPTIONS, payload, responseType);
     }
 
+    <T> ResponseHandler<T> options(final Object body, Class<T> responseType);
+
     default <T> ResponseHandler<T> options(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.OPTIONS, payload, responseType);
     }
 
+    <T> ResponseHandler<T> options(final Object body, TypeReference<T> responseType);
+
     default Response options(final String payload) {
         return request(HttpMethod.OPTIONS, payload);
     }
+
+    Response options(final Object body);
 
     default <T> ResponseHandler<T> options(Class<T> responseType) {
         return request(HttpMethod.OPTIONS, responseType);
@@ -934,7 +998,6 @@ public interface WebTarget {
      * Invoke HTTP PATCH method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default ResponseHandler<?> rawPatch(final HttpEntity httpEntity) {
@@ -945,12 +1008,19 @@ public interface WebTarget {
      * Invoke HTTP PATCH method for the current request
      *
      * @return the ResponseHandler instance to the request.
-     *
      * @see #rawRequest(HttpMethod, String)
      */
     default ResponseHandler<?> rawPatch(final String payload) {
         return rawRequest(HttpMethod.PATCH, payload);
     }
+
+    /**
+     * The same as {@link #rawPatch(String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawPatch(String)
+     */
+    ResponseHandler<?> rawPatch(final Object body);
 
     default Response patch(final HttpEntity httpEntity) {
         return request(HttpMethod.PATCH, httpEntity);
@@ -968,13 +1038,19 @@ public interface WebTarget {
         return request(HttpMethod.PATCH, payload, responseType);
     }
 
+    <T> ResponseHandler<T> patch(final Object body, Class<T> responseType);
+
     default <T> ResponseHandler<T> patch(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.PATCH, payload, responseType);
     }
 
+    <T> ResponseHandler<T> patch(final Object body, TypeReference<T> responseType);
+
     default Response patch(final String payload) {
         return request(HttpMethod.PATCH, payload);
     }
+
+    Response patch(final Object body);
 
     default <T> ResponseHandler<T> patch(Class<T> responseType) {
         return request(HttpMethod.PATCH, responseType);
@@ -1008,13 +1084,19 @@ public interface WebTarget {
         return request(HttpMethod.TRACE, payload, responseType);
     }
 
+    <T> ResponseHandler<T> trace(final Object body, Class<T> responseType);
+
     default <T> ResponseHandler<T> trace(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.TRACE, payload, responseType);
     }
 
+    <T> ResponseHandler<T> trace(final Object body, TypeReference<T> responseType);
+
     default Response trace(final String payload) {
         return request(HttpMethod.TRACE, payload);
     }
+
+    Response trace(final Object body);
 
     default <T> ResponseHandler<T> trace(Class<T> responseType) {
         return request(HttpMethod.TRACE, responseType);

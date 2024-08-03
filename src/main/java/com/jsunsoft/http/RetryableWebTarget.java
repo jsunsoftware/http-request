@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,13 +35,13 @@ class RetryableWebTarget extends BasicWebTarget {
 
     private final RetryContext retryContext;
 
-    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig) {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
+    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig);
         this.retryContext = retryContext;
     }
 
-    RetryableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig) throws URISyntaxException {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
+    RetryableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) throws URISyntaxException {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig);
         this.retryContext = retryContext;
     }
 
@@ -53,7 +53,7 @@ class RetryableWebTarget extends BasicWebTarget {
 
         try {
             while (retryCount > 0 && retryContext.mustBeRetried(response)) {
-                LOGGER.debug("Request to URI: [{}] has been retried. Response code: [{}]", response.getURI(), response.getStatusCode());
+                LOGGER.debug("Request to URI: [{}] has been retried. Response code: [{}]", response.getURI(), response.getCode());
 
                 TimeUnit.SECONDS.sleep(retryContext.getRetryDelay(response));
 

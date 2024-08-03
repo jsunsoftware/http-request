@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ public class HttpRequestBuilder {
     private List<NameValuePair> defaultRequestParameters;
     private Collection<Header> defaultHeaders;
     private final ResponseBodyReaderConfig.Builder responseBodyReaderConfigBuilder = ResponseBodyReaderConfig.create();
+    private final RequestBodySerializeConfig.Builder requestBodySerializeConfigBuilder = RequestBodySerializeConfig.create();
 
     private HttpRequestBuilder(CloseableHttpClient closeableHttpClient) {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
@@ -269,7 +270,7 @@ public class HttpRequestBuilder {
      * @return HttpRequestBuilder instance
      */
     public HttpRequestBuilder setDefaultJsonMapper(ObjectMapper defaultJsonMapper) {
-
+        requestBodySerializeConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
         responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
 
         return this;
@@ -287,6 +288,7 @@ public class HttpRequestBuilder {
      * </p>
      */
     public HttpRequestBuilder setDefaultXmlMapper(ObjectMapper defaultXmlMapper) {
+        requestBodySerializeConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
         responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
 
         return this;
@@ -322,6 +324,6 @@ public class HttpRequestBuilder {
             defaultRequestParameters = Collections.emptyList();
         }
 
-        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build());
+        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build(), requestBodySerializeConfigBuilder.build());
     }
 }

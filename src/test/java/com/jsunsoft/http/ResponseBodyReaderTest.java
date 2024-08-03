@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -62,8 +61,8 @@ public class ResponseBodyReaderTest {
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
-                ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), DEFAULT),
-                ResponseBodyReaderConfig.defaultInit(new XmlMapper(), DEFAULT)
+                ObjectMapperInitializer.defaultInit(new ObjectMapper(), DEFAULT),
+                ObjectMapperInitializer.defaultInit(new XmlMapper(), DEFAULT)
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -103,8 +102,8 @@ public class ResponseBodyReaderTest {
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
-                ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), dateDeserializeContext),
-                ResponseBodyReaderConfig.defaultInit(new XmlMapper(), dateDeserializeContext)
+                ObjectMapperInitializer.defaultInit(new ObjectMapper(), dateDeserializeContext),
+                ObjectMapperInitializer.defaultInit(new XmlMapper(), dateDeserializeContext)
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -118,8 +117,8 @@ public class ResponseBodyReaderTest {
         Assert.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
     }
 
-    private ResponseBodyReaderContext<Result> resolveResponseContext(String content) throws UnsupportedEncodingException {
-        InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8.name()));
+    private ResponseBodyReaderContext<Result> resolveResponseContext(String content) {
+        InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
 
         BasicHttpEntity basicHttpEntity = new BasicHttpEntity();
         basicHttpEntity.setContent(inputStream);

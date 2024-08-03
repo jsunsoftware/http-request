@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
     @Rule
     public final WireMockRule wireMockRule = new WireMockRule(8080);
 
-    private final String responseDataString = "{\n" +
+    private static final String RESPONSE_DATA_STRING = "{\n" +
             "  \"displayLength\": \"4\",\n" +
             "  \"iTotal\": \"20\",\n" +
             "  \"users\": [\n" +
@@ -77,7 +77,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
             "  ]\n" +
             "}";
 
-    private final String responseDataStringOverriddenDatePatten = "{\n" +
+    private static final String RESPONSE_DATA_STRING_OVERRIDDEN_DATE_PATTEN = "{\n" +
             "  \"displayLength\": \"4\",\n" +
             "  \"iTotal\": \"20\",\n" +
             "  \"javaLocalDateTime\": \"11/05/1993 05:00:00\",\n" +
@@ -137,7 +137,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                 }
 
                 @Override
-                public Map<String, String> read(ResponseBodyReaderContext<Map<String, String>> bodyReaderContext) throws IOException, ResponseBodyReaderException {
+                public Map<String, String> read(ResponseBodyReaderContext<Map<String, String>> bodyReaderContext) throws IOException {
                     ObjectMapper mapper = new ObjectMapper();
                     return mapper.readValue(bodyReaderContext.getContent(), mapper.constructType(bodyReaderContext.getGenericType()));
                 }
@@ -149,7 +149,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                 }
 
                 @Override
-                public ResponseData read(ResponseBodyReaderContext<ResponseData> bodyReaderContext) throws IOException, ResponseBodyReaderException {
+                public ResponseData read(ResponseBodyReaderContext<ResponseData> bodyReaderContext) throws IOException {
                     return new ObjectMapper()
                             .disable(FAIL_ON_UNKNOWN_PROPERTIES)
                             .readValue(bodyReaderContext.getContent(), bodyReaderContext.getType());
@@ -163,7 +163,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
         wireMockRule.stubFor(get(urlEqualTo("/get"))
                 .willReturn(
                         aResponse()
-                                .withBody(responseDataString)
+                                .withBody(RESPONSE_DATA_STRING)
                                 .withHeader(CONTENT_TYPE, APPLICATION_JSON.getMimeType())
                                 .withStatus(200)
                 )
@@ -172,7 +172,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
         wireMockRule.stubFor(get(urlEqualTo("/getWithOverriddenDates"))
                 .willReturn(
                         aResponse()
-                                .withBody(responseDataStringOverriddenDatePatten)
+                                .withBody(RESPONSE_DATA_STRING_OVERRIDDEN_DATE_PATTEN)
                                 .withHeader(CONTENT_TYPE, APPLICATION_JSON.getMimeType())
                                 .withStatus(200)
                 )
