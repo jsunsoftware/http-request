@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +14,7 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
+package com.jsunsoft.http;
 
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
@@ -23,6 +22,7 @@ import org.apache.http.client.RedirectStrategy;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.conn.routing.HttpRoute;
 import org.apache.http.conn.routing.HttpRoutePlanner;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
@@ -81,6 +81,10 @@ public class ClientBuilder {
 
     ClientBuilder() {
 
+    }
+
+    public static ClientBuilder create() {
+        return new ClientBuilder();
     }
 
     /**
@@ -354,7 +358,6 @@ public class ClientBuilder {
         return proxy(new HttpHost(host, port));
     }
 
-
     /**
      * Instruct HttpClient to use the standard JRE proxy selector to obtain proxy.
      *
@@ -364,7 +367,6 @@ public class ClientBuilder {
         useDefaultProxy = true;
         return this;
     }
-
 
     /**
      * Sets {@link SSLContext}
@@ -420,6 +422,10 @@ public class ClientBuilder {
      * @return {@link CloseableHttpClient} instance by build parameters
      */
     public CloseableHttpClient build() {
+        return buildClientWithContext().getClient();
+    }
+
+    ClientContextHolder buildClientWithContext() {
         if (defaultRequestConfigBuilderCustomizers != null) {
             defaultRequestConfigBuilderCustomizers.forEach(defaultRequestConfigBuilderConsumer -> defaultRequestConfigBuilderConsumer.accept(defaultRequestConfigBuilder));
         }
@@ -497,10 +503,27 @@ public class ClientBuilder {
         }
 
 
-        return clientBuilder.build();
+        return new ClientContextHolder(
+                clientBuilder.build(),
+                connectionManager
+        );
     }
 
-    public static ClientBuilder create() {
-        return new ClientBuilder();
+    static class ClientContextHolder {
+        private final CloseableHttpClient client;
+        private final HttpClientConnectionManager connectionManager;
+
+        ClientContextHolder(CloseableHttpClient client, HttpClientConnectionManager connectionManager) {
+            this.client = client;
+            this.connectionManager = connectionManager;
+        }
+
+        public CloseableHttpClient getClient() {
+            return client;
+        }
+
+        public HttpClientConnectionManager getConnectionManager() {
+            return connectionManager;
+        }
     }
 }

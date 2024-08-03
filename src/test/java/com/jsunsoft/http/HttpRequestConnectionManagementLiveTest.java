@@ -16,7 +16,8 @@
 
 package com.jsunsoft.http;
 
-import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.junit.Assert;
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
@@ -65,17 +66,26 @@ public class HttpRequestConnectionManagementLiveTest {
 
     @Test
     public final void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptions() {
-        CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
-        BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(closeableHttpClient).build();
-        httpRequest.target(SERVER1).get();
-//        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) closeableHttpClient.getConnectionManager()).getTotalStats().getLeased());
+        ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
+
+        BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
+        httpRequest.target(SERVER1).rawGet();
+        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+    }
+
+    @Test
+    public final void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptionsImmutableWebTarget() {
+        ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
+        BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
+        httpRequest.immutableTarget(SERVER1).get();
+        Assert.assertEquals(1, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 
     @Test
     public final void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeased() throws InterruptedException {
-        CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
+        ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
 
-        HttpRequest httpRequest1 = HttpRequestBuilder.create(closeableHttpClient).build();
+        HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
         final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.target(SERVER1));
         final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.target(SERVER7));
         final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.target("http://www.google.com/"));
@@ -85,7 +95,7 @@ public class HttpRequestConnectionManagementLiveTest {
         thread1.join();
         thread2.join(1000);
         thread3.join();
-//        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) closeableHttpClient.getConnectionManager()).getTotalStats().getLeased());
+        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 
 
@@ -126,19 +136,12 @@ public class HttpRequestConnectionManagementLiveTest {
         assertTrue(thread2.getResponseHandler().getConnectionFailureType().isNotFailed());
     }
 
-    @Test
-    public final void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptionsImmutableWebTarget() {
-        CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
-        BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(closeableHttpClient).build();
-        httpRequest.immutableTarget(SERVER1).get();
-//        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) closeableHttpClient.getConnectionManager()).getTotalStats().getLeased());
-    }
 
     @Test
     public final void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeasedImmutableWebTarget() throws InterruptedException {
-        CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
+        ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
 
-        HttpRequest httpRequest1 = HttpRequestBuilder.create(closeableHttpClient).build();
+        HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
         final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.immutableTarget(SERVER1));
         final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.immutableTarget(SERVER7));
         final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.immutableTarget("http://www.google.com/"));
@@ -148,6 +151,6 @@ public class HttpRequestConnectionManagementLiveTest {
         thread1.join();
         thread2.join(1000);
         thread3.join();
-//        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) closeableHttpClient.getConnectionManager()).getTotalStats().getLeased());
+        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 }
