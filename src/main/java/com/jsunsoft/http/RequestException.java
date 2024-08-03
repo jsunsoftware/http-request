@@ -32,11 +32,10 @@ public class RequestException extends RuntimeException {
     }
 
     public RequestException(final Throwable cause) {
-        initCause(cause);
+        super(cause);
     }
 
     public RequestException(final String message, final Throwable cause) {
-        super(message);
-        initCause(cause);
+        super(message, cause);
     }
 }
