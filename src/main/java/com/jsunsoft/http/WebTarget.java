@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import org.apache.http.util.Args;
 
 import java.net.URI;
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
@@ -243,7 +242,6 @@ public interface WebTarget {
      * Removes all headers with name.
      *
      * @param name the header name
-     *
      * @return WebTarget instance
      */
     WebTarget removeHeaders(final String name);
@@ -311,8 +309,8 @@ public interface WebTarget {
      */
     default WebTarget addHeader(final String name, final String value) {
         ArgsCheck.notNull(name, "name");
-        addHeader(new BasicHeader(name, value));
-        return this;
+
+        return addHeader(new BasicHeader(name, value));
     }
 
     /**
@@ -325,8 +323,13 @@ public interface WebTarget {
     default WebTarget addHeaders(final Collection<? extends Header> headers) {
         ArgsCheck.notNull(headers, "headers");
 
-        headers.forEach(this::addHeader);
-        return this;
+        WebTarget result = this;
+
+        for (Header header : headers) {
+            result = result.addHeader(header);
+        }
+
+        return result;
     }
 
     /**
@@ -341,8 +344,7 @@ public interface WebTarget {
     default WebTarget updateHeader(final String name, final String value) {
         ArgsCheck.notNull(name, "name");
 
-        updateHeader(new BasicHeader(name, value));
-        return this;
+        return updateHeader(new BasicHeader(name, value));
     }
 
     /**
@@ -353,8 +355,7 @@ public interface WebTarget {
      * @return WebTarget instance
      */
     default WebTarget addContentType(final ContentType contentType) {
-        addHeader(CONTENT_TYPE, contentType.toString());
-        return this;
+        return addHeader(CONTENT_TYPE, contentType.toString());
     }
 
     /**
@@ -397,8 +398,13 @@ public interface WebTarget {
     default WebTarget addParameters(final NameValuePair... parameters) {
         ArgsCheck.notNull(parameters, "parameters");
 
-        Arrays.stream(parameters).forEach(this::addParameter);
-        return this;
+        WebTarget result = this;
+
+        for (NameValuePair parameter : parameters) {
+            result = result.addParameter(parameter);
+        }
+
+        return result;
     }
 
     /**
@@ -455,13 +461,15 @@ public interface WebTarget {
         Args.check(nameValuesLength != 0, "Length of parameter can't be ZERO");
         Args.check(nameValuesLength % 2 == 0, "Length of nameValues can't be odd");
 
+        WebTarget result = this;
+
         int end = nameValuesLength - 2;
 
         for (int i = 0; i <= end; i += 2) {
-            addParameter(new BasicNameValuePair(nameValues[i], nameValues[i + 1]));
+            result = result.addParameter(new BasicNameValuePair(nameValues[i], nameValues[i + 1]));
         }
 
-        return this;
+        return result;
     }
 
     /**
@@ -474,8 +482,13 @@ public interface WebTarget {
     default WebTarget addParameters(final Collection<? extends NameValuePair> parameters) {
         ArgsCheck.notNull(parameters, "parameters");
 
-        parameters.forEach(this::addParameter);
-        return this;
+        WebTarget result = this;
+
+        for (NameValuePair parameter : parameters) {
+            result = result.addParameter(parameter);
+        }
+
+        return result;
     }
 
     /**
@@ -488,10 +501,15 @@ public interface WebTarget {
     default WebTarget addParameters(final Map<String, String> parameters) {
         ArgsCheck.notNull(parameters, "parameters");
 
-        parameters.entrySet().stream()
-                .map(entry -> new BasicNameValuePair(entry.getKey(), entry.getValue()))
-                .forEach(this::addParameter);
-        return this;
+        WebTarget result = this;
+
+        for (Map.Entry<String, String> entry : parameters.entrySet()) {
+            NameValuePair parameter = new BasicNameValuePair(entry.getKey(), entry.getValue());
+
+            result = result.addParameter(parameter);
+        }
+
+        return result;
     }
 
     /**
