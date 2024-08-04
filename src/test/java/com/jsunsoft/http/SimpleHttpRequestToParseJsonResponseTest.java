@@ -17,13 +17,13 @@
 package com.jsunsoft.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.joda.time.LocalDate;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -36,100 +36,90 @@ import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKN
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.apache.hc.core5.http.ContentType.APPLICATION_JSON;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
+class SimpleHttpRequestToParseJsonResponseTest {
 
-public class SimpleHttpRequestToParseJsonResponseTest {
-    @Rule
-    public final WireMockRule wireMockRule = new WireMockRule(8080);
+    private static final String RESPONSE_DATA_STRING = """
+            {
+              "displayLength": "4",
+              "iTotal": "20",
+              "users": [
+                {
+                  "id": "2",
+                  "userName": "Test1",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "17",
+                  "userName": "Test2",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "32",
+                  "userName": "Test3",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "35",
+                  "userName": "Test4",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                }
+              ]
+            }""";
 
-    private static final String RESPONSE_DATA_STRING = "{\n" +
-            "  \"displayLength\": \"4\",\n" +
-            "  \"iTotal\": \"20\",\n" +
-            "  \"users\": [\n" +
-            "    {\n" +
-            "      \"id\": \"2\",\n" +
-            "      \"userName\": \"Test1\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"17\",\n" +
-            "      \"userName\": \"Test2\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"32\",\n" +
-            "      \"userName\": \"Test3\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"35\",\n" +
-            "      \"userName\": \"Test4\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    }\n" +
-            "\n" +
-            "  ]\n" +
-            "}";
-
-    private static final String RESPONSE_DATA_STRING_OVERRIDDEN_DATE_PATTEN = "{\n" +
-            "  \"displayLength\": \"4\",\n" +
-            "  \"iTotal\": \"20\",\n" +
-            "  \"javaLocalDateTime\": \"11/05/1993 05:00:00\",\n" +
-            "  \"jodaLocalDate\": \"20170925\",\n" +
-            "  \"users\": [\n" +
-            "    {\n" +
-            "      \"id\": \"2\",\n" +
-            "      \"userName\": \"Test1\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"17\",\n" +
-            "      \"userName\": \"Test2\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"32\",\n" +
-            "      \"userName\": \"Test3\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"35\",\n" +
-            "      \"userName\": \"Test4\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    }\n" +
-            "\n" +
-            "  ]\n" +
-            "}";
-
-    private final String responseMapString = "{\n" +
-            "  \"testKey\" : \"testValue\"\n" +
-            "}";
-
+    private static final String RESPONSE_DATA_STRING_OVERRIDDEN_DATE_PATTERN = """
+            {
+              "displayLength": "4",
+              "iTotal": "20",
+              "javaLocalDateTime": "11/05/1993 05:00:00",
+              "jodaLocalDate": "20170925",
+              "users": [
+                {
+                  "id": "2",
+                  "userName": "Test1",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "17",
+                  "userName": "Test2",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "32",
+                  "userName": "Test3",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "35",
+                  "userName": "Test4",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                }
+              ]
+            }""";
     private static final CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
-
     private static final HttpRequest HTTP_REQUEST = HttpRequestBuilder.create(closeableHttpClient)
             .build();
-
-    private static final HttpRequest HTTP_REQUEST_DATE_PATTER_OVERRIDDEN = HttpRequestBuilder.create(closeableHttpClient)
+    private static final HttpRequest HTTP_REQUEST_DATE_PATTERN_OVERRIDDEN = HttpRequestBuilder.create(closeableHttpClient)
             .addDefaultDateDeserializationPattern(LocalDateTime.class, "dd/MM/yyyy HH:mm:ss")
             .addDefaultDateDeserializationPattern(LocalDate.class, "yyyyMMdd")
             .build();
-
     private static final HttpRequest HTTP_REQUEST_WITH_BODY_READER = HttpRequestBuilder.create(closeableHttpClient)
             .addBodyReader(new ResponseBodyReader<Map<String, String>>() {
                 @Override
@@ -158,9 +148,18 @@ public class SimpleHttpRequestToParseJsonResponseTest {
             })
             .build();
 
-    @Before
-    public void before() {
+    @RegisterExtension
+    static WireMockExtension wireMockRule = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().port(8080))
+            .build();
 
+    private static final String RESPONSE_MAP_STRING = """
+            {
+              "testKey" : "testValue"
+            }""";
+
+    @BeforeEach
+    public void before() {
         wireMockRule.stubFor(get(urlEqualTo("/get"))
                 .willReturn(
                         aResponse()
@@ -173,7 +172,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
         wireMockRule.stubFor(get(urlEqualTo("/getWithOverriddenDates"))
                 .willReturn(
                         aResponse()
-                                .withBody(RESPONSE_DATA_STRING_OVERRIDDEN_DATE_PATTEN)
+                                .withBody(RESPONSE_DATA_STRING_OVERRIDDEN_DATE_PATTERN)
                                 .withHeader(CONTENT_TYPE, APPLICATION_JSON.getMimeType())
                                 .withStatus(200)
                 )
@@ -182,7 +181,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
         wireMockRule.stubFor(get(urlEqualTo("/get/map"))
                 .willReturn(
                         aResponse()
-                                .withBody(responseMapString)
+                                .withBody(RESPONSE_MAP_STRING)
                                 .withHeader(CONTENT_TYPE, APPLICATION_JSON.getMimeType())
                                 .withStatus(200)
                 )
@@ -190,15 +189,14 @@ public class SimpleHttpRequestToParseJsonResponseTest {
     }
 
     @Test
-    public void testParsingResponseDataWithDefaultBodyReader() {
-
+    void testParsingResponseDataWithDefaultBodyReader() {
         HTTP_REQUEST.target("http://localhost:8080/get").get(ResponseData.class)
                 .ifHasContent(responseData -> {
                     Optional<User> foundedUser = responseData.getUsers()
                             .stream()
                             .filter(user -> "Test1".equals(user.getUserName()))
                             .findFirst();
-                    foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+                    foundedUser.ifPresent(user -> assertEquals(2, user.getId()));
                 });
 
         ResponseData responseData = HTTP_REQUEST.target("http://localhost:8080/get").get()
@@ -208,44 +206,42 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                 .stream()
                 .filter(user -> "Test1".equals(user.getUserName()))
                 .findFirst();
-        foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+        foundedUser.ifPresent(user -> assertEquals(2, user.getId()));
     }
 
     @Test
-    public void testParsingResponseDataWithDefaultBodyReaderDatePatternOverridden() {
-
-        HTTP_REQUEST_DATE_PATTER_OVERRIDDEN.target("http://localhost:8080/getWithOverriddenDates").get(ResponseData.class)
+    void testParsingResponseDataWithDefaultBodyReaderDatePatternOverridden() {
+        HTTP_REQUEST_DATE_PATTERN_OVERRIDDEN.target("http://localhost:8080/getWithOverriddenDates").get(ResponseData.class)
                 .ifHasContent(responseData -> {
                     Optional<User> foundedUser = responseData.getUsers()
                             .stream()
                             .filter(user -> "Test1".equals(user.getUserName()))
                             .findFirst();
-                    foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+                    foundedUser.ifPresent(user -> assertEquals(2, user.getId()));
                 });
 
-        ResponseData responseData = HTTP_REQUEST_DATE_PATTER_OVERRIDDEN.target("http://localhost:8080/getWithOverriddenDates").get()
+        ResponseData responseData = HTTP_REQUEST_DATE_PATTERN_OVERRIDDEN.target("http://localhost:8080/getWithOverriddenDates").get()
                 .readEntity(ResponseData.class);
 
-        Assert.assertEquals(LocalDateTime.of(1993, Month.MAY, 11, 5, 0, 0), responseData.getJavaLocalDateTime());
-        Assert.assertEquals(new LocalDate(2017, 9, 25), responseData.getJodaLocalDate());
+        assertEquals(LocalDateTime.of(1993, Month.MAY, 11, 5, 0, 0), responseData.getJavaLocalDateTime());
+        assertEquals(new LocalDate(2017, 9, 25), responseData.getJodaLocalDate());
 
         Optional<User> foundedUser = responseData.getUsers()
                 .stream()
                 .filter(user -> "Test1".equals(user.getUserName()))
                 .findFirst();
-        foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+        foundedUser.ifPresent(user -> assertEquals(2, user.getId()));
     }
 
     @Test
-    public void testParsingResponseDataWithCustomBodyReader() {
-
+    void testParsingResponseDataWithCustomBodyReader() {
         HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get").get(ResponseData.class)
                 .ifHasContent(rd -> {
                     Optional<User> foundedUser = rd.getUsers()
                             .stream()
                             .filter(user -> "Test1".equals(user.getUserName()))
                             .findFirst();
-                    foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+                    foundedUser.ifPresent(user -> assertEquals(2, user.getId()));
                 });
 
         ResponseData responseData = HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get").get()
@@ -255,28 +251,26 @@ public class SimpleHttpRequestToParseJsonResponseTest {
                 .stream()
                 .filter(user -> "Test1".equals(user.getUserName()))
                 .findFirst();
-        foundedUser.ifPresent(user -> Assert.assertEquals(2, user.getId()));
+        foundedUser.ifPresent(user -> assertEquals(2, user.getId()));
     }
 
     @Test
-    public void testParsingMapWithCustomBodyReader() {
-
-        HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get/map").get(new TypeReference<Map<String, String>>() {})
-                .ifHasContent(r -> Assert.assertEquals("testValue", r.get("testKey")));
+    void testParsingMapWithCustomBodyReader() {
+        HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get/map").get(new TypeReference<Map<String, String>>() {
+                })
+                .ifHasContent(r -> assertEquals("testValue", r.get("testKey")));
 
         Map<String, String> r = HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get/map").get()
-                .readEntity(new TypeReference<Map<String, String>>() {});
+                .readEntity(new TypeReference<Map<String, String>>() {
+                });
 
-        Assert.assertEquals("testValue", r.get("testKey"));
+        assertEquals("testValue", r.get("testKey"));
     }
 
     static class ResponseData {
         private int displayLength;
         private int iTotal;
-
-
         private LocalDateTime javaLocalDateTime;
-
         private LocalDate jodaLocalDate;
         private List<User> users;
 
@@ -324,7 +318,7 @@ public class SimpleHttpRequestToParseJsonResponseTest {
     static class User {
         private int id;
         private String userName;
-        private Group Group;
+        private Group group;
 
         public int getId() {
             return id;
@@ -343,11 +337,11 @@ public class SimpleHttpRequestToParseJsonResponseTest {
         }
 
         public Group getGroup() {
-            return Group;
+            return group;
         }
 
         public void setGroup(Group group) {
-            Group = group;
+            this.group = group;
         }
     }
 

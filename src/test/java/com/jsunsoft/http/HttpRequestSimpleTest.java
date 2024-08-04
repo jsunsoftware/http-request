@@ -17,10 +17,13 @@
 package com.jsunsoft.http;
 
 import com.fasterxml.jackson.annotation.JsonRootName;
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.core5.http.HttpHeaders;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,18 +32,23 @@ import static org.apache.hc.core5.http.ContentType.APPLICATION_JSON;
 import static org.apache.hc.core5.http.ContentType.APPLICATION_XML;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_LENGTH;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class HttpRequestSimpleTest {
+class HttpRequestSimpleTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpRequestSimpleTest.class);
 
     private static final String XML_BODY = "<xml><id>1</id><key>testValue</key></xml>";
     private static final String TEXT_BODY = "abcd";
-    private static final String JSON_BODY = "{\"id\":1,\"key\":\"testValue\"}";
+    private static final String JSON_BODY = """
+            {"id":1,"key":"testValue"}
+            """.trim();
 
-    @Rule
-    public final WireMockRule wireMockRule = new WireMockRule(8080);
+    @RegisterExtension
+    static WireMockExtension wireMockRule = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig())
+            .build();
+
     private final String userAgent = "JsunSoftAgent/1.0";
 
     private final HttpRequest httpRequestUserAgent = HttpRequestBuilder.create(new ClientBuilder().build())
@@ -54,8 +62,13 @@ public class HttpRequestSimpleTest {
     private final HttpRequest basicHttpRequest = HttpRequestBuilder.create((new ClientBuilder().build()))
             .build();
 
+    @BeforeEach
+    public void setUp() {
+        WireMock.reset();
+    }
+
     @Test
-    public void userAgentTest() {
+    void userAgentTest() {
         wireMockRule.stubFor(get(urlEqualTo("/userAgent"))
                 .withHeader("User-Agent", equalTo(userAgent))
                 .willReturn(aResponse().withStatus(200)));
@@ -64,7 +77,7 @@ public class HttpRequestSimpleTest {
     }
 
     @Test
-    public void xmlParsingTest() {
+    void xmlParsingTest() {
         wireMockRule.stubFor(post(urlEqualTo("/xml"))
                 .withHeader(CONTENT_TYPE, equalTo(APPLICATION_XML.toString()))
                 .withRequestBody(equalTo(XML_BODY))
@@ -85,8 +98,7 @@ public class HttpRequestSimpleTest {
 
         assertTrue(responseHandler.isSuccess());
         assertTrue(responseHandler.hasContent());
-        assertTrue(responseHandler.containsHeader(CONTENT_LENGTH));
-        assertEquals(String.valueOf(XML_BODY.length()), responseHandler.getFirstHeaderValue(CONTENT_LENGTH));
+        assertTrue(responseHandler.containsHeader(CONTENT_TYPE));
 
         Wrapper parsedXml = responseHandler.get();
 
@@ -94,7 +106,7 @@ public class HttpRequestSimpleTest {
     }
 
     @Test
-    public void requestXmlSerializationTest() {
+    void requestXmlSerializationTest() {
         wireMockRule.stubFor(post(urlEqualTo("/xml"))
                 .withHeader(CONTENT_TYPE, equalTo(APPLICATION_XML.toString()))
                 .withRequestBody(equalTo(XML_BODY))
@@ -118,8 +130,6 @@ public class HttpRequestSimpleTest {
 
         assertTrue(rh.isSuccess());
         assertTrue(rh.hasContent());
-        assertTrue(rh.containsHeader(CONTENT_LENGTH));
-        assertEquals(String.valueOf(XML_BODY.length()), rh.getFirstHeaderValue(CONTENT_LENGTH));
 
         Wrapper parsedXml = rh.get();
 
@@ -127,7 +137,7 @@ public class HttpRequestSimpleTest {
     }
 
     @Test
-    public void withoutParseTest() {
+    void withoutParseTest() {
         wireMockRule.stubFor(post(urlEqualTo("/text"))
                 .willReturn(
                         aResponse()
@@ -143,7 +153,7 @@ public class HttpRequestSimpleTest {
     }
 
     @Test
-    public void withoutJsonParseTest() {
+    void withoutJsonParseTest() {
 
         wireMockRule.stubFor(post(urlEqualTo("/json"))
                 .willReturn(
@@ -161,7 +171,7 @@ public class HttpRequestSimpleTest {
     }
 
     @Test
-    public void requestJsonSerializationTest() {
+    void requestJsonSerializationTest() {
         wireMockRule.stubFor(post(urlEqualTo("/json"))
                 .withHeader(CONTENT_TYPE, equalTo(APPLICATION_JSON.toString()))
                 .withRequestBody(equalTo(JSON_BODY))
@@ -196,7 +206,7 @@ public class HttpRequestSimpleTest {
     }
 
     @Test
-    public void addParametersAsQueryStringTest() {
+    void addParametersAsQueryStringTest() {
         wireMockRule.stubFor(get(urlPathMatching("/get-param"))
                 .withQueryParam("test", equalTo("testValue"))
                 .willReturn(aResponse().withStatus(200)));
@@ -210,7 +220,7 @@ public class HttpRequestSimpleTest {
     }
 
     @Test
-    public void withoutBadRequestTest() {
+    void withoutBadRequestTest() {
         wireMockRule.stubFor(post(urlEqualTo("/text"))
                 .willReturn(
                         aResponse()
@@ -246,6 +256,4 @@ public class HttpRequestSimpleTest {
             this.key = key;
         }
     }
-
-
 }

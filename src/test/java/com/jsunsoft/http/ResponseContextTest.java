@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,23 +20,23 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.BasicHttpEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
-public class ResponseContextTest {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class ResponseContextTest {
     private HttpEntity httpEntity;
     private String content;
 
-    @Before
-    public final void before() throws UnsupportedEncodingException {
+    @BeforeEach
+    public void before() {
         content = "String to test";
         InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
 
@@ -44,12 +44,12 @@ public class ResponseContextTest {
     }
 
     @Test
-    public void testBasicResponseContextMethods() throws IOException {
+    void testBasicResponseContextMethods() throws IOException {
         BasicClassicHttpResponse httpResponse = new BasicClassicHttpResponse(200);
         httpResponse.setEntity(httpEntity);
         ResponseBodyReaderContext<String> responseContext = new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class, URI.create(""));
-        Assert.assertEquals(content.length(), responseContext.getContentLength());
-        Assert.assertEquals(content, ResponseBodyReader.stringReader().read(responseContext));
-        Assert.assertEquals(ContentType.APPLICATION_JSON.getMimeType(), responseContext.getContentType().getMimeType());
+        assertEquals(content.length(), responseContext.getContentLength());
+        assertEquals(content, ResponseBodyReader.stringReader().read(responseContext));
+        assertEquals(ContentType.APPLICATION_JSON.getMimeType(), responseContext.getContentType().getMimeType());
     }
 }

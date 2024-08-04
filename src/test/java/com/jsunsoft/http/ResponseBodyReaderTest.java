@@ -22,8 +22,8 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.io.entity.BasicHttpEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.joda.time.LocalDate;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -36,24 +36,25 @@ import java.util.Map;
 
 import static com.jsunsoft.http.DefaultDateDeserializeContext.DEFAULT;
 
-public class ResponseBodyReaderTest {
+class ResponseBodyReaderTest {
 
     @Test
-    public void testDeserializeResponse() throws IOException {
-        String content = "{\n" +
-                "              \"value\": 1,\n" +
-                "              \"message\": \"Test message\",\n" +
-                "              \"relations\": [\n" +
-                "                {\n" +
-                "                  \"string\": \"12345\",\n" +
-                "                  \"localDate\": \"11/05/1993\"\n" +
-                "                },\n" +
-                "                {\n" +
-                "                  \"string\": \"54321\",\n" +
-                "                  \"javaLocalDate\": \"08/09/2017\"\n" +
-                "                }\n" +
-                "              ]\n" +
-                "            }";
+    void testDeserializeResponse() throws IOException {
+        String content = """
+                {
+                              "value": 1,
+                              "message": "Test message",
+                              "relations": [
+                                {
+                                  "string": "12345",
+                                  "localDate": "11/05/1993"
+                                },
+                                {
+                                  "string": "54321",
+                                  "javaLocalDate": "08/09/2017"
+                                }
+                              ]
+                            }""";
 
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
@@ -63,32 +64,33 @@ public class ResponseBodyReaderTest {
         );
 
         Result result = responseBodyReader.read(responseContext);
-        Assert.assertEquals(1L, result.value);
-        Assert.assertEquals("Test message", result.message);
-        Assert.assertNotNull(result.getRelations());
-        Assert.assertEquals(2, result.getRelations().size());
-        Assert.assertEquals("12345", result.getRelations().get(0).string);
-        Assert.assertEquals(new LocalDate(1993, 5, 11), result.getRelations().get(0).localDate);
-        Assert.assertEquals("54321", result.getRelations().get(1).string);
-        Assert.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
+        Assertions.assertEquals(1L, result.value);
+        Assertions.assertEquals("Test message", result.message);
+        Assertions.assertNotNull(result.getRelations());
+        Assertions.assertEquals(2, result.getRelations().size());
+        Assertions.assertEquals("12345", result.getRelations().get(0).string);
+        Assertions.assertEquals(new LocalDate(1993, 5, 11), result.getRelations().get(0).localDate);
+        Assertions.assertEquals("54321", result.getRelations().get(1).string);
+        Assertions.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
     }
 
     @Test
-    public void testDeserializeResponseWithOverriddenDateFormat() throws IOException {
-        String content = "{\n" +
-                "              \"value\": 1,\n" +
-                "              \"message\": \"Test message\",\n" +
-                "              \"relations\": [\n" +
-                "                {\n" +
-                "                  \"string\": \"12345\",\n" +
-                "                  \"localDate\": \"19930511\"\n" +
-                "                },\n" +
-                "                {\n" +
-                "                  \"string\": \"54321\",\n" +
-                "                  \"javaLocalDate\": \"20170908\"\n" +
-                "                }\n" +
-                "              ]\n" +
-                "            }";
+    void testDeserializeResponseWithOverriddenDateFormat() throws IOException {
+        String content = """
+                {
+                              "value": 1,
+                              "message": "Test message",
+                              "relations": [
+                                {
+                                  "string": "12345",
+                                  "localDate": "19930511"
+                                },
+                                {
+                                  "string": "54321",
+                                  "javaLocalDate": "20170908"
+                                }
+                              ]
+                            }""";
 
         Map<Class<?>, String> dateTypeToPattern = new HashMap<>();
         dateTypeToPattern.put(LocalDate.class, "yyyyMMdd");
@@ -104,14 +106,14 @@ public class ResponseBodyReaderTest {
         );
 
         Result result = responseBodyReader.read(responseContext);
-        Assert.assertEquals(1L, result.value);
-        Assert.assertEquals("Test message", result.message);
-        Assert.assertNotNull(result.getRelations());
-        Assert.assertEquals(2, result.getRelations().size());
-        Assert.assertEquals("12345", result.getRelations().get(0).string);
-        Assert.assertEquals(new LocalDate(1993, 5, 11), result.getRelations().get(0).localDate);
-        Assert.assertEquals("54321", result.getRelations().get(1).string);
-        Assert.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
+        Assertions.assertEquals(1L, result.value);
+        Assertions.assertEquals("Test message", result.message);
+        Assertions.assertNotNull(result.getRelations());
+        Assertions.assertEquals(2, result.getRelations().size());
+        Assertions.assertEquals("12345", result.getRelations().get(0).string);
+        Assertions.assertEquals(new LocalDate(1993, 5, 11), result.getRelations().get(0).localDate);
+        Assertions.assertEquals("54321", result.getRelations().get(1).string);
+        Assertions.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
     }
 
     private ResponseBodyReaderContext<Result> resolveResponseContext(String content) {
