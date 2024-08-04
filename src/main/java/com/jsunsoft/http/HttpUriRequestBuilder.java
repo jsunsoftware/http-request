@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,7 +112,7 @@ class HttpUriRequestBuilder {
             copyHttpUriRequestBuilder.config = RequestConfig.copy(config).build();
         }
 
-        return this;
+        return copyHttpUriRequestBuilder;
     }
 
     public HttpUriRequestBuilder setCharset(final Charset charset) {

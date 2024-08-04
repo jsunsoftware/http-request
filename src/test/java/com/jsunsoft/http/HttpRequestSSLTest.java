@@ -32,7 +32,7 @@ public class HttpRequestSSLTest {
     ).build();
 
     @Test
-    public final void ignoreSSLAndHostsTest() throws Exception {
+    public final void ignoreSSLAndHostsTest() {
 
         assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getCode());
     }

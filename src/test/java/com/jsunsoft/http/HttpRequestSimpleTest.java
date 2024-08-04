@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import com.fasterxml.jackson.annotation.JsonRootName;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.junit.Rule;
@@ -34,6 +35,10 @@ import static org.junit.Assert.assertTrue;
 public class HttpRequestSimpleTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpRequestSimpleTest.class);
 
+    private static final String XML_BODY = "<xml><id>1</id><key>testValue</key></xml>";
+    private static final String TEXT_BODY = "abcd";
+    private static final String JSON_BODY = "{\"id\":1,\"key\":\"testValue\"}";
+
     @Rule
     public final WireMockRule wireMockRule = new WireMockRule(8080);
     private final String userAgent = "JsunSoftAgent/1.0";
@@ -46,7 +51,7 @@ public class HttpRequestSimpleTest {
             .addContentType(APPLICATION_XML)
             .build();
 
-    private final HttpRequest httpRequestWithoutParse = HttpRequestBuilder.create((new ClientBuilder().build()))
+    private final HttpRequest basicHttpRequest = HttpRequestBuilder.create((new ClientBuilder().build()))
             .build();
 
     @Test
@@ -60,70 +65,134 @@ public class HttpRequestSimpleTest {
 
     @Test
     public void xmlParsingTest() {
-        String xmlBody = "<xml><id>1</id></xml>";
         wireMockRule.stubFor(post(urlEqualTo("/xml"))
                 .withHeader(CONTENT_TYPE, equalTo(APPLICATION_XML.toString()))
-                .withRequestBody(equalTo(xmlBody))
+                .withRequestBody(equalTo(XML_BODY))
                 .willReturn(
                         aResponse()
-                                .withBody(xmlBody)
+                                .withBody(XML_BODY)
                                 .withHeader(CONTENT_TYPE, APPLICATION_XML.toString())
-                                .withHeader(CONTENT_LENGTH, String.valueOf(xmlBody.length()))
+                                .withHeader(CONTENT_LENGTH, String.valueOf(XML_BODY.length()))
                                 .withStatus(200)
                 )
         );
 
-        WebTarget webTarget = xmlHttpRequest.target("http://localhost:8080/xml");
+        WebTarget webTarget = xmlHttpRequest.immutableTarget("http://localhost:8080/xml");
 
-        ResponseHandler<XmlWrapper> responseHandler = webTarget
-                .post(xmlBody, XmlWrapper.class);
+        ResponseHandler<Wrapper> responseHandler = webTarget
+                .post(XML_BODY, Wrapper.class);
         responseHandler.filter(ResponseHandler::hasNotContent).ifPassed(r -> LOGGER.info(r.getErrorText()));
 
         assertTrue(responseHandler.isSuccess());
         assertTrue(responseHandler.hasContent());
         assertTrue(responseHandler.containsHeader(CONTENT_LENGTH));
-        assertEquals(String.valueOf(xmlBody.length()), responseHandler.getFirstHeaderValue(CONTENT_LENGTH));
+        assertEquals(String.valueOf(XML_BODY.length()), responseHandler.getFirstHeaderValue(CONTENT_LENGTH));
 
-        XmlWrapper parsedXml = webTarget.post(xmlBody, XmlWrapper.class).get();
+        Wrapper parsedXml = responseHandler.get();
+
+        assertEquals(1, parsedXml.id);
+    }
+
+    @Test
+    public void requestXmlSerializationTest() {
+        wireMockRule.stubFor(post(urlEqualTo("/xml"))
+                .withHeader(CONTENT_TYPE, equalTo(APPLICATION_XML.toString()))
+                .withRequestBody(equalTo(XML_BODY))
+                .willReturn(
+                        aResponse()
+                                .withBody(XML_BODY)
+                                .withHeader(CONTENT_TYPE, APPLICATION_XML.toString())
+                                .withHeader(CONTENT_LENGTH, String.valueOf(XML_BODY.length()))
+                                .withStatus(200)
+                )
+        );
+
+        WebTarget webTarget = xmlHttpRequest.immutableTarget("http://localhost:8080/xml");
+
+        Wrapper xmlWrapper = webTarget
+                .post(XML_BODY, Wrapper.class)
+                .requiredGet();
+
+        ResponseHandler<Wrapper> rh = webTarget
+                .post(xmlWrapper, Wrapper.class);
+
+        assertTrue(rh.isSuccess());
+        assertTrue(rh.hasContent());
+        assertTrue(rh.containsHeader(CONTENT_LENGTH));
+        assertEquals(String.valueOf(XML_BODY.length()), rh.getFirstHeaderValue(CONTENT_LENGTH));
+
+        Wrapper parsedXml = rh.get();
 
         assertEquals(1, parsedXml.id);
     }
 
     @Test
     public void withoutParseTest() {
-        String text = "abcd";
         wireMockRule.stubFor(post(urlEqualTo("/text"))
                 .willReturn(
                         aResponse()
-                                .withBody(text)
+                                .withBody(TEXT_BODY)
                                 .withStatus(200)
                 )
         );
 
-        ResponseHandler<String> responseHandler = httpRequestWithoutParse.target("http://localhost:8080/text")
+        ResponseHandler<String> responseHandler = basicHttpRequest.target("http://localhost:8080/text")
                 .post(String.class);
 
-        assertEquals("abcd", responseHandler.get());
+        assertEquals(TEXT_BODY, responseHandler.get());
     }
 
     @Test
     public void withoutJsonParseTest() {
-        String jsonText = "{\n" +
-                "  \"testKey\" : \"testValue\"\n" +
-                "}";
+
         wireMockRule.stubFor(post(urlEqualTo("/json"))
                 .willReturn(
                         aResponse()
                                 .withHeader(CONTENT_TYPE, APPLICATION_JSON.toString())
-                                .withBody(jsonText)
+                                .withBody(JSON_BODY)
                                 .withStatus(200)
                 )
         );
 
-        ResponseHandler<String> responseHandler = httpRequestWithoutParse.target("http://localhost:8080/json")
+        ResponseHandler<String> responseHandler = basicHttpRequest.target("http://localhost:8080/json")
                 .post(String.class);
 
-        assertEquals(jsonText, responseHandler.get());
+        assertEquals(JSON_BODY, responseHandler.get());
+    }
+
+    @Test
+    public void requestJsonSerializationTest() {
+        wireMockRule.stubFor(post(urlEqualTo("/json"))
+                .withHeader(CONTENT_TYPE, equalTo(APPLICATION_JSON.toString()))
+                .withRequestBody(equalTo(JSON_BODY))
+                .willReturn(
+                        aResponse()
+                                .withBody(JSON_BODY)
+                                .withHeader(CONTENT_TYPE, APPLICATION_JSON.toString())
+                                .withHeader(CONTENT_LENGTH, String.valueOf(JSON_BODY.length()))
+                                .withStatus(200)
+                )
+        );
+
+        WebTarget webTarget = basicHttpRequest.immutableTarget("http://localhost:8080/json");
+
+        Wrapper jsonWrapper = webTarget
+                .addContentType(APPLICATION_JSON)
+                .post(JSON_BODY, Wrapper.class)
+                .requiredGet();
+
+        ResponseHandler<Wrapper> rh = webTarget
+                .addContentType(APPLICATION_JSON)
+                .post(jsonWrapper, Wrapper.class);
+
+        assertTrue(rh.isSuccess());
+        assertTrue(rh.hasContent());
+        assertTrue(rh.containsHeader(CONTENT_LENGTH));
+        assertEquals(String.valueOf(JSON_BODY.length()), rh.getFirstHeaderValue(CONTENT_LENGTH));
+
+        Wrapper parsedXml = rh.get();
+
+        assertEquals(1, parsedXml.id);
     }
 
     @Test
@@ -133,7 +202,7 @@ public class HttpRequestSimpleTest {
                 .willReturn(aResponse().withStatus(200)));
 
         assertTrue(
-                httpRequestWithoutParse.target("http://localhost:8080/get-param")
+                basicHttpRequest.target("http://localhost:8080/get-param")
                         .addParameters("test=testValue&param2=param2")
                         .get(Void.class)
                         .isSuccess()
@@ -142,23 +211,24 @@ public class HttpRequestSimpleTest {
 
     @Test
     public void withoutBadRequestTest() {
-        String text = "abcd";
         wireMockRule.stubFor(post(urlEqualTo("/text"))
                 .willReturn(
                         aResponse()
-                                .withBody(text)
+                                .withBody(TEXT_BODY)
                                 .withStatus(400)
                 )
         );
 
-        ResponseHandler<String> responseHandler = httpRequestWithoutParse.target("http://localhost:8080/text")
+        ResponseHandler<String> responseHandler = basicHttpRequest.target("http://localhost:8080/text")
                 .post(String.class);
 
-        assertEquals("abcd", responseHandler.getErrorText());
+        assertEquals(TEXT_BODY, responseHandler.getErrorText());
     }
 
-    private static class XmlWrapper {
+    @JsonRootName("xml")
+    private static class Wrapper {
         private int id;
+        private String key;
 
         public int getId() {
             return id;
@@ -166,6 +236,14 @@ public class HttpRequestSimpleTest {
 
         public void setId(int id) {
             this.id = id;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        public void setKey(String key) {
+            this.key = key;
         }
     }
 

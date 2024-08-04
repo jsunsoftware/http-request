@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+@SuppressWarnings("serial")
 public class InvalidMimeTypeException extends ResponseBodyProcessingException {
 
     private final String mimeType;

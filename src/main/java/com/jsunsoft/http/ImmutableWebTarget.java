@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.jsunsoft.http;
 
-import com.jsunsoft.http.annotations.Beta;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.Header;
@@ -30,19 +29,18 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Collection;
 
-@Beta
 class ImmutableWebTarget extends BasicWebTarget {
 
-    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig) {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
+    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig);
     }
 
-    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig) throws URISyntaxException {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig);
+    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) throws URISyntaxException {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig);
     }
 
-    private ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig) {
-        super(closeableHttpClient, uriBuilder, httpUriRequestBuilder, responseBodyReaderConfig);
+    private ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) {
+        super(closeableHttpClient, uriBuilder, httpUriRequestBuilder, responseBodyReaderConfig, requestBodySerializeConfig);
     }
 
     private WebTarget toBasicWebTarget() {
@@ -55,7 +53,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 HttpRequestUtils.appendPath(getUriBuilder(), path),
                 getHttpUriRequestBuilder(),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         );
     }
 
@@ -65,7 +64,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder().setPath(path),
                 getHttpUriRequestBuilder(),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         );
     }
 
@@ -75,7 +75,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder(),
                 getHttpUriRequestBuilder().removeHeader(header),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         );
     }
 
@@ -85,7 +86,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder(),
                 getHttpUriRequestBuilder().removeHeaders(name),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         );
     }
 
@@ -95,7 +97,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder(),
                 getHttpUriRequestBuilder().setHeader(header),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         );
     }
 
@@ -105,7 +108,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder(),
                 getHttpUriRequestBuilder().addHeader(header),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         );
     }
 
@@ -115,7 +119,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder(),
                 getHttpUriRequestBuilder().setCharset(charset),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         );
     }
 
@@ -125,7 +130,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder(),
                 getHttpUriRequestBuilder().setConfig(requestConfig),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         );
     }
 
@@ -135,7 +141,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder(),
                 getHttpUriRequestBuilder().addParameter(nameValuePair),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         );
     }
 
@@ -145,7 +152,8 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getCloseableHttpClient(),
                 getUriBuilder(),
                 getHttpUriRequestBuilder(),
-                getResponseBodyReaderConfig()
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig()
         ).request(method, httpEntity);
     }
 

@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +14,7 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
-/**
- * Signals an error in the HTTP protocol.
- */
+package com.jsunsoft.http;
 
 public class RequestException extends RuntimeException {
     private static final long serialVersionUID = -5596590843227115865L;
@@ -32,11 +28,10 @@ public class RequestException extends RuntimeException {
     }
 
     public RequestException(final Throwable cause) {
-        initCause(cause);
+        super(cause);
     }
 
     public RequestException(final String message, final Throwable cause) {
-        super(message);
-        initCause(cause);
+        super(message, cause);
     }
 }

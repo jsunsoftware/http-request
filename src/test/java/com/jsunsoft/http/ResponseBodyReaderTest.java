@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
@@ -58,8 +58,8 @@ public class ResponseBodyReaderTest {
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
-                ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), DEFAULT),
-                ResponseBodyReaderConfig.defaultInit(new XmlMapper(), DEFAULT)
+                ObjectMapperInitializer.defaultInit(new ObjectMapper(), DEFAULT),
+                ObjectMapperInitializer.defaultInit(new XmlMapper(), DEFAULT)
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -99,8 +99,8 @@ public class ResponseBodyReaderTest {
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
-                ResponseBodyReaderConfig.defaultInit(new ObjectMapper(), dateDeserializeContext),
-                ResponseBodyReaderConfig.defaultInit(new XmlMapper(), dateDeserializeContext)
+                ObjectMapperInitializer.defaultInit(new ObjectMapper(), dateDeserializeContext),
+                ObjectMapperInitializer.defaultInit(new XmlMapper(), dateDeserializeContext)
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -114,7 +114,7 @@ public class ResponseBodyReaderTest {
         Assert.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
     }
 
-    private ResponseBodyReaderContext<Result> resolveResponseContext(String content) throws UnsupportedEncodingException {
+    private ResponseBodyReaderContext<Result> resolveResponseContext(String content) {
         InputStream inputStream = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
 
         BasicHttpEntity basicHttpEntity = new BasicHttpEntity(inputStream, content.length(), ContentType.APPLICATION_JSON);
@@ -122,23 +122,17 @@ public class ResponseBodyReaderTest {
         BasicClassicHttpResponse httpResponse = new BasicClassicHttpResponse(200);
         httpResponse.setEntity(basicHttpEntity);
 
-        return new BasicResponseBodyReaderContext<>(httpResponse, Result.class, Result.class);
+        return new BasicResponseBodyReaderContext<>(httpResponse, Result.class, Result.class, URI.create(""));
     }
 
     private static class Result {
-        private String message;
-        private long value;
-        private List<Relation> relations;
+        private final String message;
+        private final long value;
+        private final List<Relation> relations;
 
-        public void setMessage(String message) {
+        public Result(String message, long value, List<Relation> relations) {
             this.message = message;
-        }
-
-        public void setValue(long value) {
             this.value = value;
-        }
-
-        public void setRelations(List<Relation> relations) {
             this.relations = relations;
         }
 
@@ -156,16 +150,14 @@ public class ResponseBodyReaderTest {
     }
 
     private static class Relation {
-        private String string;
-        private LocalDate localDate;
-        private java.time.LocalDate javaLocalDate;
+        private final String string;
+        private final LocalDate localDate;
+        private final java.time.LocalDate javaLocalDate;
 
-        public void setString(String string) {
+        public Relation(String string, LocalDate localDate, java.time.LocalDate javaLocalDate) {
             this.string = string;
-        }
-
-        public void setLocalDate(LocalDate localDate) {
             this.localDate = localDate;
+            this.javaLocalDate = javaLocalDate;
         }
 
         public String getString() {
@@ -176,8 +168,5 @@ public class ResponseBodyReaderTest {
             return localDate;
         }
 
-        public void setJavaLocalDate(java.time.LocalDate javaLocalDate) {
-            this.javaLocalDate = javaLocalDate;
-        }
     }
 }

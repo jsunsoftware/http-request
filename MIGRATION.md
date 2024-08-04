@@ -22,12 +22,12 @@ stream.
 Replace `setUseDefaultReader(boolean useDefaultReader)` of `HttpRequestBuilder` to `enableDefaultBodyReader`
 or `disableDefaultBodyReader`
 
-# 2.2.0
+# 2.2.x
 
 Rename method `path` of `WebTarget` to `setPath`. The `path` method now adds path to existed path instead of replacing,
 for replace use `setPath` method.
 
-# 3.0.0
+# 3.x.x
 
 Replace all `org.apache.http` package's classes by appropriate httpclient5 classes.
 

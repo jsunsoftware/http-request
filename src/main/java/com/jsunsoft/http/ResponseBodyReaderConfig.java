@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,21 +22,9 @@ package com.jsunsoft.http;
  */
 
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.joda.JodaModule;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 import java.util.*;
-
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
-import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 
 class ResponseBodyReaderConfig {
     private final ResponseBodyReader<?> defaultResponseBodyReader;
@@ -49,10 +37,13 @@ class ResponseBodyReaderConfig {
         this.useDefaultReader = useDefaultReader;
     }
 
+    static Builder create() {
+        return new Builder();
+    }
+
     ResponseBodyReader<?> getDefaultResponseBodyReader() {
         return defaultResponseBodyReader;
     }
-
 
     Collection<ResponseBodyReader<?>> getResponseBodyReaders() {
         return responseBodyReaders;
@@ -60,10 +51,6 @@ class ResponseBodyReaderConfig {
 
     boolean isUseDefaultReader() {
         return useDefaultReader;
-    }
-
-    static Builder create() {
-        return new Builder();
     }
 
     static class Builder {
@@ -125,11 +112,8 @@ class ResponseBodyReaderConfig {
         ResponseBodyReaderConfig build() {
             if (useDefaultReader && defaultResponseBodyReader == null) {
 
-                DateDeserializeContext dateDeserializeContext = dateTypeToPattern == null || dateTypeToPattern.isEmpty() ?
-                        DefaultDateDeserializeContext.DEFAULT : new BasicDateDeserializeContext(dateTypeToPattern);
-
-                ObjectMapper json = defaultJsonMapper != null ? defaultJsonMapper : defaultInit(new ObjectMapper(), dateDeserializeContext);
-                ObjectMapper xml = defaultXmlMapper != null ? defaultXmlMapper : defaultInit(new XmlMapper(), dateDeserializeContext);
+                ObjectMapper json = ObjectMapperInitializer.initJsonMapperIfNull(defaultJsonMapper, dateTypeToPattern);
+                ObjectMapper xml = ObjectMapperInitializer.initXmlMapperIfNull(defaultXmlMapper, dateTypeToPattern);
 
                 defaultResponseBodyReader = new DefaultResponseBodyReader<>(json, xml);
             } else {
@@ -152,26 +136,5 @@ class ResponseBodyReaderConfig {
 
             return new ResponseBodyReaderConfig(defaultResponseBodyReader, responseBodyReaders, useDefaultReader);
         }
-    }
-
-    static ObjectMapper defaultInit(ObjectMapper objectMapper, DateDeserializeContext dateDeserializeContext) {
-
-        dateDeserializeContext.getDateTypeToPattern()
-                .forEach((type, pattern) ->
-                        objectMapper.configOverride(type)
-                                .setFormat(
-                                        JsonFormat.Value.forPattern(pattern)
-                                )
-                );
-
-        objectMapper.setSerializationInclusion(NON_NULL)
-                .disable(FAIL_ON_EMPTY_BEANS)
-                .disable(FAIL_ON_UNKNOWN_PROPERTIES)
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .registerModules(new JodaModule(),
-                        new ParameterNamesModule(JsonCreator.Mode.PROPERTIES),
-                        new Jdk8Module(), new JavaTimeModule()
-                );
-        return objectMapper;
     }
 }

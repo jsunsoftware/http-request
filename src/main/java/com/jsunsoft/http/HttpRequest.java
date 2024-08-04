@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,7 +82,6 @@ public interface HttpRequest {
      *
      * @throws NullPointerException in case the supplied argument is {@code null}.
      */
-    @Beta
     WebTarget immutableTarget(URI uri);
 
     /**
@@ -93,6 +92,5 @@ public interface HttpRequest {
      * @throws NullPointerException     If {@code str} is {@code null}
      * @throws IllegalArgumentException If the given string violates RFC&nbsp;2396
      */
-    @Beta
     WebTarget immutableTarget(String uri);
 }

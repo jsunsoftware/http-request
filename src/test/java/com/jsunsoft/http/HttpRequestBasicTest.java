@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021. Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class HttpRequestBasicTest {
-    private static final String URI_STRING = "https://en.wikipedia.org/wiki/List_of_least_concern_birds";
 
     private static final HttpRequest HTTP_REQUEST_TO_GET_RESPONSE_CODE =
             HttpRequestBuilder.create(new ClientBuilder().build()).build();

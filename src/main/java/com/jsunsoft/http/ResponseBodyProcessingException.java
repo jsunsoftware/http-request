@@ -19,6 +19,7 @@ package com.jsunsoft.http;
 /**
  * When response body parsing failed
  */
+@SuppressWarnings("serial")
 public class ResponseBodyProcessingException extends RuntimeException {
     public ResponseBodyProcessingException(String message) {
         super(message);

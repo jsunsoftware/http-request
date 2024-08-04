@@ -16,17 +16,19 @@
 
 package com.jsunsoft.http;
 
+import java.net.URI;
+
+/**
+ * Signals expected response body is missed.
+ */
 @SuppressWarnings("serial")
-public class ResponseBodyReaderNotFoundException extends ResponseBodyReaderException {
-    public ResponseBodyReaderNotFoundException(String message, Throwable cause) {
-        super(message, cause);
+public class MissingResponseBodyException extends UnexpectedResponseException {
+
+    public MissingResponseBodyException(int statusCode, String message, URI uri) {
+        super(statusCode, message, uri);
     }
 
-    public ResponseBodyReaderNotFoundException(Throwable cause) {
-        super(cause);
-    }
-
-    public ResponseBodyReaderNotFoundException(String message) {
-        super(message);
+    public MissingResponseBodyException(int statusCode, URI uri) {
+        this(statusCode, "Status code is: " + statusCode + ". Response body is missing.", uri);
     }
 }

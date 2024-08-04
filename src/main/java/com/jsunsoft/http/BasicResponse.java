@@ -228,7 +228,7 @@ class BasicResponse implements Response {
      * {@inheritDoc}
      */
     @Override
-    public void setHeaders(Header[] headers) {
+    public void setHeaders(Header... headers) {
         classicHttpResponse.setHeaders(headers);
     }
 
@@ -316,7 +316,7 @@ class BasicResponse implements Response {
     private <T> T readEntityChecked(Class<T> type, Type genericType) throws IOException {
         T content;
 
-        ResponseBodyReaderContext<T> responseBodyReaderContext = new BasicResponseBodyReaderContext<>(this, type, genericType);
+        ResponseBodyReaderContext<T> responseBodyReaderContext = new BasicResponseBodyReaderContext<>(this, type, genericType, getURI());
 
         Optional<ResponseBodyReader<?>> responseBodyReader =
                 responseBodyReaderConfig.getResponseBodyReaders().stream()
