@@ -543,64 +543,6 @@ public interface WebTarget {
         return rawRequest(HttpMethod.GET);
     }
 
-    /**
-     * Invoke HTTP GET method for the current request
-     *
-     * @return the ResponseHandler instance to the request.
-     * @see #rawRequest(HttpMethod, HttpEntity)
-     */
-    default ResponseHandler<?> rawGet(final HttpEntity httpEntity) {
-        return rawRequest(HttpMethod.GET, httpEntity);
-    }
-
-    /**
-     * Invoke HTTP GET method for the current request
-     *
-     * @return the ResponseHandler instance to the request.
-     * @see #rawRequest(HttpMethod, String)
-     */
-    default ResponseHandler<?> rawGet(final String payload) {
-        return rawRequest(HttpMethod.GET, payload);
-    }
-
-    /**
-     * The same as {@link #rawGet(String)} with serializing body depends on a Content-type into String {@code payload}
-     *
-     * @return the ResponseHandler instance to the request.
-     * @see #rawGet(String)
-     */
-    ResponseHandler<?> rawGet(final Object body);
-
-    <T> ResponseHandler<T> get(Object body, Class<T> responseType);
-
-    /**
-     * Invoke HTTP GET method for the current request
-     *
-     * @param httpEntity httpEntity
-     * @return the ResponseHandler instance to the request.
-     * @see #request(HttpMethod, HttpEntity)
-     */
-    default Response get(final HttpEntity httpEntity) {
-        return request(HttpMethod.GET, httpEntity);
-    }
-
-    default <T> ResponseHandler<T> get(final HttpEntity httpEntity, Class<T> responseType) {
-        return request(HttpMethod.GET, httpEntity, responseType);
-    }
-
-    default <T> ResponseHandler<T> get(final HttpEntity httpEntity, TypeReference<T> responseType) {
-        return request(HttpMethod.GET, httpEntity, responseType);
-    }
-
-    default <T> ResponseHandler<T> get(final String payload, Class<T> responseType) {
-        return request(HttpMethod.GET, payload, responseType);
-    }
-
-    default <T> ResponseHandler<T> get(final String payload, TypeReference<T> responseType) {
-        return request(HttpMethod.GET, payload, responseType);
-    }
-
-    <T> ResponseHandler<T> get(final Object body, TypeReference<T> responseType);
 
     default <T> ResponseHandler<T> get(Class<T> responseType) {
         return request(HttpMethod.GET, responseType);
@@ -609,12 +551,6 @@ public interface WebTarget {
     default <T> ResponseHandler<T> get(TypeReference<T> responseType) {
         return request(HttpMethod.GET, responseType);
     }
-
-    default Response get(final String payload) {
-        return request(HttpMethod.GET, payload);
-    }
-
-    Response get(final Object body);
 
     default Response put() {
         return request(HttpMethod.PUT);
@@ -770,72 +706,6 @@ public interface WebTarget {
 
     default ResponseHandler<?> rawHead() {
         return rawRequest(HttpMethod.HEAD);
-    }
-
-    /**
-     * Invoke HTTP HEAD method for the current request
-     *
-     * @return the ResponseHandler instance to the request.
-     * @see #rawRequest(HttpMethod, HttpEntity)
-     */
-    default ResponseHandler<?> rawHead(final HttpEntity httpEntity) {
-        return rawRequest(HttpMethod.HEAD, httpEntity);
-    }
-
-    /**
-     * Invoke HTTP HEAD method for the current request
-     *
-     * @return the ResponseHandler instance to the request.
-     * @see #rawRequest(HttpMethod, String)
-     */
-    default ResponseHandler<?> rawHead(final String payload) {
-        return rawRequest(HttpMethod.HEAD, payload);
-    }
-
-    /**
-     * The same as {@link #rawHead(String)} with serializing body depends on a Content-type into String {@code payload}
-     *
-     * @return the ResponseHandler instance to the request.
-     * @see #rawHead(String)
-     */
-    ResponseHandler<?> rawHead(final Object body);
-
-    default Response head(final HttpEntity httpEntity) {
-        return request(HttpMethod.HEAD, httpEntity);
-    }
-
-    default <T> ResponseHandler<T> head(final HttpEntity httpEntity, Class<T> responseType) {
-        return request(HttpMethod.HEAD, httpEntity, responseType);
-    }
-
-    default <T> ResponseHandler<T> head(final HttpEntity httpEntity, TypeReference<T> responseType) {
-        return request(HttpMethod.HEAD, httpEntity, responseType);
-    }
-
-    default <T> ResponseHandler<T> head(final String payload, Class<T> responseType) {
-        return request(HttpMethod.HEAD, payload, responseType);
-    }
-
-    <T> ResponseHandler<T> head(final Object body, Class<T> responseType);
-
-    default <T> ResponseHandler<T> head(final String payload, TypeReference<T> responseType) {
-        return request(HttpMethod.HEAD, payload, responseType);
-    }
-
-    <T> ResponseHandler<T> head(final Object body, TypeReference<T> responseType);
-
-    default Response head(final String payload) {
-        return request(HttpMethod.HEAD, payload);
-    }
-
-    Response head(final Object body);
-
-    default <T> ResponseHandler<T> head(Class<T> responseType) {
-        return request(HttpMethod.HEAD, responseType);
-    }
-
-    default <T> ResponseHandler<T> head(TypeReference<T> responseType) {
-        return request(HttpMethod.HEAD, responseType);
     }
 
     default Response delete() {
@@ -1067,36 +937,6 @@ public interface WebTarget {
     default ResponseHandler<?> rawTrace() {
         return rawRequest(HttpMethod.TRACE);
     }
-
-    default Response trace(final HttpEntity httpEntity) {
-        return request(HttpMethod.TRACE, httpEntity);
-    }
-
-    default <T> ResponseHandler<T> trace(final HttpEntity httpEntity, Class<T> responseType) {
-        return request(HttpMethod.TRACE, httpEntity, responseType);
-    }
-
-    default <T> ResponseHandler<T> trace(final HttpEntity httpEntity, TypeReference<T> responseType) {
-        return request(HttpMethod.TRACE, httpEntity, responseType);
-    }
-
-    default <T> ResponseHandler<T> trace(final String payload, Class<T> responseType) {
-        return request(HttpMethod.TRACE, payload, responseType);
-    }
-
-    <T> ResponseHandler<T> trace(final Object body, Class<T> responseType);
-
-    default <T> ResponseHandler<T> trace(final String payload, TypeReference<T> responseType) {
-        return request(HttpMethod.TRACE, payload, responseType);
-    }
-
-    <T> ResponseHandler<T> trace(final Object body, TypeReference<T> responseType);
-
-    default Response trace(final String payload) {
-        return request(HttpMethod.TRACE, payload);
-    }
-
-    Response trace(final Object body);
 
     default <T> ResponseHandler<T> trace(Class<T> responseType) {
         return request(HttpMethod.TRACE, responseType);

@@ -266,26 +266,6 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
-    public ResponseHandler<?> rawGet(Object body) {
-        return rawGet(parsePayloadBody(body));
-    }
-
-    @Override
-    public <T> ResponseHandler<T> get(Object body, Class<T> responseType) {
-        return get(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public <T> ResponseHandler<T> get(Object body, TypeReference<T> responseType) {
-        return get(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public Response get(Object body) {
-        return get(parsePayloadBody(body));
-    }
-
-    @Override
     public ResponseHandler<?> rawPut(Object body) {
         return rawPut(parsePayloadBody(body));
     }
@@ -323,26 +303,6 @@ class BasicWebTarget implements WebTarget {
     @Override
     public Response post(Object body) {
         return post(parsePayloadBody(body));
-    }
-
-    @Override
-    public ResponseHandler<?> rawHead(Object body) {
-        return rawHead(parsePayloadBody(body));
-    }
-
-    @Override
-    public <T> ResponseHandler<T> head(Object body, Class<T> responseType) {
-        return head(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public <T> ResponseHandler<T> head(Object body, TypeReference<T> responseType) {
-        return head(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public Response head(Object body) {
-        return head(parsePayloadBody(body));
     }
 
     @Override
@@ -403,21 +363,6 @@ class BasicWebTarget implements WebTarget {
     @Override
     public Response patch(Object body) {
         return patch(parsePayloadBody(body));
-    }
-
-    @Override
-    public <T> ResponseHandler<T> trace(Object body, Class<T> responseType) {
-        return trace(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public <T> ResponseHandler<T> trace(Object body, TypeReference<T> responseType) {
-        return trace(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public Response trace(Object body) {
-        return trace(parsePayloadBody(body));
     }
 
     @Override
