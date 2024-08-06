@@ -36,3 +36,9 @@ Rename anywhere `getAllHeaders` method by `getHeaders`.
 Methods `getStatusCode` of classes `Response` and `ResponseHandler` become deprecated use `getCode` instead.
 
 When building http client by `ClientBuilder` the default connect timeout increased from 5 to 10 seconds.
+
+# 3.3.x
+
+Remove methods with explicit body that typically do not include a body e.g `WebTarget.get(String)`, `WebTarget.head(String)`
+
+Support with `WebTarget.request(HttpMethod, HttpEntity)` still present.
