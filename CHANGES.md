@@ -35,10 +35,17 @@ The `ResponseBodyReaderContext` become generic.
 
 The `path` method of `WebTarget` now adds path to existed path instead of replacing, for replace use `setPath` method.
 
-# 2.2.1
-
-Starting with 2.2.1 can be used immutable web target. `HttpRequest.immutableTarget(uri)`
-
 # 2.2.2
 
 Headers are available from `ResponseHandler`
+
+# 3.3.x
+
+* Starting with 3.3.0 can be used immutable web target. `HttpRequest.immutableTarget(uri)`
+
+
+* Now request methods supported an auto-serializing object to body for content types `application/json`
+  and `application/xml`
+
+
+* Added `ResponseHandler.recuiredGet()` method.

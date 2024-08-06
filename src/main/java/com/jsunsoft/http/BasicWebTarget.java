@@ -26,6 +26,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.HeaderGroup;
 import org.apache.http.util.EntityUtils;
@@ -40,6 +41,7 @@ import java.nio.charset.Charset;
 import java.util.Collection;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.http.HttpStatus.*;
 
 class BasicWebTarget implements WebTarget {
@@ -146,6 +148,8 @@ class BasicWebTarget implements WebTarget {
         HttpUriRequest request = resolveRequest(method);
 
         URI uri = resolveRequestURI(request);
+
+        LOGGER.trace("Executing request: {}", httpUriRequestBuilder);
 
         try {
             return new BasicResponse(closeableHttpClient.execute(request), responseBodyReaderConfig, request.getURI());
@@ -412,13 +416,45 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
+    public <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
+        logRequestBody(method, payload);
+
+        return request(method, new StringEntity(payload, UTF_8), responseType);
+    }
+
+    @Override
     public <T> ResponseHandler<T> request(HttpMethod method, Object body, Class<T> responseType) {
         return request(method, parsePayloadBody(body), responseType);
     }
 
     @Override
+    public <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
+        logRequestBody(method, payload);
+
+        return request(method, new StringEntity(payload, UTF_8), responseType);
+    }
+
+    @Override
     public <T> ResponseHandler<T> request(HttpMethod method, Object body, TypeReference<T> responseType) {
         return request(method, parsePayloadBody(body), responseType);
+    }
+
+    @Override
+    public Response request(final HttpMethod method, final String payload) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+
+        logRequestBody(method, payload);
+
+        return request(method, new StringEntity(payload, UTF_8));
     }
 
     @Override
@@ -468,6 +504,8 @@ class BasicWebTarget implements WebTarget {
 
         String mimeType = contentTypeHeader != null ? ContentType.parse(contentTypeHeader.getValue()).getMimeType() : null;
 
+        LOGGER.trace("Serializing body based on mime type: [{}] body object: {}", mimeType, body);
+
         ObjectMapper mapper;
 
         if (ContentType.APPLICATION_JSON.getMimeType().equals(mimeType)) {
@@ -485,5 +523,13 @@ class BasicWebTarget implements WebTarget {
         } catch (JsonProcessingException e) {
             throw new RequestException("Serialization of request body failed.", e);
         }
+    }
+
+    private void logRequestBody(HttpMethod method, final String payload) {
+        LOGGER.atDebug()
+                .addArgument(this::getURIString)
+                .addArgument(method)
+                .addArgument(payload)
+                .log("Requesting to: [{}] with HTTP method: [{}] and body: {}");
     }
 }

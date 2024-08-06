@@ -272,13 +272,7 @@ public interface WebTarget {
      * @param <T>          response entity type
      * @return ResponseHandler instance
      */
-    default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
-        ArgsCheck.notNull(method, "method");
-        ArgsCheck.notNull(payload, "payload");
-        ArgsCheck.notNull(payload, "responseType");
-
-        return request(method, new StringEntity(payload, UTF_8), responseType);
-    }
+    <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType);
 
     /**
      * The same as {@link #request(HttpMethod, String, Class)} with serializing body depends on a Content-type into String {@code payload}
@@ -291,22 +285,11 @@ public interface WebTarget {
      */
     <T> ResponseHandler<T> request(final HttpMethod method, final Object body, Class<T> responseType);
 
-    default <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType) {
-        ArgsCheck.notNull(method, "method");
-        ArgsCheck.notNull(payload, "payload");
-        ArgsCheck.notNull(payload, "responseType");
-
-        return request(method, new StringEntity(payload, UTF_8), responseType);
-    }
+    <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType);
 
     <T> ResponseHandler<T> request(final HttpMethod method, final Object body, TypeReference<T> responseType);
 
-    default Response request(final HttpMethod method, final String payload) {
-        ArgsCheck.notNull(method, "method");
-        ArgsCheck.notNull(payload, "payload");
-
-        return request(method, new StringEntity(payload, UTF_8));
-    }
+    Response request(final HttpMethod method, final String payload);
 
     Response request(final HttpMethod method, final Object body);
 
