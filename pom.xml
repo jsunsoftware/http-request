@@ -22,7 +22,7 @@
 
     <groupId>com.jsunsoft.http</groupId>
     <artifactId>http-request</artifactId>
-    <version>3.3.0-rc3</version>
+    <version>3.3.0</version>
     <packaging>jar</packaging>
 
     <name>http-request</name>
