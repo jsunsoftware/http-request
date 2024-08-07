@@ -26,6 +26,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.routing.RoutingSupport;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.net.URIBuilder;
@@ -40,6 +41,7 @@ import java.nio.charset.Charset;
 import java.util.Collection;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.hc.core5.http.HttpStatus.*;
 
 class BasicWebTarget implements WebTarget {
@@ -147,6 +149,8 @@ class BasicWebTarget implements WebTarget {
 
         URI uri = resolveRequestURI(request);
 
+        LOGGER.trace("Executing request: {}", httpUriRequestBuilder);
+
         try {
             HttpHost httpHost = resolveHttpHost(request);
 
@@ -200,6 +204,7 @@ class BasicWebTarget implements WebTarget {
 
             int statusCode = response.getCode();
             HttpEntity httpEntity = response.getEntity();
+
             LOGGER.info("Response code from uri: [{}] is {}", response.getURI(), statusCode);
 
             boolean hasBody = HttpRequestUtils.hasBody(statusCode);
@@ -276,26 +281,6 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
-    public ResponseHandler<?> rawGet(Object body) {
-        return rawGet(parsePayloadBody(body));
-    }
-
-    @Override
-    public <T> ResponseHandler<T> get(Object body, Class<T> responseType) {
-        return get(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public <T> ResponseHandler<T> get(Object body, TypeReference<T> responseType) {
-        return get(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public Response get(Object body) {
-        return get(parsePayloadBody(body));
-    }
-
-    @Override
     public ResponseHandler<?> rawPut(Object body) {
         return rawPut(parsePayloadBody(body));
     }
@@ -333,26 +318,6 @@ class BasicWebTarget implements WebTarget {
     @Override
     public Response post(Object body) {
         return post(parsePayloadBody(body));
-    }
-
-    @Override
-    public ResponseHandler<?> rawHead(Object body) {
-        return rawHead(parsePayloadBody(body));
-    }
-
-    @Override
-    public <T> ResponseHandler<T> head(Object body, Class<T> responseType) {
-        return head(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public <T> ResponseHandler<T> head(Object body, TypeReference<T> responseType) {
-        return head(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public Response head(Object body) {
-        return head(parsePayloadBody(body));
     }
 
     @Override
@@ -416,21 +381,6 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
-    public <T> ResponseHandler<T> trace(Object body, Class<T> responseType) {
-        return trace(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public <T> ResponseHandler<T> trace(Object body, TypeReference<T> responseType) {
-        return trace(parsePayloadBody(body), responseType);
-    }
-
-    @Override
-    public Response trace(Object body) {
-        return trace(parsePayloadBody(body));
-    }
-
-    @Override
     public String getURIString() {
         return uriBuilder.toString();
     }
@@ -477,13 +427,45 @@ class BasicWebTarget implements WebTarget {
     }
 
     @Override
+    public <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
+        logRequestBody(method, payload);
+
+        return request(method, new StringEntity(payload, UTF_8), responseType);
+    }
+
+    @Override
     public <T> ResponseHandler<T> request(HttpMethod method, Object body, Class<T> responseType) {
         return request(method, parsePayloadBody(body), responseType);
     }
 
     @Override
+    public <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+        ArgsCheck.notNull(payload, "responseType");
+
+        logRequestBody(method, payload);
+
+        return request(method, new StringEntity(payload, UTF_8), responseType);
+    }
+
+    @Override
     public <T> ResponseHandler<T> request(HttpMethod method, Object body, TypeReference<T> responseType) {
         return request(method, parsePayloadBody(body), responseType);
+    }
+
+    @Override
+    public Response request(final HttpMethod method, final String payload) {
+        ArgsCheck.notNull(method, "method");
+        ArgsCheck.notNull(payload, "payload");
+
+        logRequestBody(method, payload);
+
+        return request(method, new StringEntity(payload, UTF_8));
     }
 
     @Override
@@ -533,6 +515,8 @@ class BasicWebTarget implements WebTarget {
 
         String mimeType = contentTypeHeader != null ? ContentType.parse(contentTypeHeader.getValue()).getMimeType() : null;
 
+        LOGGER.trace("Serializing body based on mime type: [{}] body object: {}", mimeType, body);
+
         ObjectMapper mapper;
 
         if (ContentType.APPLICATION_JSON.getMimeType().equals(mimeType)) {
@@ -550,5 +534,13 @@ class BasicWebTarget implements WebTarget {
         } catch (JsonProcessingException e) {
             throw new RequestException("Serialization of request body failed.", e);
         }
+    }
+
+    private void logRequestBody(HttpMethod method, final String payload) {
+        LOGGER.atDebug()
+                .addArgument(this::getURIString)
+                .addArgument(method)
+                .addArgument(payload)
+                .log("Requesting to: [{}] with HTTP method: [{}] and body: {}");
     }
 }
