@@ -105,7 +105,7 @@ List<SomeType> someTypes = rh.orElse(Collections.emptyList()); //returns default
 Using lazy converting -> the Response's readEntity:
 
 ```java
-ResponseHandler<SomeType> rh=httpRequest.target(uri).path(path).request(HttpMethod.POST,payload);
+Response r=httpRequest.target(uri).path(path).request(HttpMethod.POST,payload);
 List<SomeType> someTypes = r.readEntity(new TypeReference<List<SomeType>>(){}); //see javadoc of get method
 ```
 
@@ -128,12 +128,12 @@ SomeType someType = r.readEntity(SomeType.class);
 **Perform http request read response as String**
 
 ```java
-ResponseHandler<String> rh=httpRequest.target(uri).path(path).post(payload);
+ResponseHandler<String> rh=httpRequest.target(uri).path(path).post(payload, String.class);
 String response = rh.get(); 
 ```
 
 ```java
-ResponseHandler<String> r=httpRequest.target(uri).path(path).post(payload);
+Response r=httpRequest.target(uri).path(path).post(payload);
 String response = r.readEntity(String.class);
 ```
 
@@ -145,7 +145,7 @@ ResponseHandler<SomeType> rh=httpRequest.target(uri)
         .addParameter(name,value)
         .addParameter(new NameValuePair(name,value))
         .addParameters(queryString) //queryString example "param1=param1&param2=param2"
-        .get(HttpMethod.GET,SomeType.class);
+        .get(SomeType.class);
 
 int statusCode = rh.getCode();
 SomeType someType = rh.get();
@@ -176,7 +176,7 @@ HttpRequest httpRequest=HttpRequestBuilder.create(httpClient)
         .addDefaultHeaders(someHeaderCollection)
         .addDefaultHeaders(someHeaderArray)
         .addDefaultHeader(headerName,headerValue)
-        .build()
+        .build();
 
 ```
 
@@ -223,7 +223,7 @@ CloseableHttpClient httpClient=ClientBuilder.create()
         .setMaxPoolSize(256)
         .setDefaultMaxPoolSizePerRoute(200)
         .setMaxPoolSizePerRoute(host,56)
-        .build()
+        .build();
 
 ```
 
@@ -372,7 +372,7 @@ To use from maven add this snippet to the pom.xml `dependencies` section:
 <dependency>
     <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>3.2.1</version>
+  <version>3.3.0</version>
 </dependency>
 ```
 
