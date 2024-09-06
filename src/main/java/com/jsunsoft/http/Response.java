@@ -33,9 +33,7 @@ public interface Response extends ClassicHttpResponse {
      *
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
-     *
      * @return Response entity
-     *
      * @throws ResponseBodyProcessingException when body processing failed.
      */
     <T> T readEntity(Class<T> responseType);
@@ -47,9 +45,7 @@ public interface Response extends ClassicHttpResponse {
      *
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
-     *
      * @return Response entity
-     *
      * @throws ResponseBodyProcessingException when body processing failed.
      */
     <T> T readEntity(TypeReference<T> responseType);
@@ -61,9 +57,7 @@ public interface Response extends ClassicHttpResponse {
      *
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
-     *
      * @return Response entity
-     *
      * @throws IOException                 If the stream could not be created or error occurs reading the input stream.
      * @throws ResponseBodyReaderException If Cannot deserialize content
      */
@@ -73,14 +67,12 @@ public interface Response extends ClassicHttpResponse {
     /**
      * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
      * <p>
-     * <p>
      * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     * </p>
      *
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
-     *
      * @return Response entity
-     *
      * @throws IOException                 If the stream could not be created or error occurs reading the input stream.
      * @throws ResponseBodyReaderException If Cannot deserialize content
      */
@@ -106,7 +98,6 @@ public interface Response extends ClassicHttpResponse {
 
     /**
      * @return the status code.
-     *
      * @see #getCode()
      * @deprecated use getCode instead
      */

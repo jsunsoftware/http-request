@@ -61,6 +61,8 @@ public interface WebTarget {
     /**
      * Invoke {@linkplain #request(HttpMethod, HttpContext)} with default http context
      *
+     * @param method the http method.
+     * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
      * @see #request(HttpMethod, HttpContext)
      */
     default Response request(final HttpMethod method) {
@@ -268,6 +270,12 @@ public interface WebTarget {
      */
     WebTarget addHeader(final Header header);
 
+    /**
+     * Sets the charset for the request.
+     *
+     * @param charset the charset to set.
+     * @return WebTarget instance
+     */
     WebTarget setCharset(final Charset charset);
 
     /**
@@ -292,12 +300,44 @@ public interface WebTarget {
      */
     <T> ResponseHandler<T> request(final HttpMethod method, final Object body, Class<T> responseType);
 
+    /**
+     * The same as {@link #request(HttpMethod, HttpEntity, TypeReference)} wrapped {@code payload} into {@link StringEntity}
+     *
+     * @param method       the http method.
+     * @param payload      payload
+     * @param responseType representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          response entity type
+     * @return ResponseHandler instance
+     */
     <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType);
 
+    /**
+     * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param method       the http method.
+     * @param body         payload
+     * @param responseType representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          response entity type
+     * @return ResponseHandler instance
+     */
     <T> ResponseHandler<T> request(final HttpMethod method, final Object body, TypeReference<T> responseType);
 
+    /**
+     * The same as {@link #request(HttpMethod, HttpEntity)} wrapped {@code payload} into {@link StringEntity}
+     *
+     * @param method  the http method.
+     * @param payload payload
+     * @return Response instance
+     */
     Response request(final HttpMethod method, final String payload);
 
+    /**
+     * The same as {@link #request(HttpMethod, HttpEntity)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param method the http method.
+     * @param body   payload
+     * @return Response instance
+     */
     Response request(final HttpMethod method, final Object body);
 
     /**
@@ -533,19 +573,46 @@ public interface WebTarget {
         return rawRequest(HttpMethod.GET);
     }
 
-
+    /**
+     * Invoke HTTP GET method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Class)
+     */
     default <T> ResponseHandler<T> get(Class<T> responseType) {
         return request(HttpMethod.GET, responseType);
     }
 
+    /**
+     * Invoke HTTP GET method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, TypeReference)
+     */
     default <T> ResponseHandler<T> get(TypeReference<T> responseType) {
         return request(HttpMethod.GET, responseType);
     }
 
+    /**
+     * Invoke HTTP PUT method for the current request.
+     *
+     * @return the response to the request.
+     * @see #request(HttpMethod)
+     */
     default Response put() {
         return request(HttpMethod.PUT);
     }
 
+    /**
+     * Invoke HTTP PUT method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod)
+     */
     default ResponseHandler<?> rawPut() {
         return rawRequest(HttpMethod.PUT);
     }
@@ -553,6 +620,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP PUT method for the current request
      *
+     * @param httpEntity the HttpEntity to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
@@ -563,6 +631,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP PUT method for the current request
      *
+     * @param payload the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, String)
      */
@@ -573,53 +642,165 @@ public interface WebTarget {
     /**
      * The same as {@link #rawPut(String)} with serializing body depends on a Content-type into String {@code payload}
      *
+     * @param body the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
-     * @see #rawPut(String)
+     * @see #rawRequest(HttpMethod, Object)
      */
-    ResponseHandler<?> rawPut(final Object body);
+    default ResponseHandler<?> rawPut(final Object body) {
+        return rawRequest(HttpMethod.PUT, body);
+    }
 
+    /**
+     * Invoke HTTP PUT method for the current request
+     *
+     * @param httpEntity the HttpEntity to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, HttpEntity)
+     */
     default Response put(final HttpEntity httpEntity) {
         return request(HttpMethod.PUT, httpEntity);
     }
 
+    /**
+     * Invoke HTTP PUT method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, Class)
+     */
     default <T> ResponseHandler<T> put(final HttpEntity httpEntity, Class<T> responseType) {
         return request(HttpMethod.PUT, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP PUT method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, TypeReference)
+     */
     default <T> ResponseHandler<T> put(final HttpEntity httpEntity, TypeReference<T> responseType) {
         return request(HttpMethod.PUT, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP PUT method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, Class)
+     */
     default <T> ResponseHandler<T> put(final String payload, Class<T> responseType) {
         return request(HttpMethod.PUT, payload, responseType);
     }
 
-    <T> ResponseHandler<T> put(final Object body, Class<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, Class)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, Class)
+     */
+    default <T> ResponseHandler<T> put(final Object body, Class<T> responseType) {
+        return request(HttpMethod.PUT, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP PUT method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, TypeReference)
+     */
     default <T> ResponseHandler<T> put(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.PUT, payload, responseType);
     }
 
-    <T> ResponseHandler<T> put(final Object body, TypeReference<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, TypeReference)
+     */
+    default <T> ResponseHandler<T> put(final Object body, TypeReference<T> responseType) {
+        return request(HttpMethod.PUT, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP PUT method for the current request with the given payload.
+     *
+     * @param payload the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, String)
+     */
     default Response put(final String payload) {
         return request(HttpMethod.PUT, payload);
     }
 
-    Response put(final Object body);
+    /**
+     * The same as {@link #request(HttpMethod, String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, Object)
+     */
+    default Response put(final Object body) {
+        return request(HttpMethod.PUT, body);
+    }
 
+    /**
+     * Invoke HTTP PUT method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Class)
+     */
     default <T> ResponseHandler<T> put(Class<T> responseType) {
         return request(HttpMethod.PUT, responseType);
     }
 
+    /**
+     * Invoke HTTP PUT method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, TypeReference)
+     */
     default <T> ResponseHandler<T> put(TypeReference<T> responseType) {
         return request(HttpMethod.PUT, responseType);
     }
 
+    /**
+     * Invoke HTTP POST method for the current request
+     *
+     * @return the response to the request.
+     * @see #request(HttpMethod)
+     */
     default Response post() {
         return request(HttpMethod.POST);
     }
 
+    /**
+     * Invoke HTTP POST method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod)
+     */
     default ResponseHandler<?> rawPost() {
         return rawRequest(HttpMethod.POST);
     }
@@ -627,6 +808,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP POST method for the current request
      *
+     * @param httpEntity the HttpEntity to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
@@ -637,6 +819,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP POST method for the current request
      *
+     * @param payload the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, String)
      */
@@ -647,61 +830,185 @@ public interface WebTarget {
     /**
      * The same as {@link #rawPost(String)} with serializing body depends on a Content-type into String {@code payload}
      *
+     * @param body the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawPost(String)
      */
-    ResponseHandler<?> rawPost(final Object body);
+    default ResponseHandler<?> rawPost(final Object body) {
+        return rawRequest(HttpMethod.POST, body);
+    }
 
+    /**
+     * Invoke HTTP POST method for the current request
+     *
+     * @param httpEntity the HttpEntity to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, HttpEntity)
+     */
     default Response post(final HttpEntity httpEntity) {
         return request(HttpMethod.POST, httpEntity);
     }
 
+    /**
+     * Invoke HTTP POST method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, Class)
+     */
     default <T> ResponseHandler<T> post(final HttpEntity httpEntity, Class<T> responseType) {
         return request(HttpMethod.POST, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP POST method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, TypeReference)
+     */
     default <T> ResponseHandler<T> post(final HttpEntity httpEntity, TypeReference<T> responseType) {
         return request(HttpMethod.POST, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP POST method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, Class)
+     */
     default <T> ResponseHandler<T> post(final String payload, Class<T> responseType) {
         return request(HttpMethod.POST, payload, responseType);
     }
 
-    <T> ResponseHandler<T> post(final Object body, Class<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, Class)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, Class)
+     */
+    default <T> ResponseHandler<T> post(final Object body, Class<T> responseType) {
+        return request(HttpMethod.POST, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP POST method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, TypeReference)
+     */
     default <T> ResponseHandler<T> post(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.POST, payload, responseType);
     }
 
-    <T> ResponseHandler<T> post(final Object body, TypeReference<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, TypeReference)
+     */
+    default <T> ResponseHandler<T> post(final Object body, TypeReference<T> responseType) {
+        return request(HttpMethod.POST, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP POST method for the current request with the given payload.
+     *
+     * @param payload the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, String)
+     */
     default Response post(final String payload) {
         return request(HttpMethod.POST, payload);
     }
 
-    Response post(final Object body);
+    /**
+     * The same as {@link #request(HttpMethod, String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, Object)
+     */
+    default Response post(final Object body) {
+        return request(HttpMethod.POST, body);
+    }
 
+    /**
+     * Invoke HTTP POST method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Class)
+     */
     default <T> ResponseHandler<T> post(Class<T> responseType) {
         return request(HttpMethod.POST, responseType);
     }
 
+    /**
+     * Invoke HTTP POST method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, TypeReference)
+     */
     default <T> ResponseHandler<T> post(TypeReference<T> responseType) {
         return request(HttpMethod.POST, responseType);
     }
 
+    /**
+     * Invoke HTTP HEAD method for the current request
+     *
+     * @return the response to the request.
+     * @see #request(HttpMethod)
+     */
     default Response head() {
         return request(HttpMethod.HEAD);
     }
 
+    /**
+     * Invoke HTTP HEAD method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod)
+     */
     default ResponseHandler<?> rawHead() {
         return rawRequest(HttpMethod.HEAD);
     }
 
+    /**
+     * Invoke HTTP DELETE method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod)
+     */
     default Response delete() {
         return request(HttpMethod.DELETE);
     }
 
+    /**
+     * Invoke HTTP DELETE method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod)
+     */
     default ResponseHandler<?> rawDelete() {
         return rawRequest(HttpMethod.DELETE);
     }
@@ -709,6 +1016,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP DELETE method for the current request
      *
+     * @param httpEntity the HttpEntity to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
@@ -719,6 +1027,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP DELETE method for the current request
      *
+     * @param payload the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, String)
      */
@@ -729,53 +1038,165 @@ public interface WebTarget {
     /**
      * The same as {@link #rawDelete(String)} with serializing body depends on a Content-type into String {@code payload}
      *
+     * @param body the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawDelete(String)
      */
-    ResponseHandler<?> rawDelete(final Object body);
+    default ResponseHandler<?> rawDelete(final Object body) {
+        return rawRequest(HttpMethod.DELETE, body);
+    }
 
+    /**
+     * Invoke HTTP DELETE method for the current request
+     *
+     * @param httpEntity the HttpEntity to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, HttpEntity)
+     */
     default Response delete(final HttpEntity httpEntity) {
         return request(HttpMethod.DELETE, httpEntity);
     }
 
+    /**
+     * Invoke HTTP DELETE method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, Class)
+     */
     default <T> ResponseHandler<T> delete(final HttpEntity httpEntity, Class<T> responseType) {
         return request(HttpMethod.DELETE, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP DELETE method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, TypeReference)
+     */
     default <T> ResponseHandler<T> delete(final HttpEntity httpEntity, TypeReference<T> responseType) {
         return request(HttpMethod.DELETE, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP DELETE method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, Class)
+     */
     default <T> ResponseHandler<T> delete(final String payload, Class<T> responseType) {
         return request(HttpMethod.DELETE, payload, responseType);
     }
 
-    <T> ResponseHandler<T> delete(final Object body, Class<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, Class)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, Class)
+     */
+    default <T> ResponseHandler<T> delete(final Object body, Class<T> responseType) {
+        return request(HttpMethod.DELETE, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP DELETE method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, TypeReference)
+     */
     default <T> ResponseHandler<T> delete(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.DELETE, payload, responseType);
     }
 
-    <T> ResponseHandler<T> delete(final Object body, TypeReference<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, TypeReference)
+     */
+    default <T> ResponseHandler<T> delete(final Object body, TypeReference<T> responseType) {
+        return request(HttpMethod.DELETE, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP DELETE method for the current request with the given payload.
+     *
+     * @param payload the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, String)
+     */
     default Response delete(final String payload) {
         return request(HttpMethod.DELETE, payload);
     }
 
-    Response delete(final Object body);
+    /**
+     * The same as {@link #request(HttpMethod, String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, Object)
+     */
+    default Response delete(final Object body) {
+        return request(HttpMethod.DELETE, body);
+    }
 
+    /**
+     * Invoke HTTP DELETE method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Class)
+     */
     default <T> ResponseHandler<T> delete(Class<T> responseType) {
         return request(HttpMethod.DELETE, responseType);
     }
 
+    /**
+     * Invoke HTTP DELETE method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, TypeReference)
+     */
     default <T> ResponseHandler<T> delete(TypeReference<T> responseType) {
         return request(HttpMethod.DELETE, responseType);
     }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request
+     *
+     * @return the response to the request.
+     * @see #request(HttpMethod)
+     */
     default Response options() {
         return request(HttpMethod.OPTIONS);
     }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod)
+     */
     default ResponseHandler<?> rawOptions() {
         return rawRequest(HttpMethod.OPTIONS);
     }
@@ -783,6 +1204,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP OPTIONS method for the current request
      *
+     * @param httpEntity the HttpEntity to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
@@ -793,6 +1215,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP OPTIONS method for the current request
      *
+     * @param payload the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, String)
      */
@@ -803,53 +1226,165 @@ public interface WebTarget {
     /**
      * The same as {@link #rawOptions(String)} with serializing body depends on a Content-type into String {@code payload}
      *
+     * @param body the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawOptions(String)
      */
-    ResponseHandler<?> rawOptions(final Object body);
+    default ResponseHandler<?> rawOptions(final Object body) {
+        return rawRequest(HttpMethod.OPTIONS, body);
+    }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request
+     *
+     * @param httpEntity the HttpEntity to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, HttpEntity)
+     */
     default Response options(final HttpEntity httpEntity) {
         return request(HttpMethod.OPTIONS, httpEntity);
     }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, Class)
+     */
     default <T> ResponseHandler<T> options(final HttpEntity httpEntity, Class<T> responseType) {
         return request(HttpMethod.OPTIONS, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, TypeReference)
+     */
     default <T> ResponseHandler<T> options(final HttpEntity httpEntity, TypeReference<T> responseType) {
         return request(HttpMethod.OPTIONS, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, Class)
+     */
     default <T> ResponseHandler<T> options(final String payload, Class<T> responseType) {
         return request(HttpMethod.OPTIONS, payload, responseType);
     }
 
-    <T> ResponseHandler<T> options(final Object body, Class<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, Class)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, Class)
+     */
+    default <T> ResponseHandler<T> options(final Object body, Class<T> responseType) {
+        return request(HttpMethod.OPTIONS, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, TypeReference)
+     */
     default <T> ResponseHandler<T> options(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.OPTIONS, payload, responseType);
     }
 
-    <T> ResponseHandler<T> options(final Object body, TypeReference<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, TypeReference)
+     */
+    default <T> ResponseHandler<T> options(final Object body, TypeReference<T> responseType) {
+        return request(HttpMethod.OPTIONS, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request with the given payload.
+     *
+     * @param payload the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, String)
+     */
     default Response options(final String payload) {
         return request(HttpMethod.OPTIONS, payload);
     }
 
-    Response options(final Object body);
+    /**
+     * The same as {@link #request(HttpMethod, String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, Object)
+     */
+    default Response options(final Object body) {
+        return request(HttpMethod.OPTIONS, body);
+    }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Class)
+     */
     default <T> ResponseHandler<T> options(Class<T> responseType) {
         return request(HttpMethod.OPTIONS, responseType);
     }
 
+    /**
+     * Invoke HTTP OPTIONS method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, TypeReference)
+     */
     default <T> ResponseHandler<T> options(TypeReference<T> responseType) {
         return request(HttpMethod.OPTIONS, responseType);
     }
 
+    /**
+     * Invoke HTTP PATCH method for the current request
+     *
+     * @return the response to the request.
+     * @see #request(HttpMethod)
+     */
     default Response patch() {
         return request(HttpMethod.PATCH);
     }
 
+    /**
+     * Invoke HTTP PATCH method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod)
+     */
     default ResponseHandler<?> rawPatch() {
         return rawRequest(HttpMethod.PATCH);
     }
@@ -857,6 +1392,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP PATCH method for the current request
      *
+     * @param httpEntity the HttpEntity to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
@@ -867,6 +1403,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP PATCH method for the current request
      *
+     * @param payload the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, String)
      */
@@ -877,61 +1414,189 @@ public interface WebTarget {
     /**
      * The same as {@link #rawPatch(String)} with serializing body depends on a Content-type into String {@code payload}
      *
+     * @param body the payload to be sent with the request.
      * @return the ResponseHandler instance to the request.
      * @see #rawPatch(String)
      */
-    ResponseHandler<?> rawPatch(final Object body);
+    default ResponseHandler<?> rawPatch(final Object body) {
+        return rawRequest(HttpMethod.PATCH, body);
+    }
 
+    /**
+     * Invoke HTTP PATCH method for the current request
+     *
+     * @param httpEntity the HttpEntity to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, HttpEntity)
+     */
     default Response patch(final HttpEntity httpEntity) {
         return request(HttpMethod.PATCH, httpEntity);
     }
 
+    /**
+     * Invoke HTTP PATCH method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, Class)
+     */
     default <T> ResponseHandler<T> patch(final HttpEntity httpEntity, Class<T> responseType) {
         return request(HttpMethod.PATCH, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP PATCH method for the current request with the given HttpEntity and response type.
+     *
+     * @param httpEntity   the HttpEntity to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, HttpEntity, TypeReference)
+     */
     default <T> ResponseHandler<T> patch(final HttpEntity httpEntity, TypeReference<T> responseType) {
         return request(HttpMethod.PATCH, httpEntity, responseType);
     }
 
+    /**
+     * Invoke HTTP PATCH method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, Class)
+     */
     default <T> ResponseHandler<T> patch(final String payload, Class<T> responseType) {
         return request(HttpMethod.PATCH, payload, responseType);
     }
 
-    <T> ResponseHandler<T> patch(final Object body, Class<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, Class)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, Class)
+     */
+    default <T> ResponseHandler<T> patch(final Object body, Class<T> responseType) {
+        return request(HttpMethod.PATCH, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP PATCH method for the current request with the given payload and response type.
+     *
+     * @param payload      the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, String, TypeReference)
+     */
     default <T> ResponseHandler<T> patch(final String payload, TypeReference<T> responseType) {
         return request(HttpMethod.PATCH, payload, responseType);
     }
 
-    <T> ResponseHandler<T> patch(final Object body, TypeReference<T> responseType);
+    /**
+     * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body         the payload to be sent with the request.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Object, TypeReference)
+     */
+    default <T> ResponseHandler<T> patch(final Object body, TypeReference<T> responseType) {
+        return request(HttpMethod.PATCH, body, responseType);
+    }
 
+    /**
+     * Invoke HTTP PATCH method for the current request with the given payload.
+     *
+     * @param payload the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, String)
+     */
     default Response patch(final String payload) {
         return request(HttpMethod.PATCH, payload);
     }
 
-    Response patch(final Object body);
+    /**
+     * The same as {@link #request(HttpMethod, String)} with serializing body depends on a Content-type into String {@code payload}
+     *
+     * @param body the payload to be sent with the request.
+     * @return the response to the request.
+     * @see #request(HttpMethod, Object)
+     */
+    default Response patch(final Object body) {
+        return request(HttpMethod.PATCH, body);
+    }
 
+    /**
+     * Invoke HTTP PATCH method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, Class)
+     */
     default <T> ResponseHandler<T> patch(Class<T> responseType) {
         return request(HttpMethod.PATCH, responseType);
     }
 
+    /**
+     * Invoke HTTP PATCH method for the current request and return a ResponseHandler instance.
+     *
+     * @param <T>          the response entity type.
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @return the ResponseHandler instance to the request.
+     * @see #request(HttpMethod, TypeReference)
+     */
     default <T> ResponseHandler<T> patch(TypeReference<T> responseType) {
         return request(HttpMethod.PATCH, responseType);
     }
 
+    /**
+     * Invoke HTTP TRACE method for the current request
+     *
+     * @return the response to the request.
+     * @see #request(HttpMethod)
+     */
     default Response trace() {
         return request(HttpMethod.TRACE);
     }
 
+    /**
+     * Invoke HTTP TRACE method for the current request
+     *
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod)
+     */
     default ResponseHandler<?> rawTrace() {
         return rawRequest(HttpMethod.TRACE);
     }
 
+    /**
+     * Invoke HTTP TRACE method for the current request
+     *
+     * @param responseType the Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, HttpEntity)
+     */
     default <T> ResponseHandler<T> trace(Class<T> responseType) {
         return request(HttpMethod.TRACE, responseType);
     }
 
+    /**
+     * Invoke HTTP TRACE method for the current request
+     *
+     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param <T>          the response entity type.
+     * @return the ResponseHandler instance to the request.
+     * @see #rawRequest(HttpMethod, String)
+     */
     default <T> ResponseHandler<T> trace(TypeReference<T> responseType) {
         return request(HttpMethod.TRACE, responseType);
     }

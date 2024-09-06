@@ -27,7 +27,6 @@ import java.net.URI;
  */
 public interface HttpRequest {
 
-
     /**
      * Build a new web resource target.
      *
@@ -52,6 +51,8 @@ public interface HttpRequest {
     WebTarget target(String uri);
 
     /**
+     * Build a new retryable web resource target.
+     *
      * @param uri          web resource URI. Must not be {@code null}.
      * @param retryContext retryContext. Must not be {@code null}.
      *
@@ -63,6 +64,8 @@ public interface HttpRequest {
     WebTarget retryableTarget(URI uri, RetryContext retryContext);
 
     /**
+     * Build a new retryable web resource target.
+     *
      * @param uri          The string to be parsed into a URI
      * @param retryContext retryContext. Must not be {@code null}.
      *
@@ -74,8 +77,9 @@ public interface HttpRequest {
     @Beta
     WebTarget retryableTarget(String uri, RetryContext retryContext);
 
-
     /**
+     * Build a new immutable web resource target.
+     *
      * @param uri web resource URI. Must not be {@code null}.
      *
      * @return Immutable WebTarget instance. Can be shared between threads.
@@ -85,6 +89,8 @@ public interface HttpRequest {
     WebTarget immutableTarget(URI uri);
 
     /**
+     * Build a new immutable web resource target.
+     *
      * @param uri The string to be parsed into a URI
      *
      * @return Immutable WebTarget instance. Can be shared between threads.
