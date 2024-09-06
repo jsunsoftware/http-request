@@ -56,11 +56,11 @@ import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 
 
 /**
- * Builder for {@link CloseableHttpClient}.
+ * Builder for {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient}.
  * <p>
  * HttpClients are heavy-weight objects that manage the client-side communication infrastructure.
- * Initialization as well as disposal of a {@link CloseableHttpClient} instance may be a rather expensive operation.
- * It is therefore advised to construct only a small number of {@link CloseableHttpClient} instances in the application.
+ * Initialization as well as disposal of a {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient} instance may be a rather expensive operation.
+ * It is therefore advised to construct only a small number of {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient} instances in the application.
  */
 public class ClientBuilder {
     private final RequestConfig.Builder defaultRequestConfigBuilder = RequestConfig.custom()
@@ -101,7 +101,7 @@ public class ClientBuilder {
      *
      * @param connectTimeout The Connection Timeout (http.connection.timeout) – the time to establish the connection with the remote host.
      * @return ClientBuilder instance
-     * @see ConnectionConfig.Builder#setConnectTimeout(Timeout)
+     * @see org.apache.hc.client5.http.config.ConnectionConfig.Builder#setConnectTimeout(Timeout)
      */
     public ClientBuilder setConnectTimeout(Timeout connectTimeout) {
         defaultConnectionConfigBuilder.setConnectTimeout(connectTimeout);
@@ -109,6 +109,8 @@ public class ClientBuilder {
     }
 
     /**
+     * @param connectTimeout The Connection Timeout (http.connection.timeout) in milliseconds – to establish the connection with the remote host.
+     * @return ClientBuilder instance
      * @see #setConnectTimeout(Timeout)
      */
     public ClientBuilder setConnectTimeout(int connectTimeout) {
@@ -133,7 +135,7 @@ public class ClientBuilder {
      *
      * @param responseTimeout The timeout waiting for data – after the connection was established.
      * @return ClientBuilder instance
-     * @see RequestConfig.Builder#setResponseTimeout(Timeout)
+     * @see org.apache.hc.client5.http.config.RequestConfig.Builder#setResponseTimeout(Timeout)
      */
     public ClientBuilder setResponseTimeout(Timeout responseTimeout) {
         defaultRequestConfigBuilder.setResponseTimeout(responseTimeout);
@@ -141,6 +143,8 @@ public class ClientBuilder {
     }
 
     /**
+     * @param responseTimeout The timeout in milliseconds waiting for data – after the connection was established.
+     * @return ClientBuilder instance
      * @see #setResponseTimeout(Timeout)
      */
     public ClientBuilder setResponseTimeout(int responseTimeout) {
@@ -164,7 +168,7 @@ public class ClientBuilder {
      * @param connectionRequestTimeout The Connection Manager Timeout (http.connection-manager.timeout) –
      *                                 the time to wait for a connection from the connection manager/pool.
      * @return ClientBuilder instance
-     * @see RequestConfig.Builder#setConnectionRequestTimeout
+     * @see org.apache.hc.client5.http.config.RequestConfig.Builder#setConnectionRequestTimeout
      * @see #addDefaultRequestConfigCustomizer
      */
     public ClientBuilder setConnectionRequestTimeout(Timeout connectionRequestTimeout) {
@@ -173,6 +177,9 @@ public class ClientBuilder {
     }
 
     /**
+     * @param connectionRequestTimeout The Connection Manager Timeout (http.connection-manager.timeout) in milliseconds –
+     *                                 the time to wait for a connection from the connection manager/pool.
+     * @return ClientBuilder instance
      * @see #setConnectionRequestTimeout
      */
     public ClientBuilder setConnectionRequestTimeout(int connectionRequestTimeout) {
@@ -180,7 +187,7 @@ public class ClientBuilder {
     }
 
     /**
-     * @param defaultRequestConfigBuilderConsumer the consumer instance which provides {@link RequestConfig.Builder} to customize default request config
+     * @param defaultRequestConfigBuilderConsumer the consumer instance which provides {@link org.apache.hc.client5.http.config.RequestConfig.Builder} to customize default request config
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultRequestConfigCustomizer(Consumer<RequestConfig.Builder> defaultRequestConfigBuilderConsumer) {
@@ -207,7 +214,7 @@ public class ClientBuilder {
      * @param socketTimeOut The Socket Timeout (http.socket.timeout) – the time waiting for data – after the connection was established;
      *                      maximum time of inactivity between two data packets.
      * @return ClientBuilder instance
-     * @see ConnectionConfig.Builder#setSocketTimeout
+     * @see org.apache.hc.client5.http.config.ConnectionConfig.Builder#setSocketTimeout
      * @see #addDefaultConnectionConfigCustomizer(Consumer)
      */
     public ClientBuilder setSocketTimeout(Timeout socketTimeOut) {
@@ -216,6 +223,9 @@ public class ClientBuilder {
     }
 
     /**
+     * @param socketTimeOutMillis The Socket Timeout (http.socket.timeout) in milliseconds – the time waiting for data –
+     *                            after the connection was established;
+     * @return ClientBuilder instance
      * @see #setSocketTimeout
      */
     public ClientBuilder setSocketTimeout(int socketTimeOutMillis) {
@@ -224,7 +234,9 @@ public class ClientBuilder {
     }
 
     /**
-     * @param defaultConnectionConfigBuilderConsumer the consumer instance which provides {@link ConnectionConfig.Builder} to customize default request config
+     * @param defaultConnectionConfigBuilderConsumer the consumer instance
+     *                                               which provides
+     *                                               {@link org.apache.hc.client5.http.config.ConnectionConfig.Builder} to customize default request config
      * @return ClientBuilder instance
      */
     public ClientBuilder addDefaultConnectionConfigCustomizer(Consumer<ConnectionConfig.Builder> defaultConnectionConfigBuilderConsumer) {
@@ -236,8 +248,9 @@ public class ClientBuilder {
     }
 
     /**
-     * The method takes the {@link Consumer} instance which gives the {@link HttpClientBuilder} instance to customize
-     * the {@link CloseableHttpClient} before the http-request is built
+     * The method takes the {@link java.util.function.Consumer} instance
+     * which gives the {@link org.apache.hc.client5.http.impl.classic.HttpClientBuilder} instance to customize
+     * the {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient} before the http-request is built
      *
      * @param httpClientCustomizer consumer instance
      * @return ClientBuilder instance
@@ -251,7 +264,7 @@ public class ClientBuilder {
     }
 
     /**
-     * @param maxPoolSize see documentation of {@link HostPoolConfig#setMaxPoolSize(int)}
+     * @param maxPoolSize see documentation of {@link com.jsunsoft.http.HostPoolConfig#setMaxPoolSize(int)}
      * @return ClientBuilder instance
      */
     public ClientBuilder setMaxPoolSize(int maxPoolSize) {
@@ -260,7 +273,7 @@ public class ClientBuilder {
     }
 
     /**
-     * @param defaultMaxPoolSizePerRoute see documentation of {@link HostPoolConfig#setDefaultMaxPoolSizePerRoute(int)}
+     * @param defaultMaxPoolSizePerRoute see documentation of {@link com.jsunsoft.http.HostPoolConfig#setDefaultMaxPoolSizePerRoute(int)}
      * @return ClientBuilder instance
      */
     public ClientBuilder setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
@@ -282,7 +295,7 @@ public class ClientBuilder {
 
     /**
      * @return ClientBuilder instance
-     * @see DefaultRedirectStrategy
+     * @see org.apache.hc.client5.http.impl.DefaultRedirectStrategy
      */
     public ClientBuilder enableDefaultRedirectStrategy() {
         this.redirectStrategy = DefaultRedirectStrategy.INSTANCE;
@@ -294,7 +307,7 @@ public class ClientBuilder {
      *
      * @param redirectStrategy RedirectStrategy instance
      * @return ClientBuilder instance
-     * @see RedirectStrategy
+     * @see org.apache.hc.client5.http.protocol.RedirectStrategy
      */
     public ClientBuilder redirectStrategy(RedirectStrategy redirectStrategy) {
         this.redirectStrategy = redirectStrategy;
@@ -368,9 +381,9 @@ public class ClientBuilder {
 
     /**
      * Added proxy host. By default is null.
-     * If has proxy instance method {@link ClientBuilder#useDefaultProxy()} will be ignored
+     * If has proxy instance method {@link #useDefaultProxy()} will be ignored
      *
-     * @param proxy {@link HttpHost} instance to proxy
+     * @param proxy {@link org.apache.hc.core5.http.HttpHost} instance to proxy
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(HttpHost proxy) {
@@ -380,9 +393,9 @@ public class ClientBuilder {
 
     /**
      * Added proxy by proxyUri. By default is null.
-     * If has proxy instance method {@link ClientBuilder#useDefaultProxy()} will be ignored.
+     * If has proxy instance method {@link #useDefaultProxy()} will be ignored.
      *
-     * @param proxyUri {@link URI} instance to proxy
+     * @param proxyUri {@link java.net.URI} instance to proxy
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(URI proxyUri) {
@@ -415,7 +428,7 @@ public class ClientBuilder {
     }
 
     /**
-     * Sets {@link SSLContext}
+     * Sets {@link javax.net.ssl.SSLContext}
      *
      * @param sslContext SSLContext instance
      * @return ClientBuilder instance
@@ -428,7 +441,7 @@ public class ClientBuilder {
     }
 
     /**
-     * Sets {@link HostnameVerifier}
+     * Sets {@link javax.net.ssl.HostnameVerifier}
      *
      * @param hostnameVerifier HostnameVerifier instance
      * @return ClientBuilder instance
@@ -476,7 +489,7 @@ public class ClientBuilder {
     /**
      * Build CloseableHttpClient
      *
-     * @return {@link CloseableHttpClient} instance by build parameters
+     * @return {@link  org.apache.hc.client5.http.impl.classic.CloseableHttpClient} instance by build parameters
      */
     public CloseableHttpClient build() {
         return buildClientWithContext().getClient();

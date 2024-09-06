@@ -18,7 +18,16 @@ package com.jsunsoft.http;
 
 import java.util.Map;
 
+/**
+ * Interface representing a context for date deserialization.
+ * Provides a mapping between date types and their corresponding date patterns.
+ */
 public interface DateDeserializeContext {
 
+    /**
+     * Gets the mapping of date types to their corresponding date patterns.
+     *
+     * @return a map where the key is the date type class and the value is the date pattern string.
+     */
     Map<Class<?>, String> getDateTypeToPattern();
 }

@@ -16,9 +16,7 @@
 
 package com.jsunsoft.http;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
@@ -50,17 +48,22 @@ public class HttpRequestBuilder {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
     }
 
+    /**
+     * Creates a new instance of HttpRequestBuilder.
+     *
+     * @param closeableHttpClient the HTTP client to use
+     * @return a new instance of HttpRequestBuilder
+     */
     public static HttpRequestBuilder create(CloseableHttpClient closeableHttpClient) {
         return new HttpRequestBuilder(closeableHttpClient);
     }
 
     /**
-     * Header needs to be the same for all requests which go through the built HttpRequest
+     * Adds a default header to be included in all requests.
      *
-     * @param name  name of header. Can't be null
-     * @param value value of header
-     *
-     * @return HttpRequestBuilder instance
+     * @param name  the name of the header
+     * @param value the value of the header
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultHeader(String name, String value) {
         ArgsCheck.notNull(name, "name");
@@ -68,11 +71,10 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Header needs to be the same for all requests which go through the built HttpRequest
+     * Adds a default header to be included in all requests.
      *
-     * @param header header instance. Can't be null
-     *
-     * @return HttpRequestBuilder instance
+     * @param header the header to add
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultHeader(Header header) {
         ArgsCheck.notNull(header, "header");
@@ -85,11 +87,10 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Headers need to be the same for all requests which go through the built HttpRequest
+     * Adds multiple default headers to be included in all requests.
      *
-     * @param headers varargs of headers
-     *
-     * @return HttpRequestBuilder instance
+     * @param headers the headers to add
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultHeaders(Header... headers) {
         ArgsCheck.notNull(headers, "headers");
@@ -99,11 +100,10 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Headers need to be the same for all requests which go through the built HttpRequest
+     * Adds multiple default headers to be included in all requests.
      *
-     * @param headers collections of headers
-     *
-     * @return HttpRequestBuilder instance
+     * @param headers the headers to add
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultHeaders(Collection<? extends Header> headers) {
         ArgsCheck.notNull(headers, "headers");
@@ -113,23 +113,21 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Sets content type to header
+     * Sets the content type header for all requests.
      *
-     * @param contentType content type of request header
-     *
-     * @return HttpRequestBuilder instance
+     * @param contentType the content type to set
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addContentType(ContentType contentType) {
         return addDefaultHeader(CONTENT_TYPE, contentType.toString());
     }
 
     /**
-     * Parameter needs to be add  for all requests which go through the built HttpRequest
+     * Adds a default request parameter to be included in all requests.
      *
-     * @param name  key
-     * @param value value
-     *
-     * @return HttpRequestBuilder instance
+     * @param name  the name of the parameter
+     * @param value the value of the parameter
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultRequestParameter(String name, String value) {
         ArgsCheck.notNull(name, "name");
@@ -137,11 +135,10 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Parameters need to be add  for all requests which go through the built HttpRequest
+     * Adds multiple default request parameters to be included in all requests.
      *
-     * @param nameValues nameValues
-     *
-     * @return HttpRequestBuilder instance
+     * @param nameValues the parameters to add
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultRequestParameter(NameValuePair... nameValues) {
         int nameValuesLength = ArgsCheck.notNull(nameValues, "nameValues").length;
@@ -151,13 +148,11 @@ public class HttpRequestBuilder {
         return this;
     }
 
-
     /**
-     * Parameter needs to be add  for all requests which go through the built HttpRequest
+     * Adds a default request parameter to be included in all requests.
      *
-     * @param nameValuePair nameValuePair
-     *
-     * @return HttpRequestBuilder instance
+     * @param nameValuePair the parameter to add
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultRequestParameter(NameValuePair nameValuePair) {
         ArgsCheck.notNull(nameValuePair, "nameValuePair");
@@ -170,11 +165,10 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Parameters needs to be add  for all requests which go through the built HttpRequest
+     * Adds multiple default request parameters to be included in all requests.
      *
-     * @param defaultParameters defaultParameters
-     *
-     * @return HttpRequestBuilder instance
+     * @param defaultParameters the parameters to add
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultRequestParameter(Map<String, String> defaultParameters) {
         ArgsCheck.notNull(defaultParameters, "defaultParameters");
@@ -187,11 +181,10 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Parameters needs to be add  for all requests which go through the built HttpRequest
+     * Adds multiple default request parameters to be included in all requests.
      *
-     * @param defaultRequestParameters defaultRequestParameters
-     *
-     * @return HttpRequestBuilder instance
+     * @param defaultRequestParameters the parameters to add
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultRequestParameter(Collection<? extends NameValuePair> defaultRequestParameters) {
         ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters");
@@ -204,104 +197,90 @@ public class HttpRequestBuilder {
         return this;
     }
 
+    /**
+     * Adds a response body reader.
+     *
+     * @param responseBodyReader the response body reader to add
+     * @return the current instance of HttpRequestBuilder
+     */
     public HttpRequestBuilder addBodyReader(ResponseBodyReader<?> responseBodyReader) {
-
         responseBodyReaderConfigBuilder.addResponseBodyReader(responseBodyReader);
-
         return this;
     }
 
+    /**
+     * Sets the default response body reader.
+     *
+     * @param defaultResponseBodyReader the default response body reader to set
+     * @return the current instance of HttpRequestBuilder
+     */
     public HttpRequestBuilder setDefaultResponseBodyReader(ResponseBodyReader<?> defaultResponseBodyReader) {
         responseBodyReaderConfigBuilder.setDefaultResponseBodyReader(defaultResponseBodyReader);
-
         return this;
     }
 
+    /**
+     * Enables the default body reader.
+     *
+     * @return the current instance of HttpRequestBuilder
+     */
     public HttpRequestBuilder enableDefaultBodyReader() {
         responseBodyReaderConfigBuilder.setUseDefaultBodyReader(true);
         return this;
     }
 
+    /**
+     * Disables the default body reader.
+     *
+     * @return the current instance of HttpRequestBuilder
+     */
     public HttpRequestBuilder disableDefaultBodyReader() {
         responseBodyReaderConfigBuilder.setUseDefaultBodyReader(false);
         return this;
     }
 
     /**
-     * Method defines by which pattern dates must be deserialized when default deserializer used.
-     * For example, you can do
-     * <pre>
-     *    httpRequestBuilder.addDateDeserializationPattern(LocalDateTime.class, "yyyy-MM-dd");
-     * </pre>
+     * Adds a date deserialization pattern for the default deserializer.
      *
-     * <p>
-     * Note: if methods {@link #setDefaultJsonMapper(ObjectMapper)} or {@link #setDefaultXmlMapper(ObjectMapper)} called
-     * result of this method will be ignored for that type of response.
-     * </p>
-     * <p>
-     * Default patterns are { LocalTime - HH:mm:ss, LocalDate - dd/MM/yyyy, LocalDateTime - dd/MM/yyyy HH:mm:ss}
-     * </p>
-     *
-     * @param dateType date type e.g {@code LocalDateTime.class}
-     * @param pattern  pattern by which date with given type must be deserialized
-     *
-     * @return HttpRequestBuilder instance
-     *
-     * @see com.fasterxml.jackson.databind.ObjectMapper#configOverride(Class)
-     * @see com.fasterxml.jackson.databind.cfg.MutableConfigOverride#setFormat(JsonFormat.Value)
+     * @param dateType the date type
+     * @param pattern  the pattern to use for deserialization
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addDefaultDateDeserializationPattern(Class<?> dateType, String pattern) {
         responseBodyReaderConfigBuilder.addDateDeserializationPattern(dateType, pattern);
-
         return this;
     }
 
     /**
-     * Set object mapper for default response body deserialization when response content type is {@link ContentType#APPLICATION_JSON}
+     * Sets the default JSON mapper for response body deserialization.
      *
-     * <p>
-     * </p>
-     * <p>
-     * Note: if this method called the result of addDefaultDateDeserializationPattern will be ignored for {@link ContentType#APPLICATION_JSON}.
-     * </p>
-     *
-     * @param defaultJsonMapper the ObjectMapper instance
-     *
-     * @return HttpRequestBuilder instance
+     * @param defaultJsonMapper the JSON mapper to set
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder setDefaultJsonMapper(ObjectMapper defaultJsonMapper) {
         requestBodySerializeConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
         responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
-
         return this;
     }
 
     /**
-     * Set object mapper for default response body deserialization when response content type is {@link ContentType#APPLICATION_XML}
+     * Sets the default XML mapper for response body deserialization.
      *
-     * @param defaultXmlMapper Mainly the {@link XmlMapper} instance
-     *
-     * @return HttpRequestBuilder instance
-     *
-     * <p>
-     * Note: if this method called the result of addDefaultDateDeserializationPattern will be ignored for {@link ContentType#APPLICATION_XML}.
-     * </p>
+     * @param defaultXmlMapper the XML mapper to set
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder setDefaultXmlMapper(ObjectMapper defaultXmlMapper) {
         requestBodySerializeConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
         responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
-
         return this;
     }
 
-
     /**
-     * Basic Authentication - sending the Authorization header.
+     * Adds basic authentication to the request.
      *
-     * @param username username
-     * @param password password
-     *
-     * @return ClientBuilder instance
+     * @param username the username
+     * @param password the password
+     * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder basicAuth(String username, String password) {
         String auth = username + ":" + password;
@@ -311,9 +290,9 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Build the HttpRequest instance
+     * Builds the HttpRequest instance.
      *
-     * @return HttpRequest instance
+     * @return the HttpRequest instance
      */
     public HttpRequest build() {
         if (defaultHeaders == null) {

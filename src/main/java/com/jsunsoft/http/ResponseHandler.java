@@ -37,11 +37,15 @@ import java.util.function.Supplier;
  */
 public interface ResponseHandler<T> {
     /**
+     * Checks if the content is present.
+     *
      * @return {@code true} If content is present else {@code false}
      */
     boolean hasContent();
 
     /**
+     * Checks if the content is not present.
+     *
      * @return {@code true} If hasn't content else {@code false}
      */
     default boolean hasNotContent() {
@@ -49,8 +53,9 @@ public interface ResponseHandler<T> {
     }
 
     /**
-     * @return the status code
+     * Gets the status code.
      *
+     * @return the status code
      * @deprecated use {@link #getCode()} instead.
      */
     @Deprecated
@@ -66,76 +71,83 @@ public interface ResponseHandler<T> {
     int getCode();
 
     /**
+     * Gets the deserialized content from the response or returns a default value if content isn't present.
+     *
      * @param defaultValue value to return if content isn't present
-     *
      * @return Deserialized Content from response. If content isn't present returns defaultValue.
-     *
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T orElse(T defaultValue);
 
     /**
+     * Gets the deserialized content from the response or defaultValue
+     * and throws an exception if the status code is not successful.
+     *
      * @param defaultValue value to return if status code is success and hasn't body
-     *
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
-     *
      * @throws UnexpectedStatusCodeException If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T orElseThrow(T defaultValue);
 
     /**
+     * Gets the deserialized content from the response or throws an exception provided by the exception function if the status code is not successful.
+     *
      * @param exceptionFunction Instance of type {@link Function} by parameter this which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
-     *
      * @return Deserialized content from response. If hasn't body returns {@code null}.
-     *
      * @throws X If status code isn't success.
      */
     <X extends Throwable> T orThrow(Function<ResponseHandler<? super T>, X> exceptionFunction) throws X;
 
     /**
+     * Gets the deserialized content from the response or returns a default value
+     * and throws an exception provided by the exception function if the status code is not successful.
+     *
      * @param defaultValue      Value to return if content is {@code null}
      * @param exceptionFunction Instance of type {@link Function} by parameter this which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
-     *
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
-     *
      * @throws X If status code isn't success.
      */
     <X extends Throwable> T orThrow(T defaultValue, Function<ResponseHandler<? super T>, X> exceptionFunction) throws X;
 
     /**
+     * Gets the deserialized content from the response
+     * or throws an exception provided by the exception supplier if the status code is not successful.
+     *
      * @param exceptionSupplier Instance of type {@link Supplier} which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
-     *
      * @return Deserialized content from response. If hasn't body returns {@code null}.
-     *
      * @throws X If status code isn't success.
      */
     <X extends Throwable> T getOrThrow(Supplier<X> exceptionSupplier) throws X;
 
     /**
+     * Gets the deserialized content from the response or returns a default value
+     * and throws an exception provided by the exception supplier if the status code is not successful.
+     *
      * @param defaultValue      Value to return if content is {@code null}
      * @param exceptionSupplier Instance of type {@link Supplier} which returns exception to throw if status code isn't success.
      * @param <X>               Type of the exception to be thrown
-     *
      * @return Deserialized content from response. If hasn't body returns {@code defaultValue}.
-     *
      * @throws X If status code isn't success.
      */
     <X extends Throwable> T getOrThrow(T defaultValue, Supplier<X> exceptionSupplier) throws X;
 
     /**
-     * @return Content from response. Returns null if hasn't body
+     * Gets the deserialized content from the response or throws an exception if the status code is not successful.
      *
+     * @return Content from response. Returns null if hasn't body
      * @throws UnexpectedStatusCodeException If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T orElseThrow();
 
     /**
-     * Strongly recommend call get method after check content is present.
+     * Gets the deserialized content from the response.
+     * <p>
+     * Strongly recommend calling get method after checking if content is present.
      * For example
      * <pre>
      *     if(responseHandler.hasContent()){
@@ -144,7 +156,6 @@ public interface ResponseHandler<T> {
      * </pre>
      *
      * @return Deserialized content from response.
-     *
      * @throws NoSuchContentException        If content is not present
      * @throws UnsupportedOperationException if generic type is a Void
      * @see ResponseHandler#orElse(Object)
@@ -154,6 +165,8 @@ public interface ResponseHandler<T> {
     T get();
 
     /**
+     * Gets the deserialized content from the response or throws an exception if content isn't present.
+     *
      * @return Deserialized Content from response.
      * @throws MissingResponseBodyException  If content isn't present
      * @throws UnexpectedStatusCodeException If response code is not success
@@ -162,45 +175,55 @@ public interface ResponseHandler<T> {
     T requiredGet();
 
     /**
-     * @return Deserialized Content from response as {@link Optional} instance. If content isn't present returns empty {@link Optional} instance.
+     * Gets the deserialized content from the response as an {@link Optional} instance. If content isn't present returns empty {@link Optional} instance.
      *
+     * @return Deserialized Content from response as {@link Optional} instance. If content isn't present returns empty {@link Optional} instance.
      * @throws UnsupportedOperationException if generic type is a Void
      */
     Optional<T> getAsOptional();
 
     /**
-     * @return Deserialized Content from response as {@link Optional}. If content isn't present returns empty {@link Optional}.
+     * Gets the deserialized content from the response as an {@link Optional}. If content isn't present returns empty {@link Optional}.
      *
+     * @return Deserialized Content from response as {@link Optional}. If content isn't present returns empty {@link Optional}.
      * @throws UnsupportedOperationException if generic type is a Void
      * @throws UnexpectedStatusCodeException If response code is not success
      */
     Optional<T> getAsOptionalOrThrow();
 
     /**
-     * @return Returns the error text if the connection failed but the server sent useful data nonetheless.
+     * Gets the error text if the connection failed, but the server sent useful data nonetheless.
      *
+     * @return Returns the error text if the connection failed, but the server sent useful data nonetheless.
      * @throws NoSuchElementException        If error text is not present
      * @throws UnsupportedOperationException if generic type is a Void
      */
     String getErrorText();
 
     /**
+     * Gets the connection URI.
+     *
      * @return Returns the connection URI
      */
     URI getURI();
 
-
     /**
+     * Gets the content type of the response.
+     *
      * @return Content type of response
      */
     ContentType getContentType();
 
     /**
+     * Checks if the status code is successful.
+     *
      * @return Returns <b>true</b> if status code contains [200, 300) else <b>false</b>
      */
     boolean isSuccess();
 
     /**
+     * Checks if the status code is not successful.
+     *
      * @return Returns <b>true</b> if status code isn't contains [200, 300) else <b>false</b>
      */
     default boolean isNonSuccess() {
@@ -208,58 +231,97 @@ public interface ResponseHandler<T> {
     }
 
     /**
-     * If has a content, invoke the specified consumer with the content, otherwise do nothing.
+     * If content is present, invokes the specified consumer with the content, otherwise does nothing.
      *
      * @param consumer block to be executed if has a content
-     *
      * @throws IllegalArgumentException if {@code consumer} is null
      */
     void ifHasContent(Consumer<? super T> consumer);
 
     /**
-     * If status code is success , invoke the specified consumer with the responseHandler and returns {@code OtherwiseSupport} with ignore else {@code OtherwiseSupport} with not ignore.
+     * If status code is successful, invokes the specified consumer with the responseHandler and returns {@code OtherwiseSupport} with ignore else {@code OtherwiseSupport} with not ignore.
      *
      * @param consumer block to be executed if status code is success.
-     *
      * @return OtherwiseSupport instance to support action otherwise.
-     *
      * @see OtherwiseSupport#otherwise(Consumer)
      */
     OtherwiseSupport<T> ifSuccess(Consumer<ResponseHandler<T>> consumer);
 
     /**
-     * If status code is not success , invoke the specified consumer with the responseHandler.
+     * If status code is not successful, invokes the specified consumer with the responseHandler.
      *
      * @param consumer block to be executed if status code is not success.
      */
     void ifNotSuccess(Consumer<ResponseHandler<T>> consumer);
 
+    /**
+     * Filters the response based on the given predicate.
+     *
+     * @param predicate Predicate to filter the response
+     * @return FilterSupport instance to support further filtering
+     */
     FilterSupport<T> filter(Predicate<ResponseHandler<T>> predicate);
 
+    /**
+     * Checks if the response contains a header with the given name.
+     *
+     * @param name Name of the header
+     * @return {@code true} if the header is present, {@code false} otherwise
+     */
     boolean containsHeader(String name);
 
+    /**
+     * Gets all headers with the given name.
+     *
+     * @param name Name of the header
+     * @return Array of headers with the given name
+     */
     Header[] getHeaders(String name);
 
+    /**
+     * Gets the first header with the given name.
+     *
+     * @param name Name of the header
+     * @return The first header with the given name
+     */
     Header getFirstHeader(String name);
 
+    /**
+     * Gets the last header with the given name.
+     *
+     * @param name Name of the header
+     * @return The last header with the given name
+     */
     Header getLastHeader(String name);
 
     /**
-     * @return all headers
+     * Gets all headers.
+     *
+     * @return Array of all headers
      */
     Header[] getHeaders();
 
+    /**
+     * Gets the value of the first header with the given name.
+     *
+     * @param name Name of the header
+     * @return Value of the first header with the given name, or {@code null} if not present
+     */
     @Beta
     default String getFirstHeaderValue(String name) {
         Header header = getFirstHeader(name);
-
         return header == null ? null : header.getValue();
     }
 
+    /**
+     * Gets the value of the last header with the given name.
+     *
+     * @param name Name of the header
+     * @return Value of the last header with the given name, or {@code null} if not present
+     */
     @Beta
     default String getLastHeaderValue(String name) {
         Header header = getLastHeader(name);
-
         return header == null ? null : header.getValue();
     }
 }

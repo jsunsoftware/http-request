@@ -16,6 +16,9 @@
 
 package com.jsunsoft.http;
 
+/**
+ * Exception thrown when there is an error building an HTTP request.
+ */
 @SuppressWarnings("serial")
 public class HttpRequestBuildException extends RuntimeException {
 

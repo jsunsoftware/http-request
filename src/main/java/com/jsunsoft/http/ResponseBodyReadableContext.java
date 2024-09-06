@@ -75,10 +75,16 @@ public interface ResponseBodyReadableContext {
      */
     URI getURI();
 
+    /**
+     * @return {@code true} if status code is in range [200, 300) otherwise {@code false}
+     */
     default boolean isSuccess() {
         return HttpRequestUtils.isSuccess(getStatusCode());
     }
 
+    /**
+     * @return {@code true} if status code is not in range [200, 300) otherwise {@code false}
+     */
     default boolean isNonSuccess() {
         return !isSuccess();
     }
