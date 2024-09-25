@@ -17,10 +17,12 @@
 package com.jsunsoft.http;
 
 import org.apache.hc.core5.http.HttpStatus;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class HttpRequestBasicTest {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class HttpRequestBasicTest {
 
     private static final HttpRequest HTTP_REQUEST_TO_GET_RESPONSE_CODE =
             HttpRequestBuilder.create(new ClientBuilder().build()).build();
@@ -29,34 +31,34 @@ public class HttpRequestBasicTest {
             HttpRequestBuilder.create(new ClientBuilder().build()).build();
 
     @Test
-    public void getResponseCode() {
-        Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.target("https://en.wikipedia.org/")
+    void getResponseCode() {
+        assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.target("https://en.wikipedia.org/")
                 .path("wiki/List_of_least_concern_birds")
                 .get()
                 .getCode());
     }
 
     @Test
-    public void largeResponseTest() {
+    void largeResponseTest() {
         ResponseHandler<String> responseHandler = HTTP_REQUEST_TO_GET_LARGE_RESPONSE.target("https://en.wikipedia.org/")
                 .path("wiki/List_of_least_concern_birds")
                 .get(String.class);
-        Assert.assertTrue(responseHandler.orElse("").length() > 16348);
+        assertTrue(responseHandler.orElse("").length() > 16348);
     }
 
     @Test
-    public void getResponseCodeImmutable() {
-        Assert.assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.immutableTarget("https://en.wikipedia.org/")
+    void getResponseCodeImmutable() {
+        assertEquals(HttpStatus.SC_OK, HTTP_REQUEST_TO_GET_RESPONSE_CODE.immutableTarget("https://en.wikipedia.org/")
                 .path("wiki/List_of_least_concern_birds")
                 .get()
                 .getCode());
     }
 
     @Test
-    public void largeResponseTestImmutable() {
+    void largeResponseTestImmutable() {
         ResponseHandler<String> responseHandler = HTTP_REQUEST_TO_GET_LARGE_RESPONSE.immutableTarget("https://en.wikipedia.org/")
                 .path("wiki/List_of_least_concern_birds")
                 .get(String.class);
-        Assert.assertTrue(responseHandler.orElse("").length() > 16348);
+        assertTrue(responseHandler.orElse("").length() > 16348);
     }
 }

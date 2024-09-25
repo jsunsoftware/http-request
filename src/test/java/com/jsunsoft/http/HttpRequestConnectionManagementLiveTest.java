@@ -17,18 +17,16 @@
 package com.jsunsoft.http;
 
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class HttpRequestConnectionManagementLiveTest {
+class HttpRequestConnectionManagementLiveTest {
     private static final String SERVER1 = "https://www.google.com/";
     private static final String SERVER7 = "http://www.youtube.com/";
 
     @Test
-    public final void whenConnectionsNeededGreaterThanMaxTotal_thenReuseConnections() throws InterruptedException {
+    void whenConnectionsNeededGreaterThanMaxTotal_thenReuseConnections() throws InterruptedException {
         HttpRequest httpRequest = HttpRequestBuilder.create(ClientBuilder.create().setConnectionRequestTimeout(5).build()).build();
 
         int validThreadSize = 128;
@@ -49,7 +47,7 @@ public class HttpRequestConnectionManagementLiveTest {
     }
 
     @Test
-    public final void whenTwoConnectionsForTwoRequests_thenNoExceptions() throws InterruptedException {
+    void whenTwoConnectionsForTwoRequests_thenNoExceptions() throws InterruptedException {
         HttpRequest httpRequest1 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
         HttpRequest httpRequest2 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
 
@@ -65,24 +63,24 @@ public class HttpRequestConnectionManagementLiveTest {
     }
 
     @Test
-    public final void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptions() {
+    void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptions() {
         ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
 
         BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
         httpRequest.target(SERVER1).rawGet();
-        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+        assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 
     @Test
-    public final void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptionsImmutableWebTarget() {
+    void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptionsImmutableWebTarget() {
         ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
         BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
         httpRequest.immutableTarget(SERVER1).get();
-        Assert.assertEquals(1, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+        assertEquals(1, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 
     @Test
-    public final void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeased() throws InterruptedException {
+    void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeased() throws InterruptedException {
         ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
 
         HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
@@ -95,12 +93,11 @@ public class HttpRequestConnectionManagementLiveTest {
         thread1.join();
         thread2.join(1000);
         thread3.join();
-        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+        assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 
-
     @Test
-    public final void whenConnectionsNeededGreaterThanMaxTotal_thenReuseConnectionsImmutableWebTarget() throws InterruptedException {
+    void whenConnectionsNeededGreaterThanMaxTotal_thenReuseConnectionsImmutableWebTarget() throws InterruptedException {
         HttpRequest httpRequest = HttpRequestBuilder.create(ClientBuilder.create().setConnectionRequestTimeout(5).build()).build();
 
         int validThreadSize = 128;
@@ -121,7 +118,7 @@ public class HttpRequestConnectionManagementLiveTest {
     }
 
     @Test
-    public final void whenTwoConnectionsForTwoRequests_thenNoExceptionsImmutableWebTarget() throws InterruptedException {
+    void whenTwoConnectionsForTwoRequests_thenNoExceptionsImmutableWebTarget() throws InterruptedException {
         HttpRequest httpRequest1 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
         HttpRequest httpRequest2 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
 
@@ -136,9 +133,8 @@ public class HttpRequestConnectionManagementLiveTest {
         assertTrue(thread2.getResponseHandler().getConnectionFailureType().isNotFailed());
     }
 
-
     @Test
-    public final void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeasedImmutableWebTarget() throws InterruptedException {
+    void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeasedImmutableWebTarget() throws InterruptedException {
         ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
 
         HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
@@ -151,6 +147,6 @@ public class HttpRequestConnectionManagementLiveTest {
         thread1.join();
         thread2.join(1000);
         thread3.join();
-        Assert.assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+        assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 }

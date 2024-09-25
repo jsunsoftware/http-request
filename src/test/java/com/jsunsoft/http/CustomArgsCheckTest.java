@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +14,37 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
-import org.junit.Test;
+package com.jsunsoft.http;
+
+import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
+import java.lang.reflect.Type;
 
-public class CustomArgsCheckTest {
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testCheckIsCorrectTypeForDeserializationWhenTypeIsInputStream() {
-        CustomArgsCheck.checkIsCorrectTypeForDeserialization(InputStream.class);
-    }
+class CustomArgsCheckTest {
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testCheckIsCorrectTypeForDeserializationWhenTypeIsInputStreamWithTypeReference() {
-        CustomArgsCheck.checkIsCorrectTypeForDeserialization(new TypeReference<InputStream>() {
-        }.getType());
+    @Test
+    void testCheckIsCorrectTypeForDeserializationWhenTypeIsInputStream() {
+        assertThrows(IllegalArgumentException.class, () -> CustomArgsCheck.checkIsCorrectTypeForDeserialization(InputStream.class));
     }
 
     @Test
-    public void testCheckIsCorrectTypeForDeserializationWhenTypeIsNotInputStream() {
+    void testCheckIsCorrectTypeForDeserializationWhenTypeIsInputStreamWithTypeReference() {
+        Type type = new TypeReference<InputStream>() {
+        }.getType();
+
+        assertThrows(IllegalArgumentException.class, () -> CustomArgsCheck.checkIsCorrectTypeForDeserialization(type));
+    }
+
+    @Test
+    void testCheckIsCorrectTypeForDeserializationWhenTypeIsNotInputStream() {
         CustomArgsCheck.checkIsCorrectTypeForDeserialization(Object.class);
     }
 
     @Test
-    public void testCheckIsCorrectTypeForDeserializationWhenTypeIsNotInputStreamWithTypeReference() {
+    void testCheckIsCorrectTypeForDeserializationWhenTypeIsNotInputStreamWithTypeReference() {
         CustomArgsCheck.checkIsCorrectTypeForDeserialization(Object.class);
     }
 }

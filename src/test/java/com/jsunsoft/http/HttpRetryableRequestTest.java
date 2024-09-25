@@ -1,7 +1,5 @@
-package com.jsunsoft.http;
-
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +14,24 @@ package com.jsunsoft.http;
  * limitations under the License.
  */
 
+package com.jsunsoft.http;
 
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.core5.http.HttpHeaders;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class HttpRetryableRequestTest {
-    @Rule
-    public final WireMockRule wireMockRule = new WireMockRule(8080);
+class HttpRetryableRequestTest {
+
+    @RegisterExtension
+    static WireMockExtension wireMockRule = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().port(8080))
+            .build();
 
     private final RetryContext retryContext = new RetryContext() {
         @Override
@@ -55,7 +58,7 @@ public class HttpRetryableRequestTest {
     private final HttpRequest httpRequest = HttpRequestBuilder.create(new ClientBuilder().build())
             .build();
 
-    @Before
+    @BeforeEach
     public void setup() {
         wireMockRule.stubFor(get(urlEqualTo("/header"))
                 .withHeader(HttpHeaders.AUTHORIZATION, equalTo("old header"))
@@ -71,10 +74,8 @@ public class HttpRetryableRequestTest {
     }
 
     @Test
-    public void changeHeaderOnRetry() {
-
-
-        Assert.assertEquals(
+    void changeHeaderOnRetry() {
+        assertEquals(
                 200,
                 httpRequest.retryableTarget("http://localhost:8080/header", retryContext)
                         .addHeader(HttpHeaders.AUTHORIZATION, "old header")
@@ -84,8 +85,8 @@ public class HttpRetryableRequestTest {
     }
 
     @Test
-    public void incorrectTestChangeHeaderOnRetry() {
-        Assert.assertEquals(
+    void incorrectTestChangeHeaderOnRetry() {
+        assertEquals(
                 400,
                 httpRequest.retryableTarget("http://localhost:8080/header", retryContext)
                         .addHeader(HttpHeaders.AUTHORIZATION, "not retryable")

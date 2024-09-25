@@ -22,8 +22,8 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.io.entity.BasicHttpEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.joda.time.LocalDate;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -36,7 +36,7 @@ import java.util.Map;
 
 import static com.jsunsoft.http.DefaultDateDeserializeContext.DEFAULT;
 
-public class ResponseBodyReaderTest {
+class ResponseBodyReaderTest {
 
     @Test
     public void testDeserializeResponse() throws IOException {
@@ -63,14 +63,14 @@ public class ResponseBodyReaderTest {
         );
 
         Result result = responseBodyReader.read(responseContext);
-        Assert.assertEquals(1L, result.value);
-        Assert.assertEquals("Test message", result.message);
-        Assert.assertNotNull(result.getRelations());
-        Assert.assertEquals(2, result.getRelations().size());
-        Assert.assertEquals("12345", result.getRelations().get(0).string);
-        Assert.assertEquals(new LocalDate(1993, 5, 11), result.getRelations().get(0).localDate);
-        Assert.assertEquals("54321", result.getRelations().get(1).string);
-        Assert.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
+        Assertions.assertEquals(1L, result.value);
+        Assertions.assertEquals("Test message", result.message);
+        Assertions.assertNotNull(result.getRelations());
+        Assertions.assertEquals(2, result.getRelations().size());
+        Assertions.assertEquals("12345", result.getRelations().get(0).string);
+        Assertions.assertEquals(new LocalDate(1993, 5, 11), result.getRelations().get(0).localDate);
+        Assertions.assertEquals("54321", result.getRelations().get(1).string);
+        Assertions.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
     }
 
     @Test
@@ -104,14 +104,14 @@ public class ResponseBodyReaderTest {
         );
 
         Result result = responseBodyReader.read(responseContext);
-        Assert.assertEquals(1L, result.value);
-        Assert.assertEquals("Test message", result.message);
-        Assert.assertNotNull(result.getRelations());
-        Assert.assertEquals(2, result.getRelations().size());
-        Assert.assertEquals("12345", result.getRelations().get(0).string);
-        Assert.assertEquals(new LocalDate(1993, 5, 11), result.getRelations().get(0).localDate);
-        Assert.assertEquals("54321", result.getRelations().get(1).string);
-        Assert.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
+        Assertions.assertEquals(1L, result.value);
+        Assertions.assertEquals("Test message", result.message);
+        Assertions.assertNotNull(result.getRelations());
+        Assertions.assertEquals(2, result.getRelations().size());
+        Assertions.assertEquals("12345", result.getRelations().get(0).string);
+        Assertions.assertEquals(new LocalDate(1993, 5, 11), result.getRelations().get(0).localDate);
+        Assertions.assertEquals("54321", result.getRelations().get(1).string);
+        Assertions.assertEquals(java.time.LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
     }
 
     private ResponseBodyReaderContext<Result> resolveResponseContext(String content) {
