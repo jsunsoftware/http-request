@@ -26,7 +26,7 @@ public class HttpRequestBasicTest {
             HttpRequestBuilder.create(new ClientBuilder().build()).build();
 
     @Test
-    void largeResponseTest() {
+    public void largeResponseTest() {
         ResponseHandler<String> rh = HTTP_REQUEST.target("https://en.wikipedia.org/")
                 .path("wiki/List_of_least_concern_birds")
                 .get(String.class);
