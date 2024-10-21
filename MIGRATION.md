@@ -27,6 +27,13 @@ or `disableDefaultBodyReader`
 Rename method `path` of `WebTarget` to `setPath`. The `path` method now adds path to existed path instead of replacing,
 for replace use `setPath` method.
 
+# 2.4.x
+
+Remove methods with explicit body that typically do not include a body e.g `WebTarget.get(String)`,
+`WebTarget.head(String)`
+
+Support with `WebTarget.request(HttpMethod, HttpEntity)` still present.
+
 # 3.x.x
 
 Replace all `org.apache.http` package's classes by appropriate httpclient5 classes.
