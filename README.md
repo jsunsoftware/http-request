@@ -64,7 +64,7 @@ class Demo {
 
     void request() {
         Response response = httpRequest.target("https://www.jsunsoft.com/").get();
-        int statusCode = response.getStatusCode();
+        int statusCode = response.getCode();
     }
 }
 ```
@@ -148,7 +148,7 @@ ResponseHandler<SomeType> rh=httpRequest.target(uri)
         .addParameters(queryString) //queryString example "param1=param1&param2=param2"
         .get(HttpMethod.GET,SomeType.class);
 
-int statusCode = rh.getStatusCode();
+int statusCode = rh.getCode();
 SomeType someType = rh.get();
 //or
 SomeType someType = rh.orElseThrow(); 
@@ -208,7 +208,7 @@ class Demo {
 
   void request() {
     Response response = httpRequest.target("https://www.jsunsoft.com/").get();
-    int statusCode = response.getStatusCode();
+    int statusCode = response.getCode();
     Map<String, String> responseMap = response.readEntity(new TypeReference<Map<String, String>>() {});
   }
 }
@@ -285,7 +285,7 @@ CloseableHttpClient httpClient=ClientBuilder.create()
 
         int statusCode=httpRequest.target("https://mms.nw.ru/")
         .addHeader("accept","application/json")
-        .get().getStatusCode(); // 200
+        .get().getCode(); // 200
 ```
 
 **Basic Authentication**
@@ -294,7 +294,7 @@ CloseableHttpClient httpClient=ClientBuilder.create()
 HttpRequest httpRequest=HttpRequestBuilder.create(httpClient)
         .basicAuth("username_admin","secret_password").build();
 
-        int statusCode=httpRequest.get().getStatusCode(); //200
+        int statusCode=httpRequest.get().getCode(); //200
 ```
 
 **Customize CloseableHttpClient before the http-request is built**
@@ -320,47 +320,48 @@ ClietBuilder.create()
 No try/catch, No if/else
 
 ```java
-import com.jsunsoft.http.*;
+import com.jsunsoft.http.ClientBuilder;
+import com.jsunsoft.http.ResponseHandler;
+import com.jsunsoft.http.TypeReference;
 
 import java.util.List;
 
-import org.apache.http.entity.ContentType;
 
 public class Rest {
 
-    private static final HttpRequest httpRequest =
-            HttpRequestBuilder.create(ClientBuilder.create().build())
-                    .addContentType(ContentType.APPLICATION_JSON)
-                    .build();
+  private static final HttpRequest httpRequest =
+          HttpRequestBuilder.create(ClientBuilder.create().build())
+                  .addContentType(ContentType.APPLICATION_JSON)
+                  .build();
 
-    public void send(String jsonData) {
-        httpRequest.target("https://www.jsunsoft.com/").get(jsonData, new TypeReference<java.util.List<String>>() {})
-                .ifSuccess(this::whenSuccess) //call whenSuccess method if request is success
-                .otherwise(this::whenNotSuccess); //call whenNotSuccess method if request is success
-    }
+  public void send(String jsonData) {
+    httpRequest.target("https://www.jsunsoft.com/").get(jsonData, new TypeReference<List<String>>() {})
+            .ifSuccess(this::whenSuccess) //call whenSuccess method if request is success
+            .otherwise(this::whenNotSuccess); //call whenNotSuccess method if request is success
+  }
 
-    private void whenSuccess(ResponseHandler<List<String>> responseHandler) {
-        //When predicate of filter returns true, calls whenHasContent else calls whenHasNotContent
-        responseHandler.filter(ResponseHandler::hasContent) //if request has content will be executed ifPassed consumer else otherwise consumer
-                .ifPassed(this::whenHasContent)  //call hasContent method if request body is present
-                .otherwise(this::whenHasNotContent);
-    }
+  private void whenSuccess(ResponseHandler<List<String>> responseHandler) {
+    //When predicate of filter returns true, calls whenHasContent else calls whenHasNotContent
+    responseHandler.filter(ResponseHandler::hasContent) //if request has content will be executed ifPassed consumer else otherwise consumer
+            .ifPassed(this::whenHasContent)  //call hasContent method if request body is present
+            .otherwise(this::whenHasNotContent);
+  }
 
-    private void whenNotSuccess(ResponseHandler<List<String>> responseHandler) {
-        //For demo. You can handle what you want
-        System.err.println("Error code: " + responseHandler.getStatusCode() + ", error message: " + responseHandler.getErrorText());
-    }
+  private void whenNotSuccess(ResponseHandler<List<String>> responseHandler) {
+    //For demo. You can handle what you want
+    System.err.println("Error code: " + responseHandler.getCode() + ", error message: " + responseHandler.getErrorText());
+  }
 
-    private void whenHasContent(ResponseHandler<List<String>> responseHandler) {
-        //For demo. 
-        List<String> responseBody = responseHandler.get();
-        System.out.println(responseBody);
-    }
+  private void whenHasContent(ResponseHandler<List<String>> responseHandler) {
+    //For demo. 
+    List<String> responseBody = responseHandler.get();
+    System.out.println(responseBody);
+  }
 
-    private void whenHasNotContent(ResponseHandler<List<String>> responseHandler) {
-        //For demo. 
-        System.out.println("Response is success but body is missing. Response code: " + responseHandler.getStatusCode());
-    }
+  private void whenHasNotContent(ResponseHandler<List<String>> responseHandler) {
+    //For demo. 
+    System.out.println("Response is success but body is missing. Response code: " + responseHandler.getCode());
+  }
 }
 ```
 
@@ -369,9 +370,9 @@ To use from maven add this snippet to the pom.xml `dependencies` section:
 ```xml
 
 <dependency>
-    <groupId>com.jsunsoft.http</groupId>
+  <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>2.3.4</version>
+  <version>2.4.0</version>
 </dependency>
 ```
 
