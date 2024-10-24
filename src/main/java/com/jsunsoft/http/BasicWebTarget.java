@@ -426,10 +426,6 @@ class BasicWebTarget implements WebTarget {
     }
 
     private void logRequestBody(HttpMethod method, final String payload) {
-        LOGGER.atDebug()
-                .addArgument(this::getURIString)
-                .addArgument(method)
-                .addArgument(payload)
-                .log("Requesting to: [{}] with HTTP method: [{}] and body: {}");
+        LOGGER.debug("Requesting to: [{}] with HTTP method: [{}] and body: {}", getURIString(), method, payload);
     }
 }
