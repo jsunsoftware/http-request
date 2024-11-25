@@ -39,7 +39,7 @@ import static com.jsunsoft.http.DefaultDateDeserializeContext.DEFAULT;
 class ResponseBodyReaderTest {
 
     @Test
-    public void testDeserializeResponse() throws IOException {
+    void testDeserializeResponse() throws IOException {
         String content = "{\n" +
                 "              \"value\": 1,\n" +
                 "              \"message\": \"Test message\",\n" +
@@ -74,7 +74,7 @@ class ResponseBodyReaderTest {
     }
 
     @Test
-    public void testDeserializeResponseWithOverriddenDateFormat() throws IOException {
+    void testDeserializeResponseWithOverriddenDateFormat() throws IOException {
         String content = "{\n" +
                 "              \"value\": 1,\n" +
                 "              \"message\": \"Test message\",\n" +

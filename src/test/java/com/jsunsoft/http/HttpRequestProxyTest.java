@@ -27,10 +27,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class HttpRequestProxyTest {
     //when
-    private static final HttpRequest httpRequestToSimpleProxy = HttpRequestBuilder.create(ClientBuilder.create()
-            .proxy(new HttpHost("localhost", 8090)).build()).build();
+    private static final HttpRequest httpRequestToSimpleProxy = HttpRequestBuilder.create(
+                    ClientBuilder.create()
+                            .proxy(new HttpHost("localhost", 8090))
+                            .addDefaultRequestConfigCustomizer(builder -> builder.setProtocolUpgradeEnabled(false))
+                            .build()
+            )
+            .build();
 
-    private static final HttpRequest httpRequestToProxyAuth = HttpRequestBuilder.create(ClientBuilder.create().proxy("localhost", 8090).build())
+    private static final HttpRequest httpRequestToProxyAuth = HttpRequestBuilder.create(
+                    ClientBuilder.create()
+                            .proxy("localhost", 8090)
+                            .addDefaultRequestConfigCustomizer(builder -> builder.setProtocolUpgradeEnabled(false))
+                            .build()
+            )
             .basicAuth("username_admin", "secret_password").build();
 
     @RegisterExtension
