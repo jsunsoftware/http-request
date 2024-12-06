@@ -72,6 +72,7 @@ public class ClientBuilder {
     private RedirectStrategy redirectStrategy;
     private Collection<Consumer<HttpClientBuilder>> httpClientBuilderCustomizers;
     private Collection<Consumer<RequestConfig.Builder>> defaultRequestConfigBuilderCustomizers;
+    private Collection<Consumer<PoolingHttpClientConnectionManagerBuilder>> defaultConnectionManagerBuilderCustomizers;
     private Collection<Consumer<ConnectionConfig.Builder>> defaultConnectionConfigBuilderCustomizers;
     private Collection<Header> defaultHeaders;
     private HttpHost proxy;
@@ -265,6 +266,22 @@ public class ClientBuilder {
      */
     public ClientBuilder setConnectionTimeToLive(int timeToLiveMillis) {
         setConnectionTimeToLive(TimeValue.ofMilliseconds(timeToLiveMillis));
+        return this;
+    }
+
+    /**
+     * Note: Can override any config defined in another method which is related to connection manager config
+     *
+     * @param defaultConnectionManagerBuilderCustomizer the consumer instance
+     *                                                  which provides
+     *                                                  {@link org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder} to customize default connection manager
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder addDefaultConnectionManagerBuilderCustomizer(Consumer<PoolingHttpClientConnectionManagerBuilder> defaultConnectionManagerBuilderCustomizer) {
+        if (defaultConnectionManagerBuilderCustomizers == null) {
+            defaultConnectionManagerBuilderCustomizers = new LinkedHashSet<>();
+        }
+        defaultConnectionManagerBuilderCustomizers.add(defaultConnectionManagerBuilderCustomizer);
         return this;
     }
 
@@ -469,7 +486,7 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder sslContext(SSLContext sslContext) {
-        initializeClientTlsStrategyBuilderBuilder();
+        initializeClientTlsStrategyBuilder();
 
         clientTlsStrategyBuilder.setSslContext(sslContext);
         return this;
@@ -482,7 +499,7 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder hostnameVerifier(HostnameVerifier hostnameVerifier) {
-        initializeClientTlsStrategyBuilderBuilder();
+        initializeClientTlsStrategyBuilder();
 
         clientTlsStrategyBuilder.setHostnameVerifier(hostnameVerifier);
         return this;
@@ -495,7 +512,7 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder hostnameVerificationPolicy(HostnameVerificationPolicy hostnameVerificationPolicy) {
-        initializeClientTlsStrategyBuilderBuilder();
+        initializeClientTlsStrategyBuilder();
 
         clientTlsStrategyBuilder.setHostnameVerificationPolicy(hostnameVerificationPolicy);
         return this;
@@ -575,16 +592,23 @@ public class ClientBuilder {
 
         ConnectionConfig connectionConfig = defaultConnectionConfigBuilder.build();
 
-        PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create();
+        PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create()
+                .setMaxConnPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute())
+                .setMaxConnTotal(hostPoolConfig.getMaxPoolSize())
+                .setDefaultConnectionConfig(connectionConfig);
 
         if (clientTlsStrategyBuilder != null) {
             cmBuilder.setTlsSocketStrategy((TlsSocketStrategy) clientTlsStrategyBuilder.build());
         }
 
+        if (defaultConnectionManagerBuilderCustomizers != null) {
+            defaultConnectionManagerBuilderCustomizers
+                    .forEach(defaultConnectionManagerBuilderCustomizer ->
+                            defaultConnectionManagerBuilderCustomizer.accept(cmBuilder)
+                    );
+        }
+
         PoolingHttpClientConnectionManager connectionManager = cmBuilder
-                .setMaxConnPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute())
-                .setMaxConnTotal(hostPoolConfig.getMaxPoolSize())
-                .setDefaultConnectionConfig(connectionConfig)
                 .build();
 
 
@@ -639,7 +663,7 @@ public class ClientBuilder {
         );
     }
 
-    private void initializeClientTlsStrategyBuilderBuilder() {
+    private void initializeClientTlsStrategyBuilder() {
         if (clientTlsStrategyBuilder == null) {
             clientTlsStrategyBuilder = ClientTlsStrategyBuilder.create();
         }
