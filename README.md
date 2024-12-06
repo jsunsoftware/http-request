@@ -372,7 +372,7 @@ To use from maven add this snippet to the pom.xml `dependencies` section:
 <dependency>
     <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>3.4.0</version>
+  <version>3.4.1</version>
 </dependency>
 ```
 

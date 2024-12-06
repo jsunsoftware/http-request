@@ -29,14 +29,13 @@ import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
 import org.apache.hc.client5.http.protocol.RedirectStrategy;
 import org.apache.hc.client5.http.routing.HttpRoutePlanner;
-import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
-import org.apache.hc.client5.http.ssl.TrustAllStrategy;
+import org.apache.hc.client5.http.ssl.*;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.ssl.SSLContexts;
+import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
 
 import javax.net.ssl.HostnameVerifier;
@@ -77,7 +76,9 @@ public class ClientBuilder {
     private Collection<Header> defaultHeaders;
     private HttpHost proxy;
     private boolean useDefaultProxy;
-    private SSLConnectionSocketFactoryBuilder sslConnectionSocketFactoryBuilder;
+    private ClientTlsStrategyBuilder clientTlsStrategyBuilder;
+    private boolean cookieManagementEnabled;
+    private boolean automaticRetriesEnabled;
 
     ClientBuilder() {
 
@@ -230,6 +231,40 @@ public class ClientBuilder {
      */
     public ClientBuilder setSocketTimeout(int socketTimeOutMillis) {
         setSocketTimeout(Timeout.ofMilliseconds(socketTimeOutMillis));
+        return this;
+    }
+
+    /**
+     * Defines the total span of time connections can be kept alive or execute requests.
+     * <p>
+     * Default: {@code null} (undefined)
+     * </p>
+     * Note: Can be overridden by {@linkplain #addDefaultConnectionConfigCustomizer(Consumer)}
+     *
+     * @param timeToLive connection time to live
+     * @return ClientBuilder instance
+     * @see org.apache.hc.client5.http.config.ConnectionConfig.Builder#setTimeToLive(TimeValue)
+     * @see #addDefaultConnectionConfigCustomizer(Consumer)
+     */
+    public ClientBuilder setConnectionTimeToLive(TimeValue timeToLive) {
+        defaultConnectionConfigBuilder.setTimeToLive(timeToLive);
+        return this;
+    }
+
+    /**
+     * Defines the total span of time connections can be kept alive or execute requests.
+     * <p>
+     * Default: {@code null} (undefined)
+     * </p>
+     * Note: Can be overridden by {@linkplain #addDefaultConnectionConfigCustomizer(Consumer)}
+     *
+     * @param timeToLiveMillis connection time to live in milliseconds
+     * @return ClientBuilder instance
+     * @see org.apache.hc.client5.http.config.ConnectionConfig.Builder#setTimeToLive(TimeValue)
+     * @see #addDefaultConnectionConfigCustomizer(Consumer)
+     */
+    public ClientBuilder setConnectionTimeToLive(int timeToLiveMillis) {
+        setConnectionTimeToLive(TimeValue.ofMilliseconds(timeToLiveMillis));
         return this;
     }
 
@@ -434,9 +469,9 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder sslContext(SSLContext sslContext) {
-        initializeSslConnectionSocketFactoryBuilder();
+        initializeClientTlsStrategyBuilderBuilder();
 
-        sslConnectionSocketFactoryBuilder.setSslContext(sslContext);
+        clientTlsStrategyBuilder.setSslContext(sslContext);
         return this;
     }
 
@@ -447,9 +482,44 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder hostnameVerifier(HostnameVerifier hostnameVerifier) {
-        initializeSslConnectionSocketFactoryBuilder();
+        initializeClientTlsStrategyBuilderBuilder();
 
-        sslConnectionSocketFactoryBuilder.setHostnameVerifier(hostnameVerifier);
+        clientTlsStrategyBuilder.setHostnameVerifier(hostnameVerifier);
+        return this;
+    }
+
+    /**
+     * Sets {@link org.apache.hc.client5.http.ssl.HostnameVerificationPolicy}
+     *
+     * @param hostnameVerificationPolicy HostnameVerificationPolicy instance
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder hostnameVerificationPolicy(HostnameVerificationPolicy hostnameVerificationPolicy) {
+        initializeClientTlsStrategyBuilderBuilder();
+
+        clientTlsStrategyBuilder.setHostnameVerificationPolicy(hostnameVerificationPolicy);
+        return this;
+    }
+
+    /**
+     * By default, the {@link PoolingHttpClientConnectionManager::disableCookieManagement} called.
+     * This method will prevent the call.
+     *
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder enableCookieManagement() {
+        cookieManagementEnabled = true;
+        return this;
+    }
+
+    /**
+     * By default, the {@link PoolingHttpClientConnectionManager::disableAutomaticRetries} called.
+     * This method will prevent the call.
+     *
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder enableAutomaticRetries() {
+        automaticRetriesEnabled = true;
         return this;
     }
 
@@ -479,7 +549,8 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder trustAllHosts() {
-        return hostnameVerifier(NoopHostnameVerifier.INSTANCE);
+        return hostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                .hostnameVerificationPolicy(HostnameVerificationPolicy.CLIENT);
     }
 
     /**
@@ -506,8 +577,8 @@ public class ClientBuilder {
 
         PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create();
 
-        if (sslConnectionSocketFactoryBuilder != null) {
-            cmBuilder.setSSLSocketFactory(sslConnectionSocketFactoryBuilder.build());
+        if (clientTlsStrategyBuilder != null) {
+            cmBuilder.setTlsSocketStrategy((TlsSocketStrategy) clientTlsStrategyBuilder.build());
         }
 
         PoolingHttpClientConnectionManager connectionManager = cmBuilder
@@ -533,10 +604,15 @@ public class ClientBuilder {
         HttpClientBuilder clientBuilder =
                 HttpClientBuilder.create()
                         .setDefaultRequestConfig(requestConfig)
-                        .setConnectionManager(connectionManager)
-                        .disableCookieManagement()
-                        .disableAutomaticRetries();
+                        .setConnectionManager(connectionManager);
 
+        if (!cookieManagementEnabled) {
+            clientBuilder.disableCookieManagement();
+        }
+
+        if (!automaticRetriesEnabled) {
+            clientBuilder.disableAutomaticRetries();
+        }
 
         if (routePlanner != null) {
             clientBuilder.setRoutePlanner(routePlanner);
@@ -563,9 +639,9 @@ public class ClientBuilder {
         );
     }
 
-    private void initializeSslConnectionSocketFactoryBuilder() {
-        if (sslConnectionSocketFactoryBuilder == null) {
-            sslConnectionSocketFactoryBuilder = SSLConnectionSocketFactoryBuilder.create();
+    private void initializeClientTlsStrategyBuilderBuilder() {
+        if (clientTlsStrategyBuilder == null) {
+            clientTlsStrategyBuilder = ClientTlsStrategyBuilder.create();
         }
     }
 
