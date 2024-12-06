@@ -49,3 +49,8 @@ Headers are available from `ResponseHandler`
 
 
 * Added `ResponseHandler.recuiredGet()` method.
+
+# 3.4.1
+
+Added methods `ClientBuilder.enableCookieManagement`, `ClientBuilder.enableAutomaticRetries` and
+`ClientBuilder.setConnectionTimeToLive`.
