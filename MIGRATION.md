@@ -39,6 +39,15 @@ When building http client by `ClientBuilder` the default connect timeout increas
 
 # 3.3.x
 
-Remove methods with explicit body that typically do not include a body e.g `WebTarget.get(String)`, `WebTarget.head(String)`
+Remove methods with explicit body that typically do not include a body e.g `WebTarget.get(String)`,
+`WebTarget.head(String)`
 
 Support with `WebTarget.request(HttpMethod, HttpEntity)` still present.
+
+# 3.4.x
+
+Rename `addDefaultDateDeserializationPattern` of `HttpRequestBuilder` has been renamed to
+`addResponseDefaultDateDeserializationPattern`.
+
+Removed support default deserialization of joda.time module. To achieve that, provide custom Json or Xml mapper e.g(
+`HttpRequestBuilder.setDefaultJsonMapper(mapper)`) or use custom response deserializer. 

@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
@@ -75,7 +74,7 @@ class ObjectMapperInitializer {
                 .disable(FAIL_ON_EMPTY_BEANS)
                 .disable(FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .registerModules(new JodaModule(),
+                .registerModules(
                         new ParameterNamesModule(JsonCreator.Mode.PROPERTIES),
                         new Jdk8Module(), new JavaTimeModule()
                 );

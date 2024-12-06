@@ -240,14 +240,30 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Adds a date deserialization pattern for the default deserializer.
+     * Adds a date deserialization pattern for the default response deserializer.
+     * <p>
+     * Note: This method will be ignored if {@link #setDefaultJsonMapper} is called.
      *
      * @param dateType the date type
      * @param pattern  the pattern to use for deserialization
      * @return the current instance of HttpRequestBuilder
      */
-    public HttpRequestBuilder addDefaultDateDeserializationPattern(Class<?> dateType, String pattern) {
+    public HttpRequestBuilder addResponseDefaultDateDeserializationPattern(Class<?> dateType, String pattern) {
         responseBodyReaderConfigBuilder.addDateDeserializationPattern(dateType, pattern);
+        return this;
+    }
+
+    /**
+     * Adds a date deserialization pattern for the request body serialization.
+     * <p>
+     * Note: This method will be ignored if {@link #setDefaultJsonMapper} is called.
+     *
+     * @param dateType the date type
+     * @param pattern  the pattern to use for sserialization
+     * @return the current instance of HttpRequestBuilder
+     */
+    public HttpRequestBuilder addRequestDefaultDateSerializationPattern(Class<?> dateType, String pattern) {
+        requestBodySerializeConfigBuilder.addDateDeserializationPattern(dateType, pattern);
         return this;
     }
 

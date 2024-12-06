@@ -20,12 +20,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.joda.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.util.List;
@@ -122,8 +122,8 @@ class SimpleHttpRequestToParseJsonResponseTest {
     private static final HttpRequest HTTP_REQUEST = HttpRequestBuilder.create(closeableHttpClient)
             .build();
     private static final HttpRequest HTTP_REQUEST_DATE_PATTERN_OVERRIDDEN = HttpRequestBuilder.create(closeableHttpClient)
-            .addDefaultDateDeserializationPattern(LocalDateTime.class, "dd/MM/yyyy HH:mm:ss")
-            .addDefaultDateDeserializationPattern(LocalDate.class, "yyyyMMdd")
+            .addResponseDefaultDateDeserializationPattern(LocalDateTime.class, "dd/MM/yyyy HH:mm:ss")
+            .addResponseDefaultDateDeserializationPattern(LocalDate.class, "yyyyMMdd")
             .build();
     private static final HttpRequest HTTP_REQUEST_WITH_BODY_READER = HttpRequestBuilder.create(closeableHttpClient)
             .addBodyReader(new ResponseBodyReader<Map<String, String>>() {
@@ -228,7 +228,7 @@ class SimpleHttpRequestToParseJsonResponseTest {
                 .readEntity(ResponseData.class);
 
         assertEquals(LocalDateTime.of(1993, Month.MAY, 11, 5, 0, 0), responseData.getJavaLocalDateTime());
-        assertEquals(new LocalDate(2017, 9, 25), responseData.getJodaLocalDate());
+        assertEquals(LocalDate.of(2017, 9, 25), responseData.getJodaLocalDate());
 
         Optional<User> foundedUser = responseData.getUsers()
                 .stream()
