@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 package com.jsunsoft.http;
 
 import org.apache.hc.core5.http.HttpStatus;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.hc.core5.http.ContentType.APPLICATION_XML;
 import static org.apache.hc.core5.http.HttpHeaders.ACCEPT;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class HttpRequestSSLTest {
+class HttpRequestSSLTest {
     private final HttpRequest httpRequest = HttpRequestBuilder.create(ClientBuilder.create()
             .trustAllCertificates()
             .trustAllHosts()
@@ -32,7 +32,7 @@ public class HttpRequestSSLTest {
     ).build();
 
     @Test
-    public final void ignoreSSLAndHostsTest() {
+    void ignoreSSLAndHostsTest() {
 
         assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getCode());
     }

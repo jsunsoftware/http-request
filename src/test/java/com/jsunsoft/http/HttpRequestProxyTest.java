@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2024. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,35 +16,48 @@
 
 package com.jsunsoft.http;
 
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.core5.http.HttpHost;
-import org.junit.Rule;
-import org.junit.Test;
-
-import java.io.IOException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class HttpRequestProxyTest {
+class HttpRequestProxyTest {
     //when
-    private static final HttpRequest httpRequestToSimpleProxy = HttpRequestBuilder.create(ClientBuilder.create()
-            .proxy(new HttpHost("localhost", 8090)).build()).build();
+    private static final HttpRequest httpRequestToSimpleProxy = HttpRequestBuilder.create(
+                    ClientBuilder.create()
+                            .proxy(new HttpHost("localhost", 8090))
+                            .addDefaultRequestConfigCustomizer(builder -> builder.setProtocolUpgradeEnabled(false))
+                            .build()
+            )
+            .build();
 
-    private static final HttpRequest httpRequestToProxyAuth = HttpRequestBuilder.create(ClientBuilder.create().proxy("localhost", 8090).build())
+    private static final HttpRequest httpRequestToProxyAuth = HttpRequestBuilder.create(
+                    ClientBuilder.create()
+                            .proxy("localhost", 8090)
+                            .addDefaultRequestConfigCustomizer(builder -> builder.setProtocolUpgradeEnabled(false))
+                            .build()
+            )
             .basicAuth("username_admin", "secret_password").build();
 
-    @Rule
-    public WireMockRule serviceMock = new WireMockRule(8089);
+    @RegisterExtension
+    static WireMockExtension serviceMock = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().port(8089))
+            .build();
 
-    @Rule
-    public WireMockRule proxyMock = new WireMockRule(8090);
+    @RegisterExtension
+    static WireMockExtension proxyMock = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().port(8090))
+            .build();
 
     @Test
-    public void simpleProxyTest() {
+    void simpleProxyTest() {
         //given
         proxyMock.stubFor(get(urlMatching(".*"))
-                .willReturn(aResponse().proxiedFrom("http://localhost:8089/")));
+                .willReturn(aResponse().proxiedFrom("http://localhost:8089")));
 
         serviceMock.stubFor(get(urlEqualTo("/private"))
                 .willReturn(aResponse().withStatus(200)));
@@ -56,10 +69,10 @@ public class HttpRequestProxyTest {
     }
 
     @Test
-    public void authorizationTest() throws IOException {
+    void authorizationTest() {
         //given
         proxyMock.stubFor(get(urlMatching("/private"))
-                .willReturn(aResponse().proxiedFrom("http://localhost:8089/")));
+                .willReturn(aResponse().proxiedFrom("http://localhost:8089")));
         serviceMock.stubFor(get(urlEqualTo("/private"))
                 .willReturn(aResponse().withStatus(200)));
 

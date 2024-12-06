@@ -35,10 +35,6 @@ class DefaultDateDeserializeContext implements DateDeserializeContext {
         dateTypeToPattern.put(LocalDate.class, "dd/MM/yyyy");
         dateTypeToPattern.put(LocalDateTime.class, "dd/MM/yyyy HH:mm:ss");
 
-        dateTypeToPattern.put(org.joda.time.LocalTime.class, "HH:mm:ss");
-        dateTypeToPattern.put(org.joda.time.LocalDate.class, "dd/MM/yyyy");
-        dateTypeToPattern.put(org.joda.time.LocalDateTime.class, "dd/MM/yyyy HH:mm:ss");
-
         DEFAULT_DATE_TYPE_TO_PATTERN = Collections.unmodifiableMap(dateTypeToPattern);
     }
 

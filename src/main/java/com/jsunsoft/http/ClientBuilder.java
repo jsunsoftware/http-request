@@ -460,18 +460,17 @@ public class ClientBuilder {
      * @throws HttpRequestBuildException when can't build ssl.
      */
     public ClientBuilder trustAllCertificates() {
-        initializeSslConnectionSocketFactoryBuilder();
+        SSLContext sslContext;
 
         try {
-            SSLContext sslContext = SSLContexts.custom()
+            sslContext = SSLContexts.custom()
                     .loadTrustMaterial(null, TrustAllStrategy.INSTANCE).build();
-
-            sslConnectionSocketFactoryBuilder.setSslContext(sslContext);
 
         } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
             throw new HttpRequestBuildException(e);
         }
-        return this;
+
+        return sslContext(sslContext);
     }
 
     /**
@@ -480,10 +479,7 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder trustAllHosts() {
-        initializeSslConnectionSocketFactoryBuilder();
-
-        sslConnectionSocketFactoryBuilder.setHostnameVerifier(NoopHostnameVerifier.INSTANCE);
-        return this;
+        return hostnameVerifier(NoopHostnameVerifier.INSTANCE);
     }
 
     /**
