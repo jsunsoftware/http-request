@@ -502,7 +502,7 @@ public class ClientBuilder {
     }
 
     /**
-     * By default, the {@link PoolingHttpClientConnectionManager::disableCookieManagement} called.
+     * By default, the {@link HttpClientBuilder#disableCookieManagement} called.
      * This method will prevent the call.
      *
      * @return ClientBuilder instance
@@ -513,7 +513,7 @@ public class ClientBuilder {
     }
 
     /**
-     * By default, the {@link PoolingHttpClientConnectionManager::disableAutomaticRetries} called.
+     * By default, the {@link HttpClientBuilder#disableCookieManagement} called.
      * This method will prevent the call.
      *
      * @return ClientBuilder instance
