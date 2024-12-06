@@ -66,18 +66,21 @@ import static org.apache.http.HttpHeaders.CONTENT_TYPE;
 public class ClientBuilder {
     private RedirectStrategy redirectStrategy;
 
-    private RequestConfig.Builder defaultRequestConfigBuilder = RequestConfig.custom()
+    private final RequestConfig.Builder defaultRequestConfigBuilder = RequestConfig.custom()
             .setSocketTimeout(30000)
             .setConnectTimeout(5000)
             .setConnectionRequestTimeout(30000);
     private Collection<Consumer<HttpClientBuilder>> httpClientBuilderCustomizers;
     private Collection<Consumer<RequestConfig.Builder>> defaultRequestConfigBuilderCustomizers;
+    private Collection<Consumer<PoolingHttpClientConnectionManager>> defaultPoolingHttpClientConnectionManagerCustomizers;
     private Collection<Header> defaultHeaders;
     private HttpHost proxy;
     private boolean useDefaultProxy;
     private SSLContext sslContext;
     private HostnameVerifier hostnameVerifier;
-    private HostPoolConfig hostPoolConfig = HostPoolConfig.create();
+    private final HostPoolConfig hostPoolConfig = HostPoolConfig.create();
+    private boolean cookieManagementEnabled;
+    private boolean automaticRetriesEnabled;
 
     ClientBuilder() {
 
@@ -166,6 +169,18 @@ public class ClientBuilder {
             defaultRequestConfigBuilderCustomizers = new LinkedHashSet<>();
         }
         defaultRequestConfigBuilderCustomizers.add(defaultRequestConfigBuilderConsumer);
+        return this;
+    }
+
+    /**
+     * @param defaultPoolingHttpClientConnectionManagerCustomizerConsumer the consumer instance which provides {@link PoolingHttpClientConnectionManager} to customize default connection manager
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder addDefaultPoolingHttpClientConnectionManagerCustomizer(Consumer<PoolingHttpClientConnectionManager> defaultPoolingHttpClientConnectionManagerCustomizerConsumer) {
+        if (defaultPoolingHttpClientConnectionManagerCustomizers == null) {
+            defaultPoolingHttpClientConnectionManagerCustomizers = new LinkedHashSet<>();
+        }
+        defaultPoolingHttpClientConnectionManagerCustomizers.add(defaultPoolingHttpClientConnectionManagerCustomizerConsumer);
         return this;
     }
 
@@ -417,6 +432,28 @@ public class ClientBuilder {
     }
 
     /**
+     * By default, the {@link HttpClientBuilder#disableCookieManagement} called.
+     * This method will prevent the call.
+     *
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder enableCookieManagement() {
+        cookieManagementEnabled = true;
+        return this;
+    }
+
+    /**
+     * By default, the {@link HttpClientBuilder#disableAutomaticRetries} called.
+     * This method will prevent the call.
+     *
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder enableAutomaticRetries() {
+        automaticRetriesEnabled = true;
+        return this;
+    }
+
+    /**
      * Build CloseableHttpClient
      *
      * @return {@link CloseableHttpClient} instance by build parameters
@@ -469,6 +506,11 @@ public class ClientBuilder {
         });
         connectionManager.setMaxTotal(hostPoolConfig.getMaxPoolSize());
 
+        if (defaultPoolingHttpClientConnectionManagerCustomizers != null) {
+            defaultPoolingHttpClientConnectionManagerCustomizers
+                    .forEach(customizer -> customizer.accept(connectionManager));
+        }
+
         HttpRoutePlanner routePlanner = null;
 
         if (proxy != null) {
@@ -479,9 +521,15 @@ public class ClientBuilder {
 
         clientBuilder
                 .setDefaultRequestConfig(requestConfig)
-                .setConnectionManager(connectionManager)
-                .disableCookieManagement()
-                .disableAutomaticRetries();
+                .setConnectionManager(connectionManager);
+
+        if (!cookieManagementEnabled) {
+            clientBuilder.disableCookieManagement();
+        }
+
+        if (!automaticRetriesEnabled) {
+            clientBuilder.disableAutomaticRetries();
+        }
 
 
         if (routePlanner != null) {
