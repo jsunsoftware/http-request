@@ -19,6 +19,8 @@ package com.jsunsoft.http;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -28,6 +30,8 @@ import java.util.Locale;
 import java.util.Optional;
 
 class BasicResponse implements Response {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BasicResponse.class);
 
     private final ClassicHttpResponse classicHttpResponse;
     private final ResponseBodyReaderConfig responseBodyReaderConfig;
@@ -306,9 +310,7 @@ class BasicResponse implements Response {
      * @param type        Java type the response entity will be converted to.
      * @param genericType Java type the response entity will be converted to.
      * @param <T>         response entity type which must match to the responseType.
-     *
      * @return Response entity
-     *
      * @throws IOException                 If the stream could not be created or error occurs reading the input stream.
      * @throws ResponseBodyReaderException If Cannot deserialize content
      */
@@ -327,16 +329,14 @@ class BasicResponse implements Response {
             content = ((ResponseBodyReader<T>) responseBodyReader.get()).read(responseBodyReaderContext);
         } else if (responseBodyReaderConfig.isUseDefaultReader() && responseBodyReaderConfig.getDefaultResponseBodyReader().isReadable(responseBodyReaderContext)) {
             content = ((ResponseBodyReader<T>) responseBodyReaderConfig.getDefaultResponseBodyReader()).read(responseBodyReaderContext);
+        } else if (hasEntity()) {
+
+            throw new ResponseBodyReaderNotFoundException(
+                    "Can't found body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType()
+            );
         } else {
-            String errMsg;
-
-            if (hasEntity()) {
-                errMsg = "Can't found body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType();
-            } else {
-                errMsg = "Can't found body reader for type: " + responseBodyReaderContext.getType() + " when http entity is null.";
-            }
-
-            throw new ResponseBodyReaderNotFoundException(errMsg);
+            LOGGER.warn("Can't found body reader for type: {} when http entity is null.", responseBodyReaderContext.getType());
+            content = null;
         }
 
         return content;

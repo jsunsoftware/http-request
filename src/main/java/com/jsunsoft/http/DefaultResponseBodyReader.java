@@ -53,6 +53,8 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
 
         if (bodyReaderContext.getType() == String.class) {
             result = (T) ResponseBodyReader.stringReader().read((ResponseBodyReaderContext<String>) bodyReaderContext);
+        } else if (byte[].class == bodyReaderContext.getType()) {
+            result = (T) IOUtils.toByteArray(bodyReaderContext.getContent(), bodyReaderContext.getContentLength());
         } else {
             ContentType contentType = bodyReaderContext.getContentType();
             String mimeType = contentType == null ? null : contentType.getMimeType();
