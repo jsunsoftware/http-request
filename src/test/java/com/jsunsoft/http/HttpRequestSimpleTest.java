@@ -24,6 +24,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.apache.http.HttpHeaders.CONTENT_LENGTH;
 import static org.apache.http.HttpHeaders.CONTENT_TYPE;
@@ -158,6 +160,24 @@ public class HttpRequestSimpleTest {
                 .post(String.class);
 
         assertEquals(JSON_BODY, responseHandler.get());
+    }
+
+    @Test
+    public void withoutJsonParseFromBytesTest() {
+
+        wireMockRule.stubFor(post(urlEqualTo("/json"))
+                .willReturn(
+                        aResponse()
+                                .withHeader(CONTENT_TYPE, APPLICATION_JSON.toString())
+                                .withBody(JSON_BODY)
+                                .withStatus(200)
+                )
+        );
+
+        ResponseHandler<byte[]> responseHandler = basicHttpRequest.target("http://localhost:8080/json")
+                .post(byte[].class);
+
+        assertEquals(JSON_BODY, new String(responseHandler.get(), StandardCharsets.UTF_8));
     }
 
     @Test

@@ -33,14 +33,12 @@ class DefaultStringResponseBodyReader implements ResponseBodyReader<String> {
 
     @Override
     public boolean isReadable(ResponseBodyReadableContext bodyReadableContext) {
-        return bodyReadableContext.getType() == String.class;
+        return bodyReadableContext.getType() == String.class && bodyReadableContext.hasEntity();
     }
 
     /**
      * @param bodyReaderContext the response context.
-     *
      * @return content as {@link String}
-     *
      * @throws IOException                   if the stream could not be created or
      *                                       if the first byte cannot be read for any reason other than the end of the file,
      *                                       if the input stream has been closed, or if some other I/O
@@ -50,52 +48,28 @@ class DefaultStringResponseBodyReader implements ResponseBodyReader<String> {
     @Override
     public String read(ResponseBodyReaderContext<String> bodyReaderContext) throws IOException {
 
-        long startTime = System.currentTimeMillis();
-
-        String result = null;
         InputStream inputStream = bodyReaderContext.getContent();
 
-        if (inputStream != null) {
-            int bufferInitialSize = resolveBufferInitialSize(bodyReaderContext);
-            byte[] buffer = new byte[bufferInitialSize];
-
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream(buffer.length);
-
-            int length;
-
-            while ((length = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, length);
-            }
-
-            ContentType contentType = bodyReaderContext.getContentType();
-            Charset charset = contentType == null || contentType.getCharset() == null ? UTF_8 : contentType.getCharset();
-
-            LOGGER.trace("Content type is: {}", contentType);
-
-            result = outputStream.toString(charset.name());
+        if (inputStream == null) {
+            LOGGER.warn("Content is null");
+            return null;
         }
+
+        long startTime = System.currentTimeMillis();
+
+        ByteArrayOutputStream outputStream = IOUtils.toByteArrayOutputStream(inputStream, bodyReaderContext.getContentLength());
+
+        ContentType contentType = bodyReaderContext.getContentType();
+        Charset charset = contentType == null || contentType.getCharset() == null ? UTF_8 : contentType.getCharset();
+
+        LOGGER.trace("Content type is: {}", contentType);
+
+        String result = outputStream.toString(charset.name());
 
         LOGGER.trace("Content is: {}", result);
 
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Executed response body as string. Time: {}, length of response body: {}", HttpRequestUtils.humanTime(startTime), (result == null ? 0 : result.length()));
-        }
-
-        return result;
-    }
-
-    private int resolveBufferInitialSize(ResponseBodyReaderContext<String> bodyReaderContext) throws IOException {
-        int result;
-        long contentLength = bodyReaderContext.getContentLength();
-        if (contentLength > Integer.MAX_VALUE) {
-            throw new InvalidContentLengthException(contentLength, "Content length is large. Content length greater than Integer.MAX_VALUE");
-        }
-        int integerContentLength = (int) contentLength;
-
-        if (integerContentLength >= 0) {
-            result = integerContentLength;
-        } else {
-            result = 1024;
+            LOGGER.debug("Executed response body as string. Time: {}, length of response body: {}", HttpRequestUtils.humanTime(startTime), result.length());
         }
 
         return result;
