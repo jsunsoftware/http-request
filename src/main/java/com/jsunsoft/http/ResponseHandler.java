@@ -160,6 +160,14 @@ public interface ResponseHandler<T> {
      */
     Optional<T> getAsOptionalOrThrow();
 
+
+    /**
+     * Throws an {@link UnexpectedStatusCodeException} if the status code of the response is not successful.
+     *
+     * @throws UnexpectedStatusCodeException If the status code is not in the successful range.
+     */
+    void throwIfNotSuccess() throws UnexpectedStatusCodeException;
+
     /**
      * @return Returns the error text if the connection failed but the server sent useful data nonetheless.
      * @throws NoSuchElementException        If error text is not present

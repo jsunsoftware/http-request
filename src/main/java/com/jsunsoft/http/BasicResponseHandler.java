@@ -255,6 +255,16 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void throwIfNotSuccess() throws UnexpectedStatusCodeException {
+        if (isNonSuccess()) {
+            throw new UnexpectedStatusCodeException(statusCode, errorText, uri);
+        }
+    }
+
+    /**
      * @return Returns the error text if the connection failed but the server sent useful data nonetheless.
      * @throws NoSuchElementException        If error text is not present
      * @throws UnsupportedOperationException if generic type is a Void
