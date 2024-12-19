@@ -24,6 +24,7 @@ import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ConnectTimeoutException;
+import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -153,17 +154,19 @@ class BasicWebTarget implements WebTarget {
 
         try {
             return new BasicResponse(closeableHttpClient.execute(request), responseBodyReaderConfig, request.getURI());
+        } catch (ConnectionPoolTimeoutException e) {
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "HttpRequest is unable to take a connection for the: [" + uri + "] connection pool is empty. Status code: " + SC_SERVICE_UNAVAILABLE + ". Cause: " + e.getMessage(), uri, CONNECTION_POOL_IS_EMPTY, e);
         } catch (ConnectTimeoutException e) {
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "HttpRequest is unable to establish a connection with the: [" + uri + "] within the given period of time or Connection pool is empty. Status code: " + SC_SERVICE_UNAVAILABLE, uri, CONNECTION_POOL_IS_EMPTY, e);
+            throw new ResponseException(SC_GATEWAY_TIMEOUT, "HttpRequest is unable to establish a connection with the: [" + uri + "] within the given period of time. Status code: " + SC_GATEWAY_TIMEOUT + ". Cause: " + e.getMessage(), uri, CONNECT_TIMEOUT_EXPIRED, e);
         } catch (SocketTimeoutException | NoHttpResponseException e) {
             //todo support retry when NoHttpResponseException
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + uri + "] didn't respond with specified time. Status code: " + SC_SERVICE_UNAVAILABLE, uri, REMOTE_SERVER_HIGH_LOADED, e);
+            throw new ResponseException(SC_GATEWAY_TIMEOUT, "Server on uri: [" + uri + "] didn't respond with specified time. Status code: " + SC_GATEWAY_TIMEOUT + ". Cause: " + e.getMessage(), uri, REMOTE_SERVER_HIGH_LOADED, e);
         } catch (HttpHostConnectException e) {
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + uri + "] is down. Status code: " + SC_SERVICE_UNAVAILABLE, uri, REMOTE_SERVER_IS_DOWN, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + uri + "] is down. Status code: " + SC_SERVICE_UNAVAILABLE + ". Cause: " + e.getMessage(), uri, REMOTE_SERVER_IS_DOWN, e);
         } catch (ClientProtocolException e) {
             throw new RequestException("Error in the HTTP protocol. URI: [" + uri + "]", e);
         } catch (IOException e) {
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection was aborted for request on uri: [" + uri + "]. Status code: " + SC_SERVICE_UNAVAILABLE, uri, IO, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection was aborted for request on uri: [" + uri + "]. Status code: " + SC_SERVICE_UNAVAILABLE + ". Cause: " + e.getMessage(), uri, IO, e);
         }
     }
 
