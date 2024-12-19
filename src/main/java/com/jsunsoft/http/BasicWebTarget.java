@@ -413,27 +413,32 @@ class BasicWebTarget implements WebTarget {
 
         Header contentTypeHeader = httpUriRequestBuilder.getFirstHeader(HttpHeaders.CONTENT_TYPE);
 
-        String mimeType = contentTypeHeader != null ? ContentType.parse(contentTypeHeader.getValue()).getMimeType() : null;
+        ContentType contentType = contentTypeHeader != null ? ContentType.parse(contentTypeHeader.getValue()) : null;
 
-        LOGGER.trace("Serializing body based on mime type: [{}] body object: {}", mimeType, body);
+        LOGGER.trace("Serializing body based on content type: [{}] body object: {}", contentType, body);
 
-        ObjectMapper mapper;
-
-        if (ContentType.APPLICATION_JSON.getMimeType().equals(mimeType)) {
-
-            mapper = requestBodySerializeConfig.getDefaultJsonMapper();
-
-        } else if (ContentType.APPLICATION_XML.getMimeType().equals(mimeType)) {
-            mapper = requestBodySerializeConfig.getDefaultXmlMapper();
-        } else {
-            throw new RequestException("Serializer is not found. Now supported only JSON and XML serialization depends on [" + HttpHeaders.CONTENT_TYPE + "]. Founded first content type header is: " + contentTypeHeader);
-        }
+        ObjectMapper mapper = resolveObjectMapper(contentType);
 
         try {
             return mapper.writeValueAsString(body);
         } catch (JsonProcessingException e) {
             throw new RequestException("Serialization of request body failed.", e);
         }
+    }
+
+    private ObjectMapper resolveObjectMapper(ContentType contentType) {
+        ObjectMapper mapper;
+
+        if (ContentType.APPLICATION_JSON.isSameMimeType(contentType)) {
+
+            mapper = requestBodySerializeConfig.getDefaultJsonMapper();
+
+        } else if (ContentType.APPLICATION_XML.isSameMimeType(contentType) || ContentType.TEXT_XML.isSameMimeType(contentType)) {
+            mapper = requestBodySerializeConfig.getDefaultXmlMapper();
+        } else {
+            throw new RequestException("Serializer is not found. Now supported only JSON and XML serialization depends on [" + HttpHeaders.CONTENT_TYPE + "]. Founded first content type header is: " + contentType);
+        }
+        return mapper;
     }
 
     private void logRequestBody(HttpMethod method, final String payload) {
