@@ -26,8 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 
-import static org.apache.http.entity.ContentType.APPLICATION_JSON;
-import static org.apache.http.entity.ContentType.APPLICATION_XML;
+import static org.apache.http.entity.ContentType.*;
 
 class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultResponseBodyReader.class);
@@ -59,12 +58,12 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
             ContentType contentType = bodyReaderContext.getContentType();
             String mimeType = contentType == null ? null : contentType.getMimeType();
 
-            if (APPLICATION_JSON.getMimeType().equals(mimeType)) {
+            if (APPLICATION_JSON.getMimeType().equalsIgnoreCase(mimeType)) {
                 result = deserialize(bodyReaderContext, jsonSerializer);
-            } else if (APPLICATION_XML.getMimeType().equals(mimeType)) {
+            } else if (APPLICATION_XML.getMimeType().equalsIgnoreCase(mimeType) || TEXT_XML.getMimeType().equalsIgnoreCase(mimeType)) {
                 result = deserialize(bodyReaderContext, xmlSerializer);
             } else {
-                throw new InvalidMimeTypeException(mimeType, "DefaultDeserializer doesn't supported mimeType " + mimeType + " for converting response content to: " + bodyReaderContext.getType());
+                throw new InvalidMimeTypeException(mimeType, "Default response body reader doesn't supported mimeType " + mimeType + " for converting response content to: " + bodyReaderContext.getType());
             }
         }
         return result;
