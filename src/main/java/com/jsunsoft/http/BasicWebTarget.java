@@ -404,25 +404,30 @@ class BasicWebTarget implements WebTarget {
 
         String mimeType = contentTypeHeader != null ? ContentType.parse(contentTypeHeader.getValue()).getMimeType() : null;
 
-        LOGGER.trace("Serializing body based on mime type: [{}] body object: {}", mimeType, body);
+        LOGGER.trace("Serializing body based on content type: [{}] body object: {}", mimeType, body);
 
-        ObjectMapper mapper;
-
-        if (ContentType.APPLICATION_JSON.getMimeType().equals(mimeType)) {
-
-            mapper = requestBodySerializeConfig.getDefaultJsonMapper();
-
-        } else if (ContentType.APPLICATION_XML.getMimeType().equals(mimeType)) {
-            mapper = requestBodySerializeConfig.getDefaultXmlMapper();
-        } else {
-            throw new RequestException("Serializer is not found. Now supported only JSON and XML serialization depends on [" + HttpHeaders.CONTENT_TYPE + "]. Founded first content type header is: " + contentTypeHeader);
-        }
+        ObjectMapper mapper = resolveObjectMapper(mimeType);
 
         try {
             return mapper.writeValueAsString(body);
         } catch (JsonProcessingException e) {
             throw new RequestException("Serialization of request body failed.", e);
         }
+    }
+
+    private ObjectMapper resolveObjectMapper(String mimeType) {
+        ObjectMapper mapper;
+
+        if (ContentType.APPLICATION_JSON.getMimeType().equalsIgnoreCase(mimeType)) {
+
+            mapper = requestBodySerializeConfig.getDefaultJsonMapper();
+
+        } else if (ContentType.APPLICATION_XML.getMimeType().equalsIgnoreCase(mimeType) || ContentType.TEXT_XML.getMimeType().equalsIgnoreCase(mimeType)) {
+            mapper = requestBodySerializeConfig.getDefaultXmlMapper();
+        } else {
+            throw new RequestException("Serializer is not found. Now supported only JSON and XML serialization depends on [" + HttpHeaders.CONTENT_TYPE + "]. Founded first mime type header is: " + mimeType);
+        }
+        return mapper;
     }
 
     private void logRequestBody(HttpMethod method, final String payload) {
