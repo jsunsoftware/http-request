@@ -54,3 +54,7 @@ Headers are available from `ResponseHandler`
 
 Added methods `ClientBuilder.enableCookieManagement`, `ClientBuilder.enableAutomaticRetries` and
 `ClientBuilder.setConnectionTimeToLive`.
+
+# 3.4.2
+
+Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
