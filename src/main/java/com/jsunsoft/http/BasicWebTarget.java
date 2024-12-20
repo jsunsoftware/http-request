@@ -158,10 +158,10 @@ class BasicWebTarget implements WebTarget {
         } catch (ConnectionRequestTimeoutException e) {
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection pool is empty for request on uri: [" + request.getRequestUri() + "]. Status code: " + SC_SERVICE_UNAVAILABLE, uri, CONNECTION_POOL_IS_EMPTY, e);
         } catch (ConnectTimeoutException e) {
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "HttpRequest is unable to establish a connection with the: [" + request.getRequestUri() + "] within the given period of time or Connection pool is empty. Status code: " + SC_SERVICE_UNAVAILABLE, uri, CONNECTION_POOL_IS_EMPTY, e);
+            throw new ResponseException(SC_GATEWAY_TIMEOUT, "HttpRequest is unable to establish a connection with the: [" + request.getRequestUri() + "] within the given period of time. Status code: " + SC_GATEWAY_TIMEOUT, uri, CONNECT_TIMEOUT_EXPIRED, e);
         } catch (SocketTimeoutException | NoHttpResponseException e) {
             //todo support retry when NoHttpResponseException
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + request.getRequestUri() + "] didn't respond with specified time. Status code: " + SC_SERVICE_UNAVAILABLE, uri, REMOTE_SERVER_HIGH_LOADED, e);
+            throw new ResponseException(SC_GATEWAY_TIMEOUT, "Server on uri: [" + request.getRequestUri() + "] didn't respond with specified time. Status code: " + SC_GATEWAY_TIMEOUT, uri, REMOTE_SERVER_HIGH_LOADED, e);
         } catch (HttpHostConnectException e) {
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + uri + "] is down. Status code: " + SC_SERVICE_UNAVAILABLE, uri, REMOTE_SERVER_IS_DOWN, e);
         } catch (ClientProtocolException e) {
@@ -251,7 +251,9 @@ class BasicWebTarget implements WebTarget {
             result = new BasicResponseHandler<>(content, statusCode, headerGroup, failedMessage, typeReference.getType(), responseContentType, response.getURI());
 
         } catch (ResponseException e) {
-            result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getMessage(), typeReference.getType(), null, e.getURI(), e.getConnectionFailureType());
+            String causeMsg = e.getCause() != null ? ". " + e.getCause().getMessage() : "";
+
+            result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getMessage() + causeMsg, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType());
             LOGGER.debug("Request failed.", e);
         } catch (IOException e) {
             LOGGER.warn("Resources close failed.", e);
