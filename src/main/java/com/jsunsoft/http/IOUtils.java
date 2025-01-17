@@ -28,7 +28,7 @@ class IOUtils {
 
     static ByteArrayOutputStream toByteArrayOutputStream(final InputStream inputStream, long contentLength) throws IOException {
 
-        if (inputStream == null) {
+        if (inputStream == null || contentLength == 0) {
             return null;
         }
 
@@ -61,7 +61,7 @@ class IOUtils {
         }
         int integerContentLength = (int) contentLength;
 
-        if (integerContentLength >= 0) {
+        if (integerContentLength > 0) {
             result = integerContentLength;
         } else {
             result = 1024;
