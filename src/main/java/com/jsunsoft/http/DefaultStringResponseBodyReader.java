@@ -16,15 +16,14 @@
 
 package com.jsunsoft.http;
 
+import org.apache.http.ParseException;
 import org.apache.http.entity.ContentType;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
-import java.nio.charset.Charset;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -48,23 +47,23 @@ class DefaultStringResponseBodyReader implements ResponseBodyReader<String> {
     @Override
     public String read(ResponseBodyReaderContext<String> bodyReaderContext) throws IOException {
 
-        InputStream inputStream = bodyReaderContext.getContent();
-
-        if (inputStream == null) {
-            LOGGER.warn("Content is null");
-            return null;
-        }
-
         long startTime = System.currentTimeMillis();
 
-        ByteArrayOutputStream outputStream = IOUtils.toByteArrayOutputStream(inputStream, bodyReaderContext.getContentLength());
-
         ContentType contentType = bodyReaderContext.getContentType();
-        Charset charset = contentType == null || contentType.getCharset() == null ? UTF_8 : contentType.getCharset();
 
         LOGGER.trace("Content type is: {}", contentType);
 
-        String result = outputStream.toString(charset.name());
+        String result;
+        try {
+            result = EntityUtils.toString(bodyReaderContext.getHttpEntity(), UTF_8);
+        } catch (ParseException e) {
+            throw new ResponseBodyReaderException(e);
+        }
+
+        if (result == null || result.isEmpty()) {
+            LOGGER.warn("No content to read. Content length is: {}", bodyReaderContext.getContentLength());
+            return null;
+        }
 
         LOGGER.trace("Content is: {}", result);
 

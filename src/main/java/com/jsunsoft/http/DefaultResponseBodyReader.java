@@ -19,6 +19,7 @@ package com.jsunsoft.http;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.entity.ContentType;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +54,7 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
         if (bodyReaderContext.getType() == String.class) {
             result = (T) ResponseBodyReader.stringReader().read((ResponseBodyReaderContext<String>) bodyReaderContext);
         } else if (byte[].class == bodyReaderContext.getType()) {
-            result = (T) IOUtils.toByteArray(bodyReaderContext.getContent(), bodyReaderContext.getContentLength());
+            result = (T) EntityUtils.toByteArray(bodyReaderContext.getHttpEntity());
         } else {
             ContentType contentType = bodyReaderContext.getContentType();
             String mimeType = contentType == null ? null : contentType.getMimeType();
@@ -72,7 +73,16 @@ class DefaultResponseBodyReader<T> implements ResponseBodyReader<T> {
 
     protected T deserialize(ResponseBodyReaderContext<T> responseBodyReaderContext, ObjectMapper objectMapper) throws ResponseBodyReaderException {
         try {
-            return deserialize(responseBodyReaderContext.getContent(), responseBodyReaderContext.getGenericType(), objectMapper);
+
+            InputStream content = responseBodyReaderContext.getContent();
+
+            if (content == null) {
+
+                LOGGER.warn("No content to read. Content length is: {}", responseBodyReaderContext.getContentLength());
+                return null;
+            }
+
+            return deserialize(content, responseBodyReaderContext.getGenericType(), objectMapper);
         } catch (IOException e) {
             throw new ResponseBodyReaderException(e);
         }
