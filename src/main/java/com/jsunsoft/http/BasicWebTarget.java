@@ -240,16 +240,16 @@ class BasicWebTarget implements WebTarget {
 
             ContentType responseContentType = ContentType.get(httpEntity);
             EntityUtils.consumeQuietly(httpEntity);
-            result = new BasicResponseHandler<>(content, responseCode, headerGroup, failedMessage, typeReference.getType(), responseContentType, response.getURI(), statusLine);
+            result = new BasicResponseHandler<>(content, responseCode, headerGroup, failedMessage, typeReference.getType(), responseContentType, response.getURI(), statusLine, startTime);
 
         } catch (ResponseException e) {
             String causeMsg = e.getCause() != null ? ". " + e.getCause().getMessage() : "";
 
-            result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getMessage() + causeMsg, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType());
+            result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getMessage() + causeMsg, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
             LOGGER.debug("Request failed.", e);
         } catch (IOException e) {
             LOGGER.warn("Resources close failed.", e);
-            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Resources close failed. " + e, typeReference.getType(), null, getURI(), IO);
+            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Resources close failed. " + e, typeReference.getType(), null, getURI(), IO, startTime);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Executing of uri: [{}] completed. Time: {}", result.getURI(), HttpRequestUtils.humanTime(startTime));

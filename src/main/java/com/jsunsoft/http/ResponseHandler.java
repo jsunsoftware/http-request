@@ -22,6 +22,7 @@ import org.apache.http.StatusLine;
 import org.apache.http.entity.ContentType;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -253,4 +254,12 @@ public interface ResponseHandler<T> {
 
         return header == null ? null : header.getValue();
     }
+
+    /**
+     * Gets the duration from the call request to the parsed response.
+     *
+     * @return Duration from the call request to the parsed response
+     */
+    @Beta
+    Duration getDuration();
 }

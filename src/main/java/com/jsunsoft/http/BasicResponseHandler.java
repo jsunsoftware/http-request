@@ -23,6 +23,7 @@ import org.apache.http.message.HeaderGroup;
 
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -48,16 +49,17 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     private final boolean success;
     private final ConnectionFailureType connectionFailureType;
     private final StatusLine statusLine;
+    private final Duration duration;
 
-    BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
-        this(content, statusCode, new HeaderGroup(), errorText, type, contentType, uri, connectionFailureType, null);
+    BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
+        this(content, statusCode, new HeaderGroup(), errorText, type, contentType, uri, connectionFailureType, null, startTime);
     }
 
-    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, StatusLine statusLine) {
-        this(content, statusCode, headerGroup, errorText, type, contentType, uri, BasicConnectionFailureType.NONE, statusLine);
+    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, StatusLine statusLine, long startTime) {
+        this(content, statusCode, headerGroup, errorText, type, contentType, uri, BasicConnectionFailureType.NONE, statusLine, startTime);
     }
 
-    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, StatusLine statusLine) {
+    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, StatusLine statusLine, long startTime) {
         this.statusCode = statusCode;
         this.content = content;
         this.headerGroup = headerGroup;
@@ -68,6 +70,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         this.success = HttpRequestUtils.isSuccess(statusCode);
         this.connectionFailureType = ArgsCheck.notNull(connectionFailureType, "connectionFailureType");
         this.statusLine = statusLine;
+        this.duration = Duration.ofMillis(System.currentTimeMillis() - startTime);
     }
 
     /**
@@ -399,6 +402,11 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         return headerGroup.getAllHeaders();
     }
 
+    @Override
+    public Duration getDuration() {
+        return duration;
+    }
+
     /**
      * @return connectionFailureType.
      * @see ConnectionFailureType
@@ -416,7 +424,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
                 ", errorText='" + errorText + '\'' +
                 ", uri=" + uri +
                 ", connectionFailureType=" + connectionFailureType +
-                ", statusLine=" + statusLine +
+                ", duration=" + duration +
+                ", contentType=" + contentType +
+                ", headerGroup=" + headerGroup +
                 '}';
     }
 
