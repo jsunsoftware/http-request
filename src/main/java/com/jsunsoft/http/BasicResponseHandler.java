@@ -22,6 +22,7 @@ import org.apache.hc.core5.http.message.HeaderGroup;
 
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -46,16 +47,17 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     private final URI uri;
     private final boolean success;
     private final ConnectionFailureType connectionFailureType;
+    private final Duration duration;
 
-    BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
-        this(content, statusCode, new HeaderGroup(), errorText, type, contentType, uri, connectionFailureType);
+    BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
+        this(content, statusCode, new HeaderGroup(), errorText, type, contentType, uri, connectionFailureType, startTime);
     }
 
-    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri) {
-        this(content, statusCode, headerGroup, errorText, type, contentType, uri, BasicConnectionFailureType.NONE);
+    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, long startTime) {
+        this(content, statusCode, headerGroup, errorText, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
     }
 
-    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType) {
+    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
         this.statusCode = statusCode;
         this.content = content;
         this.headerGroup = headerGroup;
@@ -65,6 +67,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         this.uri = ArgsCheck.notNull(uri, "uri");
         this.success = HttpRequestUtils.isSuccess(statusCode);
         this.connectionFailureType = ArgsCheck.notNull(connectionFailureType, "connectionFailureType");
+        this.duration = Duration.ofMillis(System.currentTimeMillis() - startTime);
     }
 
     /**
@@ -383,6 +386,11 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         return headerGroup.getHeaders();
     }
 
+    @Override
+    public Duration getDuration() {
+        return duration;
+    }
+
     /**
      * @return connectionFailureType.
      * @see ConnectionFailureType
@@ -400,6 +408,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
                 ", errorText='" + errorText + '\'' +
                 ", uri=" + uri +
                 ", connectionFailureType=" + connectionFailureType +
+                ", duration=" + duration +
+                ", contentType=" + contentType +
+                ", headerGroup=" + headerGroup +
                 '}';
     }
 

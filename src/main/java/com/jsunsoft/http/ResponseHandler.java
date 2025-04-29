@@ -21,6 +21,7 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -332,4 +333,12 @@ public interface ResponseHandler<T> {
         Header header = getLastHeader(name);
         return header == null ? null : header.getValue();
     }
+
+    /**
+     * Gets the duration from the call request to the parsed response.
+     *
+     * @return Duration from the call request to the parsed response
+     */
+    @Beta
+    Duration getDuration();
 }
