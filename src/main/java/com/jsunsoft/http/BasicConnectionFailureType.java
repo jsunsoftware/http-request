@@ -21,10 +21,10 @@ package com.jsunsoft.http;
  */
 enum BasicConnectionFailureType implements ConnectionFailureType {
     NONE,
-    REMOTE_SERVER_HIGH_LOADED,
-    CONNECT_TIMEOUT_EXPIRED,
+    RESPONSE_TIMEOUT,
+    CONNECT_TIMEOUT,
     CONNECTION_POOL_IS_EMPTY,
-    REMOTE_SERVER_IS_DOWN,
+    SERVICE_UNREACHABLE,
     IO,
     UNDEFINED;
 
@@ -36,19 +36,19 @@ enum BasicConnectionFailureType implements ConnectionFailureType {
         return this == NONE;
     }
 
-    public boolean isRemoteServerHighLoaded() {
-        return this == REMOTE_SERVER_HIGH_LOADED;
+    public boolean isResponseTimeout() {
+        return this == RESPONSE_TIMEOUT;
     }
 
-    public boolean isConnectTimeoutExpired() {
-        return this == CONNECT_TIMEOUT_EXPIRED;
+    public boolean isConnectTimeout() {
+        return this == CONNECT_TIMEOUT;
     }
 
     public boolean isConnectionPoolEmpty() {
         return this == CONNECTION_POOL_IS_EMPTY;
     }
 
-    public boolean isRemoteServerDown() {
-        return this == REMOTE_SERVER_IS_DOWN;
+    public boolean isRemoteServerUnreachable() {
+        return this == SERVICE_UNREACHABLE;
     }
 }

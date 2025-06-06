@@ -18,6 +18,7 @@ package com.jsunsoft.http;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.http.*;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
@@ -40,6 +41,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Collection;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -155,18 +158,18 @@ class BasicWebTarget implements WebTarget {
         try {
             return new BasicResponse(closeableHttpClient.execute(request), responseBodyReaderConfig, request.getURI());
         } catch (ConnectionPoolTimeoutException e) {
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "HttpRequest is unable to take a connection for the: [" + uri + "] connection pool is empty. Status code: " + SC_SERVICE_UNAVAILABLE, uri, CONNECTION_POOL_IS_EMPTY, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection pool is empty", uri, CONNECTION_POOL_IS_EMPTY, e);
         } catch (ConnectTimeoutException e) {
-            throw new ResponseException(SC_GATEWAY_TIMEOUT, "HttpRequest is unable to establish a connection with the: [" + uri + "] within the given period of time. Status code: " + SC_GATEWAY_TIMEOUT, uri, CONNECT_TIMEOUT_EXPIRED, e);
+            throw new ResponseException(SC_GATEWAY_TIMEOUT, "Unable to establish a connection within the given period of time", uri, CONNECT_TIMEOUT, e);
         } catch (SocketTimeoutException | NoHttpResponseException e) {
             //todo support retry when NoHttpResponseException
-            throw new ResponseException(SC_GATEWAY_TIMEOUT, "Server on uri: [" + uri + "] didn't respond with specified time. Status code: " + SC_GATEWAY_TIMEOUT, uri, REMOTE_SERVER_HIGH_LOADED, e);
+            throw new ResponseException(SC_GATEWAY_TIMEOUT, "Server didn't respond with specified time", uri, RESPONSE_TIMEOUT, e);
         } catch (HttpHostConnectException e) {
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Server on uri: [" + uri + "] is down. Status code: " + SC_SERVICE_UNAVAILABLE, uri, REMOTE_SERVER_IS_DOWN, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Failed to connect to server. Potential reasons: The target server may be down, unreachable, or there are network connectivity issues", uri, SERVICE_UNREACHABLE, e);
         } catch (ClientProtocolException e) {
             throw new RequestException("Error in the HTTP protocol. URI: [" + uri + "]", e);
         } catch (IOException e) {
-            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection was aborted for request on uri: [" + uri + "]. Status code: " + SC_SERVICE_UNAVAILABLE, uri, IO, e);
+            throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection was aborted", uri, IO, e);
         }
     }
 
@@ -243,13 +246,18 @@ class BasicWebTarget implements WebTarget {
             result = new BasicResponseHandler<>(content, responseCode, headerGroup, failedMessage, typeReference.getType(), responseContentType, response.getURI(), statusLine, startTime);
 
         } catch (ResponseException e) {
-            String causeMsg = e.getCause() != null ? ". " + e.getCause().getMessage() : "";
 
-            result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getMessage() + causeMsg, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
+            String causesMsg = throwableDeepMessages(e);
+
+            result = new BasicResponseHandler<>(null, e.getStatusCode(), causesMsg, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
             LOGGER.debug("Request failed.", e);
         } catch (IOException e) {
-            LOGGER.warn("Resources close failed.", e);
-            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Resources close failed. " + e, typeReference.getType(), null, getURI(), IO, startTime);
+
+            String causesMsg = throwableDeepMessages(e);
+
+            LOGGER.error("", e);
+
+            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, causesMsg, typeReference.getType(), null, getURI(), IO, startTime);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Executing of uri: [{}] completed. Time: {}", result.getURI(), HttpRequestUtils.humanTime(startTime));
@@ -437,5 +445,14 @@ class BasicWebTarget implements WebTarget {
 
     private void logRequestBody(HttpMethod method, final String payload) {
         LOGGER.debug("Requesting to: [{}] with HTTP method: [{}] and body: {}", getURIString(), method, payload);
+    }
+
+    private static String throwableDeepMessages(Throwable t) {
+
+        return ExceptionUtils.getThrowableList(t)
+                .stream()
+                .filter(Objects::nonNull)
+                .map(Throwable::toString)
+                .collect(Collectors.joining(". Cause: "));
     }
 }

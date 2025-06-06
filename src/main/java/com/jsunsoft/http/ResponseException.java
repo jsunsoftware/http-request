@@ -17,13 +17,13 @@
 package com.jsunsoft.http;
 
 import java.net.URI;
+import java.util.StringJoiner;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.UNDEFINED;
 
 /**
  * Signals an HTTP response processing error
  */
-@SuppressWarnings("serial")
 public class ResponseException extends RuntimeException {
 
     private final int statusCode;
@@ -66,11 +66,10 @@ public class ResponseException extends RuntimeException {
 
     @Override
     public String toString() {
-        return "ResponseException{" +
-                "statusCode=" + statusCode +
-                ", uri=" + uri +
-                ", connectionFailureType=" + connectionFailureType +
-                ", message=" + getMessage() +
-                '}';
+        return new StringJoiner(", ", super.toString() + " [", "]")
+                .add("statusCode=" + statusCode)
+                .add("uri=" + uri)
+                .add("connectionFailureType=" + connectionFailureType)
+                .toString();
     }
 }
