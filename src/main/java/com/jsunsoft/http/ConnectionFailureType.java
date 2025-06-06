@@ -29,22 +29,22 @@ interface ConnectionFailureType {
     boolean isNotFailed();
 
     /**
-     * @return true When remote server is high loaded. Response time expired or no http response.
+     * @return true Response time expired or no http response.
      */
-    boolean isRemoteServerHighLoaded();
+    boolean isResponseTimeout();
 
     /**
      * @return true When time to connect remote server expired.
      */
-    boolean isConnectTimeoutExpired();
+    boolean isConnectTimeout();
 
     /**
-     * @return true  When connection pool is empty.
+     * @return true When the connection pool is empty.
      */
     boolean isConnectionPoolEmpty();
 
     /**
-     * @return true When remote server is down
+     * @return true When remote server is unreachable
      */
-    boolean isRemoteServerDown();
+    boolean isRemoteServerUnreachable();
 }
