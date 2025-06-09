@@ -236,8 +236,10 @@ class BasicWebTarget implements WebTarget {
                         }
                     }
                 } catch (ResponseBodyReaderException e) {
-                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "]." + e;
-                    LOGGER.debug(failedMessage + ". Uri: [" + response.getURI() + "]. Status code: " + statusCode, e);
+                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "]. Reason: " + throwableDeepMessages(e);
+                    if (LOGGER.isDebugEnabled()){
+                        LOGGER.debug(failedMessage + ". Uri: [" + response.getURI() + "]. Status code: " + statusCode, e);
+                    }
                     statusCode = SC_BAD_GATEWAY;
                 } catch (IOException e) {
                     failedMessage = "Get content from response failed: " + e;
@@ -263,7 +265,7 @@ class BasicWebTarget implements WebTarget {
 
             String causesMsg = throwableDeepMessages(e);
 
-            LOGGER.atError().setCause(e).log();
+            LOGGER.error("", e);
 
             result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, causesMsg, typeReference.getType(), null, getURI(), IO, startTime);
         }
