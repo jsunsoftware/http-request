@@ -320,15 +320,24 @@ class BasicResponse implements Response {
 
         ResponseBodyReaderContext<T> responseBodyReaderContext = new BasicResponseBodyReaderContext<>(this, type, genericType, getURI());
 
-        Optional<ResponseBodyReader<?>> responseBodyReader =
-                responseBodyReaderConfig.getResponseBodyReaders().stream()
+        ResponseBodyReader<T> responseBodyReader =
+                (ResponseBodyReader<T>) responseBodyReaderConfig.getResponseBodyReaders().stream()
                         .filter(rbr -> rbr.isReadable(responseBodyReaderContext))
-                        .findFirst();
+                        .findFirst()
+                        .orElseGet(() -> {
+                            if (responseBodyReaderConfig.isUseDefaultReader() && responseBodyReaderConfig.getDefaultResponseBodyReader().isReadable(responseBodyReaderContext)){
+                                return responseBodyReaderConfig.getDefaultResponseBodyReader();
+                            }
+                            return null;
+                        });
 
-        if (responseBodyReader.isPresent()) {
-            content = ((ResponseBodyReader<T>) responseBodyReader.get()).read(responseBodyReaderContext);
-        } else if (responseBodyReaderConfig.isUseDefaultReader() && responseBodyReaderConfig.getDefaultResponseBodyReader().isReadable(responseBodyReaderContext)) {
-            content = ((ResponseBodyReader<T>) responseBodyReaderConfig.getDefaultResponseBodyReader()).read(responseBodyReaderContext);
+
+        if (responseBodyReader != null) {
+            try {
+                content = responseBodyReader.read(responseBodyReaderContext);
+            } catch (RuntimeException e) {
+                throw new ResponseBodyReaderException("Error during reading response body by: " + responseBodyReader.getClass().getName(), e);
+            }
         } else if (hasEntity()) {
 
             throw new ResponseBodyReaderNotFoundException(

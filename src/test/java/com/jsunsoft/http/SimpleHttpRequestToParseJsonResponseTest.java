@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -153,6 +154,20 @@ class SimpleHttpRequestToParseJsonResponseTest {
             })
             .build();
 
+    private static final HttpRequest HTTP_REQUEST_WITH_FAIL_BODY_READER = HttpRequestBuilder.create(closeableHttpClient)
+            .addBodyReader(new ResponseBodyReader<ResponseData>() {
+                @Override
+                public boolean isReadable(ResponseBodyReadableContext bodyReadableContext) {
+                    return bodyReadableContext.getType() == ResponseData.class;
+                }
+
+                @Override
+                public ResponseData read(ResponseBodyReaderContext<ResponseData> bodyReaderContext) throws IOException {
+                    throw new RuntimeException("Failed");
+                }
+            })
+            .build();
+
     @RegisterExtension
     static WireMockExtension wireMockRule = WireMockExtension.newInstance()
             .options(WireMockConfiguration.wireMockConfig().port(8080))
@@ -269,6 +284,13 @@ class SimpleHttpRequestToParseJsonResponseTest {
                 });
 
         assertEquals("testValue", r.get("testKey"));
+    }
+
+    @Test
+    void testParsingResponseDataWithFailBodyReader() {
+        var rh = HTTP_REQUEST_WITH_FAIL_BODY_READER.target("http://localhost:8080/get").get(ResponseData.class);
+
+        Assertions.assertEquals(502, rh.getCode());
     }
 
     static class ResponseData {
