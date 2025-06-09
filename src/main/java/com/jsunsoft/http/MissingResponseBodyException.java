@@ -29,6 +29,6 @@ public class MissingResponseBodyException extends UnexpectedResponseException {
     }
 
     public MissingResponseBodyException(int statusCode, URI uri) {
-        this(statusCode, "Status code is: " + statusCode + ". Response body is missing.", uri);
+        this(statusCode, "Response body is missing.", uri);
     }
 }

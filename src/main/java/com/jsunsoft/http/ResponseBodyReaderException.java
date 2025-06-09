@@ -19,6 +19,7 @@ package com.jsunsoft.http;
 import java.io.IOException;
 
 @SuppressWarnings("serial")
+//todo separate from IOException
 public class ResponseBodyReaderException extends IOException {
 
     public ResponseBodyReaderException(String message, Throwable cause) {

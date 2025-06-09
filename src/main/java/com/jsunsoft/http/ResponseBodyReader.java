@@ -23,25 +23,10 @@ import java.io.IOException;
  *
  * @param <T> Type of deserialized instance
  *            <p>
- *            <p>
- *            Note: All implementations must be thread safe in case of multi thread environment.
+ *            Note: All implementations must be thread safe in case of multi-thread environment.
+ *            </p>
  */
 public interface ResponseBodyReader<T> {
-
-    boolean isReadable(ResponseBodyReadableContext bodyReadableContext);
-
-    /**
-     * Method receives httpEntity of the response then deserialized to type {@code T}
-     *
-     * @param bodyReaderContext the response context.
-     *
-     * @return Deserialized content
-     *
-     * @throws IOException                   If the stream could not be created or error occurs reading the input stream.
-     * @throws UnsupportedOperationException If entity content cannot be represented as {@link java.io.InputStream}.
-     * @throws ResponseBodyReaderException   If Cannot deserialize content
-     */
-    T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException, ResponseBodyReaderException;
 
     /**
      * @return returns reader which will always read response stream to string. Reader's result will be null if no content.
@@ -63,4 +48,23 @@ public interface ResponseBodyReader<T> {
     static ResponseBodyReader<String> whenSuccessStringReader() {
         return ResponseBodyReaders.whenSuccessStringReader();
     }
+
+    /**
+     * Method checks if the response body is readable by this reader.
+     *
+     * @param bodyReadableContext the response context.
+     * @return true if the response body is readable by this reader, false otherwise.
+     */
+    boolean isReadable(ResponseBodyReadableContext bodyReadableContext);
+
+    /**
+     * Method receives httpEntity of the response then deserialized to type {@code T}
+     *
+     * @param bodyReaderContext the response context.
+     * @return Deserialized content
+     * @throws IOException                   If the stream could not be created or error occurs reading the input stream.
+     * @throws UnsupportedOperationException If entity content cannot be represented as {@link java.io.InputStream}.
+     * @throws ResponseBodyReaderException   If Cannot deserialize content
+     */
+    T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException, ResponseBodyReaderException;
 }

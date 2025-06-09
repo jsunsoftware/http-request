@@ -228,8 +228,10 @@ class BasicWebTarget implements WebTarget {
                         }
                     }
                 } catch (ResponseBodyReaderException e) {
-                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "]." + e;
-                    LOGGER.debug(failedMessage + ". Uri: [" + response.getURI() + "]. Status code: " + responseCode, e);
+                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "]. Reason: " + throwableDeepMessages(e);
+                    if (LOGGER.isDebugEnabled()){
+                        LOGGER.debug(failedMessage + ". Uri: [" + response.getURI() + "]. Status code: " + responseCode, e);
+                    }
                     responseCode = SC_BAD_GATEWAY;
                 } catch (IOException e) {
                     failedMessage = "Get content from response failed: " + e;
