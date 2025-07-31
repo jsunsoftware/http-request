@@ -51,12 +51,9 @@ class BasicResponse implements Response {
 
         try {
             EntityUtils.consume(getEntity());
-        } catch (IOException e) {
+        } finally {
             closeableHttpResponse.close();
-            throw e;
         }
-
-        closeableHttpResponse.close();
     }
 
     /**

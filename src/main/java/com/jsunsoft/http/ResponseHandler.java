@@ -76,7 +76,7 @@ public interface ResponseHandler<T> {
     /**
      * @param defaultValue value to return if status code is success and hasn't body
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
-     * @throws UnexpectedStatusCodeException If status code is not success
+     * @throws ResponseException If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T orElseThrow(T defaultValue);
@@ -117,7 +117,7 @@ public interface ResponseHandler<T> {
 
     /**
      * @return Content from response. Returns null if hasn't body
-     * @throws UnexpectedStatusCodeException If response code is not success
+     * @throws ResponseException If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T orElseThrow();
@@ -143,7 +143,7 @@ public interface ResponseHandler<T> {
     /**
      * @return Deserialized Content from response.
      * @throws MissingResponseBodyException  If content isn't present
-     * @throws UnexpectedStatusCodeException If response code is not success
+     * @throws ResponseException If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T requiredGet();
@@ -157,7 +157,7 @@ public interface ResponseHandler<T> {
     /**
      * @return Deserialized Content from response as {@link Optional}. If content isn't present returns empty {@link Optional}.
      * @throws UnsupportedOperationException if generic type is a Void
-     * @throws UnexpectedStatusCodeException If response code is not success
+     * @throws ResponseException If response code is not success
      */
     Optional<T> getAsOptionalOrThrow();
 
@@ -165,7 +165,7 @@ public interface ResponseHandler<T> {
     /**
      * Throws an {@link UnexpectedStatusCodeException} if the status code of the response is not successful.
      *
-     * @throws UnexpectedStatusCodeException If the status code is not in the successful range.
+     * @throws ResponseException If the status code is not in the successful range.
      */
     void throwIfNotSuccess() throws UnexpectedStatusCodeException;
 

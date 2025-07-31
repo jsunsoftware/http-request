@@ -229,7 +229,7 @@ class BasicWebTarget implements WebTarget {
                     }
                 } catch (ResponseBodyReaderException e) {
                     failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "]. Reason: " + throwableDeepMessages(e);
-                    if (LOGGER.isDebugEnabled()){
+                    if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(failedMessage + ". Uri: [" + response.getURI() + "]. Status code: " + responseCode, e);
                     }
                     responseCode = SC_BAD_GATEWAY;
@@ -249,17 +249,13 @@ class BasicWebTarget implements WebTarget {
 
         } catch (ResponseException e) {
 
-            String causesMsg = throwableDeepMessages(e);
-
-            result = new BasicResponseHandler<>(null, e.getStatusCode(), causesMsg, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
+            result = new BasicResponseHandler<>(null, e.getStatusCode(), e, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
             LOGGER.debug("Request failed.", e);
         } catch (IOException e) {
 
-            String causesMsg = throwableDeepMessages(e);
-
             LOGGER.error("", e);
 
-            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, causesMsg, typeReference.getType(), null, getURI(), IO, startTime);
+            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Failed to close response resource: " + e, e, typeReference.getType(), null, getURI(), IO, startTime);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Executing of uri: [{}] completed. Time: {}", result.getURI(), HttpRequestUtils.humanTime(startTime));

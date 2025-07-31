@@ -27,11 +27,19 @@ public class HttpRequestBasicTest {
 
     @Test
     public void largeResponseTest() {
-        ResponseHandler<String> rh = HTTP_REQUEST.target("https://en.wikipedia.org/")
-                .path("wiki/List_of_least_concern_birds")
-                .get(String.class);
+        ResponseHandler<String> rh = HTTP_REQUEST.target("https://httpbin.org")
+                .path("anything")
+                .post(repeat("a", 50000), String.class);
 
         Assert.assertEquals(HttpStatus.SC_OK, rh.getCode());
         Assert.assertTrue(rh.orElse("").length() > 16348);
+    }
+
+    private String repeat(String str, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            sb.append(str);
+        }
+        return sb.toString();
     }
 }
