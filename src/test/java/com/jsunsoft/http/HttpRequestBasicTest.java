@@ -29,9 +29,9 @@ class HttpRequestBasicTest {
 
     @Test
     void largeResponseTest() {
-        ResponseHandler<String> rh = HTTP_REQUEST.target("https://en.wikipedia.org/")
-                .path("wiki/List_of_least_concern_birds")
-                .get(String.class);
+        ResponseHandler<String> rh = HTTP_REQUEST.target("https://httpbin.org")
+                .path("anything")
+                .post("a".repeat(50000), String.class);
 
         assertEquals(HttpStatus.SC_OK, rh.getCode());
         assertTrue(rh.orElse("").length() > 16348);

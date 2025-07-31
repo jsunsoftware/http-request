@@ -48,16 +48,29 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     private final boolean success;
     private final ConnectionFailureType connectionFailureType;
     private final Duration duration;
+    private final Exception errorCause;
 
     BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
-        this(content, statusCode, new HeaderGroup(), errorText, type, contentType, uri, connectionFailureType, startTime);
+        this(content, statusCode, new HeaderGroup(), errorText, null, type, contentType, uri, connectionFailureType, startTime);
+    }
+
+    BasicResponseHandler(T content, int statusCode, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
+        this(content, statusCode, new HeaderGroup(), errorText, errorCause, type, contentType, uri, connectionFailureType, startTime);
+    }
+
+    BasicResponseHandler(T content, int statusCode, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
+        this(content, statusCode, new HeaderGroup(), errorCause.getMessage(), errorCause, type, contentType, uri, connectionFailureType, startTime);
     }
 
     BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, long startTime) {
-        this(content, statusCode, headerGroup, errorText, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
+        this(content, statusCode, headerGroup, errorText, null, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
     }
 
-    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
+    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, long startTime) {
+        this(content, statusCode, headerGroup, errorText, errorCause, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
+    }
+
+    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
         this.statusCode = statusCode;
         this.content = content;
         this.headerGroup = headerGroup;
@@ -68,6 +81,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         this.success = HttpRequestUtils.isSuccess(statusCode);
         this.connectionFailureType = ArgsCheck.notNull(connectionFailureType, "connectionFailureType");
         this.duration = Duration.ofMillis(System.currentTimeMillis() - startTime);
+        this.errorCause = errorCause;
     }
 
     /**
@@ -105,14 +119,14 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @param defaultValue value to return if status code is success and hasn't body
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
-     * @throws UnexpectedStatusCodeException If status code is not success
+     * @throws ResponseException If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     @Override
     public T orElseThrow(T defaultValue) {
         check();
         if (isNonSuccess()) {
-            throw new UnexpectedStatusCodeException(statusCode, errorText, uri);
+            throw responseException();
         }
         return content == null ? defaultValue : content;
     }
@@ -181,7 +195,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @return Content from response. Returns null if hasn't body
-     * @throws UnexpectedStatusCodeException If response code is not success
+     * @throws ResponseException If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     @Override
@@ -190,7 +204,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         if (isSuccess()) {
             return content;
         }
-        throw new UnexpectedStatusCodeException(statusCode, errorText, uri);
+        throw responseException();
     }
 
     /**
@@ -228,7 +242,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
                 throw new MissingResponseBodyException(statusCode, uri);
             }
         } else {
-            throw new UnexpectedStatusCodeException(statusCode, errorText, uri);
+            throw responseException();
         }
 
     }
@@ -248,7 +262,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
             return Optional.ofNullable(content);
         }
 
-        throw new UnexpectedStatusCodeException(statusCode, errorText, uri);
+        throw responseException();
     }
 
     /**
@@ -257,7 +271,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     @Override
     public void throwIfNotSuccess() throws UnexpectedStatusCodeException {
         if (isNonSuccess()) {
-            throw new UnexpectedStatusCodeException(statusCode, errorText, uri);
+            throw responseException();
         }
     }
 
@@ -417,6 +431,16 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     private void check() {
         if (isVoidType) {
             throw new UnsupportedOperationException("Content is not available. Generic type is a Void");
+        }
+    }
+
+    private ResponseException responseException() {
+        if (errorCause == null) {
+            return new UnexpectedStatusCodeException(statusCode, errorText, uri);
+        } else if (errorCause instanceof ResponseException) {
+            return (ResponseException) errorCause;
+        } else {
+            return new ResponseException(statusCode, errorText, uri, connectionFailureType, errorCause);
         }
     }
 }

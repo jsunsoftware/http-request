@@ -26,6 +26,8 @@ import static com.jsunsoft.http.BasicConnectionFailureType.UNDEFINED;
  */
 public class ResponseException extends RuntimeException {
 
+    private static final long serialVersionUID = 1L;
+
     private final int statusCode;
     private final URI uri;
     private final ConnectionFailureType connectionFailureType;
