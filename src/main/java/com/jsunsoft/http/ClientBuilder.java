@@ -514,7 +514,7 @@ public class ClientBuilder {
     public ClientBuilder hostnameVerificationPolicy(HostnameVerificationPolicy hostnameVerificationPolicy) {
         initializeClientTlsStrategyBuilder();
 
-        clientTlsStrategyBuilder.setHostnameVerificationPolicy(hostnameVerificationPolicy);
+        clientTlsStrategyBuilder.setHostVerificationPolicy(hostnameVerificationPolicy);
         return this;
     }
 
@@ -598,7 +598,7 @@ public class ClientBuilder {
                 .setDefaultConnectionConfig(connectionConfig);
 
         if (clientTlsStrategyBuilder != null) {
-            cmBuilder.setTlsSocketStrategy((TlsSocketStrategy) clientTlsStrategyBuilder.build());
+            cmBuilder.setTlsSocketStrategy(clientTlsStrategyBuilder.buildClassic());
         }
 
         if (defaultConnectionManagerBuilderCustomizers != null) {

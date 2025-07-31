@@ -23,7 +23,7 @@ import java.io.IOException;
  *
  * @param <T> Type of deserialized instance
  *            <p>
- *            Note: All implementations must be thread safe in case of multi thread environment.
+ *            Note: All implementations must be thread safe in case of multi-thread environment.
  *            </p>
  */
 public interface ResponseBodyReader<T> {

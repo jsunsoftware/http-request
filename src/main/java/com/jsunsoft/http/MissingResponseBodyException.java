@@ -21,14 +21,15 @@ import java.net.URI;
 /**
  * Signals expected response body is missed.
  */
-@SuppressWarnings("serial")
 public class MissingResponseBodyException extends UnexpectedResponseException {
+
+    private static final long serialVersionUID = 1L;
 
     public MissingResponseBodyException(int statusCode, String message, URI uri) {
         super(statusCode, message, uri);
     }
 
     public MissingResponseBodyException(int statusCode, URI uri) {
-        this(statusCode, "Status code is: " + statusCode + ". Response body is missing.", uri);
+        this(statusCode, "Response body is missing.", uri);
     }
 }

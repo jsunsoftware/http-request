@@ -23,6 +23,8 @@ import java.net.URI;
  */
 public class UnexpectedStatusCodeException extends UnexpectedResponseException {
 
+    private static final long serialVersionUID = 1L;
+
     public UnexpectedStatusCodeException(int statusCode, String message, URI uri) {
         super(statusCode, message, uri);
     }

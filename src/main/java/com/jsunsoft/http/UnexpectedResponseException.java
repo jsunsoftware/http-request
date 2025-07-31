@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Benik Arakelyan
+ * Copyright (c) 2017-2025. Benik Arakelyan
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,11 @@ import java.net.URI;
 
 /**
  * Signals an unexpected HTTP response
+ *
+ * @deprecated Use {@link UnexpectedStatusCodeException} or {@link MissingResponseBodyException} for specific cases or {@link ResponseException} in common.
  */
 
-@SuppressWarnings("serial")
+@Deprecated
 public class UnexpectedResponseException extends ResponseException {
 
     public UnexpectedResponseException(int statusCode, String message, URI uri) {
