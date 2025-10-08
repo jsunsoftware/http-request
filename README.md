@@ -1,9 +1,8 @@
 # http-request
 
-This lib is built on apache http client for sending rest requests.
+The http-request library is a Java wrapper built on top of Apache HTTP Client that simplifies making REST API calls.
 
-Main purpose of the **http-request**, create simple rest client quickly, manage your response very simple and don't
-worry about Exceptions.
+The main purpose is to create a simple REST client quickly, manage responses easily, and handle exceptions gracefully.
 
 **http-request** Features:
 Building your HttpRequest requires no more than 5 minutes. <br/>
@@ -372,7 +371,7 @@ To use from maven add this snippet to the pom.xml `dependencies` section:
 <dependency>
     <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>3.4.7</version>
+  <version>3.4.8</version>
 </dependency>
 ```
 
