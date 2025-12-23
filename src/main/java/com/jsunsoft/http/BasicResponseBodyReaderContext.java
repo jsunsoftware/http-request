@@ -20,6 +20,7 @@ import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
@@ -30,17 +31,34 @@ final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderConte
     private final Class<T> type;
     private final Type genericType;
     private final URI uri;
+    private final long maxResponseBodySizeBytes;
 
-    BasicResponseBodyReaderContext(ClassicHttpResponse httpResponse, Class<T> type, Type genericType, URI uri) {
+    BasicResponseBodyReaderContext(ClassicHttpResponse httpResponse, Class<T> type, Type genericType, URI uri, long maxResponseBodySizeBytes) {
         this.httpResponse = ArgsCheck.notNull(httpResponse, "httpResponse");
         this.type = ArgsCheck.notNull(type, "type");
         this.genericType = ArgsCheck.notNull(genericType, "genericType");
         this.uri = ArgsCheck.notNull(uri, "uri");
+        this.maxResponseBodySizeBytes = maxResponseBodySizeBytes;
     }
 
     @Override
     public InputStream getContent() throws IOException {
-        return httpResponse.getEntity().getContent();
+        HttpEntity entity = httpResponse.getEntity();
+        if (entity == null) {
+            return null;
+        }
+
+        long maxBytes = maxResponseBodySizeBytes;
+        if (maxBytes <= 0) {
+            return entity.getContent();
+        }
+
+        long contentLength = entity.getContentLength();
+        if (contentLength > maxBytes) {
+            throw new InvalidContentLengthException(contentLength, "Response body exceeds maximum allowed size: " + maxBytes + " bytes");
+        }
+
+        return new LimitedInputStream(entity.getContent(), maxBytes);
     }
 
     @Override
@@ -81,5 +99,45 @@ final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderConte
     @Override
     public boolean hasEntity() {
         return getHttpEntity() != null;
+    }
+
+    @Override
+    public long getMaxResponseBodySizeBytes() {
+        return maxResponseBodySizeBytes;
+    }
+
+    private static final class LimitedInputStream extends FilterInputStream {
+        private final long maxBytes;
+        private long readBytes;
+
+        LimitedInputStream(InputStream in, long maxBytes) {
+            super(in);
+            this.maxBytes = maxBytes;
+        }
+
+        @Override
+        public int read() throws IOException {
+            int b = super.read();
+            if (b != -1) {
+                incrementAndCheck(1);
+            }
+            return b;
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            int n = super.read(b, off, len);
+            if (n > 0) {
+                incrementAndCheck(n);
+            }
+            return n;
+        }
+
+        private void incrementAndCheck(int delta) throws IOException {
+            readBytes += delta;
+            if (readBytes > maxBytes) {
+                throw new InvalidContentLengthException(readBytes, "Response body exceeds maximum allowed size: " + maxBytes + " bytes");
+            }
+        }
     }
 }

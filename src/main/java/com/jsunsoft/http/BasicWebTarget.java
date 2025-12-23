@@ -16,8 +16,6 @@
 
 package com.jsunsoft.http;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.ConnectTimeoutException;
@@ -26,7 +24,6 @@ import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.routing.RoutingSupport;
 import org.apache.hc.core5.http.*;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.protocol.HttpContext;
@@ -55,32 +52,41 @@ class BasicWebTarget implements WebTarget {
     private final HttpUriRequestBuilder httpUriRequestBuilder;
     private final ResponseBodyReaderConfig responseBodyReaderConfig;
     private final RequestBodySerializeConfig requestBodySerializeConfig;
+    private final boolean requestPayloadLogging;
+    private Charset bodyCharset = UTF_8;
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) {
-        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig);
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) {
+        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
     }
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) throws URISyntaxException {
-        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig);
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) throws URISyntaxException {
+        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
     }
 
-    private BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) {
+    private BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) {
         this.closeableHttpClient = closeableHttpClient;
         this.uriBuilder = uriBuilder;
         this.responseBodyReaderConfig = responseBodyReaderConfig;
         this.requestBodySerializeConfig = requestBodySerializeConfig;
+        this.requestPayloadLogging = requestPayloadLogging;
         this.httpUriRequestBuilder = new HttpUriRequestBuilder();
 
         defaultHeaders.forEach(httpUriRequestBuilder::addHeader);
         defaultRequestParameters.forEach(httpUriRequestBuilder::addParameter);
     }
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) {
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) {
+        this(closeableHttpClient, uriBuilder, httpUriRequestBuilder, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, UTF_8);
+    }
+
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, Charset bodyCharset) {
         this.closeableHttpClient = closeableHttpClient;
         this.uriBuilder = uriBuilder;
         this.httpUriRequestBuilder = httpUriRequestBuilder;
         this.responseBodyReaderConfig = responseBodyReaderConfig;
         this.requestBodySerializeConfig = requestBodySerializeConfig;
+        this.requestPayloadLogging = requestPayloadLogging;
+        this.bodyCharset = bodyCharset != null ? bodyCharset : UTF_8;
     }
 
     /**
@@ -94,6 +100,8 @@ class BasicWebTarget implements WebTarget {
         this.responseBodyReaderConfig = source.getResponseBodyReaderConfig();
         this.requestBodySerializeConfig = source.getRequestBodySerializeConfig();
         this.httpUriRequestBuilder = source.getHttpUriRequestBuilder();
+        this.requestPayloadLogging = source.isRequestPayloadLogging();
+        this.bodyCharset = source.getBodyCharset();
     }
 
     @Override
@@ -202,13 +210,16 @@ class BasicWebTarget implements WebTarget {
         long startTime = System.currentTimeMillis();
 
         ResponseHandler<T> result;
+        int originalStatusCode = -1;
 
         try (Response response = request(method)) {
 
-            int statusCode = response.getCode();
+            originalStatusCode = response.getCode();
+            int statusCode = originalStatusCode;
             HttpEntity httpEntity = response.getEntity();
+            URI responseUri = getURI();
 
-            LOGGER.info("Response code from uri: [{}] is {}", response.getURI(), statusCode);
+            LOGGER.debug("Response code from uri: [{}] is {}", responseUri, statusCode);
 
             boolean hasBody = HttpRequestUtils.hasBody(statusCode);
 
@@ -216,7 +227,7 @@ class BasicWebTarget implements WebTarget {
             String failedMessage = null;
             if (hasBody && httpEntity == null) {
                 failedMessage = "Response entity is null";
-                LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, response.getURI(), statusCode);
+                LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, responseUri, statusCode);
                 statusCode = SC_BAD_GATEWAY;
             } else {
                 try {
@@ -224,11 +235,11 @@ class BasicWebTarget implements WebTarget {
 
                         content = response.readEntityChecked(typeReference);
 
-                        LOGGER.trace("Result of Uri: [{}] is {}", response.getURI(), content);
+                        LOGGER.trace("Result of Uri: [{}] is {}", responseUri, content);
                     } else if (HttpRequestUtils.isNonSuccess(statusCode)) {
 
                         failedMessage = response.readEntityChecked(String.class);
-                        String logMsg = "Unexpected Response. Url: [" + response.getURI() + "] Status code: " + statusCode + ", Error message: " + failedMessage;
+                        String logMsg = "Unexpected Response. Url: [" + responseUri + "] Status code: " + statusCode + ", Error message: " + failedMessage;
                         if (statusCode == SC_BAD_REQUEST) {
                             LOGGER.warn(logMsg);
                         } else {
@@ -238,12 +249,12 @@ class BasicWebTarget implements WebTarget {
                 } catch (ResponseBodyReaderException e) {
                     failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "]. Reason: " + throwableDeepMessages(e);
                     if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug(failedMessage + ". Uri: [" + response.getURI() + "]. Status code: " + statusCode, e);
+                        LOGGER.debug(failedMessage + ". Uri: [" + responseUri + "]. Status code: " + statusCode, e);
                     }
                     statusCode = SC_BAD_GATEWAY;
                 } catch (IOException e) {
                     failedMessage = "Get content from response failed: " + e;
-                    LOGGER.debug("Stream could not be created. Uri: [" + response.getURI() + "]. Status code: " + statusCode, e);
+                    LOGGER.debug("Stream could not be created. Uri: [" + responseUri + "]. Status code: " + statusCode, e);
                     statusCode = SC_SERVICE_UNAVAILABLE;
                 }
             }
@@ -252,18 +263,17 @@ class BasicWebTarget implements WebTarget {
             headerGroup.setHeaders(response.getHeaders());
 
             ContentType responseContentType = HttpRequestUtils.getContentTypeFromHttpEntity(httpEntity);
-            EntityUtils.consumeQuietly(httpEntity);
-            result = new BasicResponseHandler<>(content, statusCode, headerGroup, failedMessage, typeReference.getType(), responseContentType, response.getURI(), startTime);
-
+            // here we don't consume the httpEntity e.g. EntityUtils.consumeQuietly(httpEntity); as The close method of BasicResponse will do it
+            result = new BasicResponseHandler<>(content, statusCode, originalStatusCode, headerGroup, failedMessage, typeReference.getType(), responseContentType, responseUri, startTime);
         } catch (ResponseException e) {
 
-            result = new BasicResponseHandler<>(null, e.getStatusCode(), e, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
+            result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getOriginalStatusCode(), e, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
             LOGGER.debug("Request failed.", e);
         } catch (IOException e) {
 
-            LOGGER.error("", e);
+            LOGGER.error("IO error occurred.", e);
 
-            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Failed to close response resource: " + e, e, typeReference.getType(), null, getURI(), IO, startTime);
+            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, originalStatusCode, "Failed to close response resource: " + e, e, typeReference.getType(), null, getURI(), IO, startTime);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Executing of uri: [{}] completed. Time: {}", result.getURI(), HttpRequestUtils.humanTime(startTime));
@@ -274,7 +284,7 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public ResponseHandler<?> rawRequest(HttpMethod method, Object body) {
-        return rawRequest(method, parsePayloadBody(body));
+        return rawRequest(method, parsePayloadBodyToHttpEntity(body));
     }
 
     @Override
@@ -329,8 +339,20 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public WebTarget setCharset(Charset charset) {
-        httpUriRequestBuilder.setCharset(charset);
+        setUriCharset(charset);
+        setBodyCharset(charset);
+        return this;
+    }
 
+    @Override
+    public WebTarget setUriCharset(Charset charset) {
+        httpUriRequestBuilder.setCharset(charset != null ? charset : UTF_8);
+        return this;
+    }
+
+    @Override
+    public WebTarget setBodyCharset(Charset charset) {
+        this.bodyCharset = charset != null ? charset : UTF_8;
         return this;
     }
 
@@ -338,32 +360,32 @@ class BasicWebTarget implements WebTarget {
     public <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(payload, "payload");
-        ArgsCheck.notNull(payload, "responseType");
+        ArgsCheck.notNull(responseType, "responseType");
 
         logRequestBody(method, payload);
 
-        return request(method, new StringEntity(payload, UTF_8), responseType);
+        return request(method, new StringEntity(payload, getBodyCharset()), responseType);
     }
 
     @Override
     public <T> ResponseHandler<T> request(HttpMethod method, Object body, Class<T> responseType) {
-        return request(method, parsePayloadBody(body), responseType);
+        return request(method, parsePayloadBodyToHttpEntity(body), responseType);
     }
 
     @Override
     public <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType) {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(payload, "payload");
-        ArgsCheck.notNull(payload, "responseType");
+        ArgsCheck.notNull(responseType, "responseType");
 
         logRequestBody(method, payload);
 
-        return request(method, new StringEntity(payload, UTF_8), responseType);
+        return request(method, new StringEntity(payload, getBodyCharset()), responseType);
     }
 
     @Override
     public <T> ResponseHandler<T> request(HttpMethod method, Object body, TypeReference<T> responseType) {
-        return request(method, parsePayloadBody(body), responseType);
+        return request(method, parsePayloadBodyToHttpEntity(body), responseType);
     }
 
     @Override
@@ -373,12 +395,12 @@ class BasicWebTarget implements WebTarget {
 
         logRequestBody(method, payload);
 
-        return request(method, new StringEntity(payload, UTF_8));
+        return request(method, new StringEntity(payload, getBodyCharset()));
     }
 
     @Override
     public Response request(HttpMethod method, Object body) {
-        return request(method, parsePayloadBody(body));
+        return request(method, parsePayloadBodyToHttpEntity(body));
     }
 
     @Override
@@ -400,7 +422,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     URIBuilder getUriBuilder() {
-        return new URIBuilder(getURI());
+        return new URIBuilder(getURI(), httpUriRequestBuilder.getCharset());
     }
 
     HttpUriRequestBuilder getHttpUriRequestBuilder() {
@@ -415,9 +437,21 @@ class BasicWebTarget implements WebTarget {
         return requestBodySerializeConfig;
     }
 
-    private String parsePayloadBody(Object body) {
+    Charset getBodyCharset() {
+        return bodyCharset != null ? bodyCharset : UTF_8;
+    }
+
+    boolean isRequestPayloadLogging() {
+        return requestPayloadLogging;
+    }
+
+    private HttpEntity parsePayloadBodyToHttpEntity(Object body) {
 
         ArgsCheck.notNull(body, "body");
+
+        if (body instanceof HttpEntity) {
+            return (HttpEntity) body;
+        }
 
         Header contentTypeHeader = httpUriRequestBuilder.getFirstHeader(HttpHeaders.CONTENT_TYPE);
 
@@ -425,36 +459,33 @@ class BasicWebTarget implements WebTarget {
 
         LOGGER.trace("Serializing body based on content type: [{}] body object: {}", contentType, body);
 
-        ObjectMapper mapper = resolveObjectMapper(contentType);
+        RequestBodyConverterContext context = new RequestBodyConverterContext(body, contentType, getBodyCharset());
 
-        try {
-            return mapper.writeValueAsString(body);
-        } catch (JsonProcessingException e) {
-            throw new RequestException("Serialization of request body failed.", e);
+        for (RequestBodyConverter converter : requestBodySerializeConfig.getRequestBodyConverters()) {
+            if (converter != null && converter.canConvert(context)) {
+                return ArgsCheck.notNull(converter.convert(context), "httpEntity");
+            }
         }
-    }
 
-    private ObjectMapper resolveObjectMapper(ContentType contentType) {
-        ObjectMapper mapper;
-
-        if (ContentType.APPLICATION_JSON.isSameMimeType(contentType)) {
-
-            mapper = requestBodySerializeConfig.getDefaultJsonMapper();
-
-        } else if (ContentType.APPLICATION_XML.isSameMimeType(contentType) || ContentType.TEXT_XML.isSameMimeType(contentType)) {
-            mapper = requestBodySerializeConfig.getDefaultXmlMapper();
-        } else {
-            throw new RequestException("Serializer is not found. Now supported only JSON and XML serialization depends on [" + HttpHeaders.CONTENT_TYPE + "]. Founded first content type header is: " + contentType);
+        if (requestBodySerializeConfig.isUseDefaultBodySerializer()) {
+            for (RequestBodyConverter converter : requestBodySerializeConfig.getDefaultRequestBodyConverters()) {
+                if (converter != null && converter.canConvert(context)) {
+                    return ArgsCheck.notNull(converter.convert(context), "httpEntity");
+                }
+            }
         }
-        return mapper;
+
+        throw new RequestException("Serializer is not found. Now supported only JSON and XML serialization depends on [" + HttpHeaders.CONTENT_TYPE + "]. Founded first content type header is: " + contentType);
     }
 
     private void logRequestBody(HttpMethod method, final String payload) {
-        LOGGER.atDebug()
-                .addArgument(this::getURIString)
-                .addArgument(method)
-                .addArgument(payload)
-                .log("Requesting to: [{}] with HTTP method: [{}] and body: {}");
+        if (isRequestPayloadLogging()) {
+            LOGGER.atDebug()
+                    .addArgument(this::getURIString)
+                    .addArgument(method)
+                    .addArgument(payload)
+                    .log("Requesting to: [{}] with HTTP method: [{}] and body: {}");
+        }
     }
 
     private static String throwableDeepMessages(Throwable t) {

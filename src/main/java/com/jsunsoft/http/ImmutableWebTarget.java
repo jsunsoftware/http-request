@@ -27,20 +27,21 @@ import org.apache.hc.core5.net.URIBuilder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 
 class ImmutableWebTarget extends BasicWebTarget {
 
-    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig);
+    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
     }
 
-    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) throws URISyntaxException {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig);
+    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) throws URISyntaxException {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
     }
 
-    private ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig) {
-        super(closeableHttpClient, uriBuilder, httpUriRequestBuilder, responseBodyReaderConfig, requestBodySerializeConfig);
+    private ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, Charset bodyCharset) {
+        super(closeableHttpClient, uriBuilder, httpUriRequestBuilder, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, bodyCharset);
     }
 
     private WebTarget toBasicWebTarget() {
@@ -54,7 +55,9 @@ class ImmutableWebTarget extends BasicWebTarget {
                 HttpRequestUtils.appendPath(getUriBuilder(), path),
                 getHttpUriRequestBuilder(),
                 getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                getBodyCharset()
         );
     }
 
@@ -65,7 +68,9 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getUriBuilder().setPath(path),
                 getHttpUriRequestBuilder(),
                 getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                getBodyCharset()
         );
     }
 
@@ -76,7 +81,9 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getUriBuilder(),
                 getHttpUriRequestBuilder().removeHeader(header),
                 getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                getBodyCharset()
         );
     }
 
@@ -87,7 +94,9 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getUriBuilder(),
                 getHttpUriRequestBuilder().removeHeaders(name),
                 getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                getBodyCharset()
         );
     }
 
@@ -98,7 +107,9 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getUriBuilder(),
                 getHttpUriRequestBuilder().setHeader(header),
                 getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                getBodyCharset()
         );
     }
 
@@ -109,7 +120,9 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getUriBuilder(),
                 getHttpUriRequestBuilder().addHeader(header),
                 getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                getBodyCharset()
         );
     }
 
@@ -120,7 +133,35 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getUriBuilder(),
                 getHttpUriRequestBuilder().setCharset(charset),
                 getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                charset != null ? charset : StandardCharsets.UTF_8
+        );
+    }
+
+    @Override
+    public WebTarget setUriCharset(Charset charset) {
+        return new ImmutableWebTarget(
+                getCloseableHttpClient(),
+                getUriBuilder(),
+                getHttpUriRequestBuilder().setCharset(charset),
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                getBodyCharset()
+        );
+    }
+
+    @Override
+    public WebTarget setBodyCharset(Charset charset) {
+        return new ImmutableWebTarget(
+                getCloseableHttpClient(),
+                getUriBuilder(),
+                getHttpUriRequestBuilder(),
+                getResponseBodyReaderConfig(),
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                charset != null ? charset : StandardCharsets.UTF_8
         );
     }
 
@@ -131,7 +172,9 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getUriBuilder(),
                 getHttpUriRequestBuilder().setConfig(requestConfig),
                 getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                getBodyCharset()
         );
     }
 
@@ -142,19 +185,15 @@ class ImmutableWebTarget extends BasicWebTarget {
                 getUriBuilder(),
                 getHttpUriRequestBuilder().addParameter(nameValuePair),
                 getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
+                getRequestBodySerializeConfig(),
+                isRequestPayloadLogging(),
+                getBodyCharset()
         );
     }
 
     @Override
     public Response request(HttpMethod method, HttpEntity httpEntity) {
-        return new BasicWebTarget(
-                getCloseableHttpClient(),
-                getUriBuilder(),
-                getHttpUriRequestBuilder(),
-                getResponseBodyReaderConfig(),
-                getRequestBodySerializeConfig()
-        ).request(method, httpEntity);
+        return toBasicWebTarget().request(method, httpEntity);
     }
 
     @Override

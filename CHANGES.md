@@ -58,3 +58,11 @@ Added methods `ClientBuilder.enableCookieManagement`, `ClientBuilder.enableAutom
 # 3.4.2
 
 Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
+
+# 3.5.0
+
+* Charset handling was clarified and split:
+  * `WebTarget#setCharset(Charset)` now sets both URI charset and request body charset.
+  * Added `WebTarget#setUriCharset(Charset)` to control only URI encoding charset.
+  * Added `WebTarget#setBodyCharset(Charset)` to control only request body charset used by request body converters.
+* Default charset for both URI and body is `UTF-8`.

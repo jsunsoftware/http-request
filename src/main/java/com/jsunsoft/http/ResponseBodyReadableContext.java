@@ -76,6 +76,16 @@ public interface ResponseBodyReadableContext {
     URI getURI();
 
     /**
+     * @return Maximum allowed response body size in bytes. {@code <= 0} means "unlimited".
+     *
+     * <p>
+     * Implementations that do not support this configuration should return {@code 0}.
+     */
+    default long getMaxResponseBodySizeBytes() {
+        return 0;
+    }
+
+    /**
      * @return {@code true} if status code is in range [200, 300) otherwise {@code false}
      */
     default boolean isSuccess() {

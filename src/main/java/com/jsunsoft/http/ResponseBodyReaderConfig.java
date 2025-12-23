@@ -27,22 +27,44 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 
 class ResponseBodyReaderConfig {
-    private final ResponseBodyReader<?> defaultResponseBodyReader;
+    private final ObjectMapper defaultJsonMapper;
+    private final ObjectMapper defaultXmlMapper;
     private final Collection<ResponseBodyReader<?>> responseBodyReaders;
+    private final Collection<ResponseBodyReader<?>> defaultResponseBodyReaders;
     private final boolean useDefaultReader;
+    /**
+     * Maximum allowed response body size in bytes. {@code <= 0} means "unlimited".
+     */
+    private final long maxResponseBodySizeBytes;
 
-    private ResponseBodyReaderConfig(ResponseBodyReader<?> defaultResponseBodyReader, Collection<ResponseBodyReader<?>> responseBodyReaders, boolean useDefaultReader) {
-        this.defaultResponseBodyReader = defaultResponseBodyReader;
+    private ResponseBodyReaderConfig(ObjectMapper defaultJsonMapper,
+                                     ObjectMapper defaultXmlMapper,
+                                     Collection<ResponseBodyReader<?>> responseBodyReaders,
+                                     Collection<ResponseBodyReader<?>> defaultResponseBodyReaders,
+                                     boolean useDefaultReader,
+                                     long maxResponseBodySizeBytes) {
+        this.defaultJsonMapper = defaultJsonMapper;
+        this.defaultXmlMapper = defaultXmlMapper;
         this.responseBodyReaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(responseBodyReaders, "responseBodyReaders")));
+        this.defaultResponseBodyReaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultResponseBodyReaders, "defaultResponseBodyReaders")));
         this.useDefaultReader = useDefaultReader;
+        this.maxResponseBodySizeBytes = maxResponseBodySizeBytes;
     }
 
     static Builder create() {
         return new Builder();
     }
 
-    ResponseBodyReader<?> getDefaultResponseBodyReader() {
-        return defaultResponseBodyReader;
+    public ObjectMapper getDefaultJsonMapper() {
+        return defaultJsonMapper;
+    }
+
+    public ObjectMapper getDefaultXmlMapper() {
+        return defaultXmlMapper;
+    }
+
+    Collection<ResponseBodyReader<?>> getDefaultResponseBodyReaders() {
+        return defaultResponseBodyReaders;
     }
 
     Collection<ResponseBodyReader<?>> getResponseBodyReaders() {
@@ -53,8 +75,11 @@ class ResponseBodyReaderConfig {
         return useDefaultReader;
     }
 
+    long getMaxResponseBodySizeBytes() {
+        return maxResponseBodySizeBytes;
+    }
+
     static class Builder {
-        private ResponseBodyReader<?> defaultResponseBodyReader;
         private Collection<ResponseBodyReader<?>> responseBodyReaders;
         private boolean useDefaultReader = true;
 
@@ -62,12 +87,13 @@ class ResponseBodyReaderConfig {
         private ObjectMapper defaultXmlMapper;
 
         private Map<Class<?>, String> dateTypeToPattern;
+        private long maxResponseBodySizeBytes;
 
         private Builder() {
         }
 
-        Builder setDefaultResponseBodyReader(ResponseBodyReader<?> defaultResponseBodyReader) {
-            this.defaultResponseBodyReader = defaultResponseBodyReader;
+        Builder setMaxResponseBodySizeBytes(long maxResponseBodySizeBytes) {
+            this.maxResponseBodySizeBytes = maxResponseBodySizeBytes;
             return this;
         }
 
@@ -110,23 +136,22 @@ class ResponseBodyReaderConfig {
         }
 
         ResponseBodyReaderConfig build() {
-            if (useDefaultReader && defaultResponseBodyReader == null) {
+            ObjectMapper json = null;
+            ObjectMapper xml = null;
+            Collection<ResponseBodyReader<?>> defaultResponseBodyReaders = Collections.emptyList();
 
-                ObjectMapper json = ObjectMapperInitializer.initJsonMapperIfNull(defaultJsonMapper, dateTypeToPattern);
-                ObjectMapper xml = ObjectMapperInitializer.initXmlMapperIfNull(defaultXmlMapper, dateTypeToPattern);
-
-                defaultResponseBodyReader = new DefaultResponseBodyReader<>(json, xml);
+            if (useDefaultReader) {
+                json = ObjectMapperInitializer.initJsonMapperIfNull(defaultJsonMapper, dateTypeToPattern);
+                xml = ObjectMapperInitializer.initXmlMapperIfNull(defaultXmlMapper, dateTypeToPattern);
+                List<ResponseBodyReader<?>> defaults = new ArrayList<>(4);
+                defaults.add(ResponseBodyReaders.stringReader());
+                defaults.add(ResponseBodyReaders.byteReader());
+                defaults.add(ResponseBodyReaders.jsonReader(json));
+                defaults.add(ResponseBodyReaders.xmlReader(xml));
+                defaultResponseBodyReaders = Collections.unmodifiableList(defaults);
             } else {
-                if (defaultJsonMapper != null) {
-                    throw new IllegalArgumentException("Do not provide defaultJsonMapper if default body reader is not used.");
-                }
-
-                if (defaultXmlMapper != null) {
-                    throw new IllegalArgumentException("Do not provide defaultXmlMapper if default body reader is not used.");
-                }
-
-                if (dateTypeToPattern != null) {
-                    throw new IllegalArgumentException("Do not provide dateTypeToPattern if default body reader is not used.");
+                if (defaultJsonMapper != null || defaultXmlMapper != null || dateTypeToPattern != null) {
+                    throw new IllegalArgumentException("Do not provide defaultJsonMapper/defaultXmlMapper/dateTypeToPattern if default body reader is disabled.");
                 }
             }
 
@@ -134,7 +159,7 @@ class ResponseBodyReaderConfig {
                 responseBodyReaders = Collections.emptyList();
             }
 
-            return new ResponseBodyReaderConfig(defaultResponseBodyReader, responseBodyReaders, useDefaultReader);
+            return new ResponseBodyReaderConfig(json, xml, responseBodyReaders, defaultResponseBodyReaders, useDefaultReader, maxResponseBodySizeBytes);
         }
     }
 }

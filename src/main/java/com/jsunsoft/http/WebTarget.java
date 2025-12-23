@@ -34,6 +34,15 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * A resource target identified by the resource URI.
+ * <p>
+ * Thread-safety: {@link WebTarget} is an interface and implementations may be mutable. Instances returned by
+ * {@link HttpRequest#target(String)} / {@link HttpRequest#target(java.net.URI)} are not thread-safe.
+ * Use {@link HttpRequest#immutableTarget(String)} / {@link HttpRequest#immutableTarget(java.net.URI)} when you need
+ * a thread-safe target that can be shared.
+ * <p>
+ * Resource management: methods returning {@link Response} return a live, closable HTTP response.
+ * The caller is responsible for closing it (prefer try-with-resources). Methods returning {@link ResponseHandler}
+ * consume and close the response internally.
  */
 public interface WebTarget {
 
@@ -63,6 +72,8 @@ public interface WebTarget {
      *
      * @param method the http method.
      * @return the response to the request. This is always a final response, never an intermediate response with an 1xx status code.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see #request(HttpMethod, HttpContext)
      */
     default Response request(final HttpMethod method) {
@@ -79,6 +90,8 @@ public interface WebTarget {
      * or handled automatically depends on the implementation and configuration of this client.
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of a http protocol error.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see HttpContext
      */
     Response request(final HttpMethod method, HttpContext context);
@@ -93,6 +106,8 @@ public interface WebTarget {
      * or handled automatically depends on the implementation and configuration of this client.
      * @throws ResponseException in case of any IO problem or the connection was aborted.
      * @throws RequestException  in case of an http protocol error.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      */
     Response request(final HttpMethod method, final HttpEntity httpEntity);
 
@@ -271,12 +286,45 @@ public interface WebTarget {
     WebTarget addHeader(final Header header);
 
     /**
-     * Sets the charset for the request.
+     * Sets both URI charset and request body charset for the request.
+     * <p>
+     * Starting from version <b>3.5.0</b> this method affects:
+     * <ul>
+     *     <li>URI encoding (query/path components)</li>
+     *     <li>request body conversion (for {@code Object} payload overloads)</li>
+     * </ul>
+     * For more granular control use {@link #setUriCharset(Charset)} and {@link #setBodyCharset(Charset)}.
      *
      * @param charset the charset to set.
      * @return WebTarget instance
      */
     WebTarget setCharset(final Charset charset);
+
+    /**
+     * Sets charset used for URI encoding (query/path).
+     * <p>
+     * Default implementation delegates to {@link #setCharset(Charset)} for backward compatibility. Implementations
+     * are expected to override this method and only update URI encoding charset.
+     *
+     * @param charset the charset to set.
+     * @return WebTarget instance
+     */
+    default WebTarget setUriCharset(final Charset charset) {
+        return setCharset(charset);
+    }
+
+    /**
+     * Sets charset used for request body conversion when using {@code Object} payload overloads.
+     * <p>
+     * Default implementation delegates to {@link #setCharset(Charset)} for backward compatibility. Implementations
+     * are expected to override this method and only update body charset.
+     *
+     * @param charset the charset to set.
+     * @return WebTarget instance
+     */
+    default WebTarget setBodyCharset(final Charset charset) {
+        return setCharset(charset);
+    }
 
     /**
      * The same as {@link #request(HttpMethod, HttpEntity, Class)} wrapped {@code payload} into {@link StringEntity}
@@ -557,6 +605,8 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request
      *
      * @return the response to the request.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see #request(HttpMethod)
      */
     default Response get() {
@@ -601,6 +651,8 @@ public interface WebTarget {
      * Invoke HTTP PUT method for the current request.
      *
      * @return the response to the request.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see #request(HttpMethod)
      */
     default Response put() {
@@ -789,6 +841,8 @@ public interface WebTarget {
      * Invoke HTTP POST method for the current request
      *
      * @return the response to the request.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see #request(HttpMethod)
      */
     default Response post() {
@@ -977,6 +1031,8 @@ public interface WebTarget {
      * Invoke HTTP HEAD method for the current request
      *
      * @return the response to the request.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see #request(HttpMethod)
      */
     default Response head() {
@@ -996,7 +1052,9 @@ public interface WebTarget {
     /**
      * Invoke HTTP DELETE method for the current request
      *
-     * @return the ResponseHandler instance to the request.
+     * @return the response to the request.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see #request(HttpMethod)
      */
     default Response delete() {
@@ -1185,6 +1243,8 @@ public interface WebTarget {
      * Invoke HTTP OPTIONS method for the current request
      *
      * @return the response to the request.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see #request(HttpMethod)
      */
     default Response options() {
@@ -1373,6 +1433,8 @@ public interface WebTarget {
      * Invoke HTTP PATCH method for the current request
      *
      * @return the response to the request.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see #request(HttpMethod)
      */
     default Response patch() {
@@ -1561,6 +1623,8 @@ public interface WebTarget {
      * Invoke HTTP TRACE method for the current request
      *
      * @return the response to the request.
+     *
+     * <p><b>Note:</b> caller must close the returned {@link Response}.
      * @see #request(HttpMethod)
      */
     default Response trace() {

@@ -72,6 +72,22 @@ public interface ResponseHandler<T> {
     int getCode();
 
     /**
+     * Obtains the original HTTP status code returned by the server (when available).
+     * <p>
+     * In some failure scenarios (for example: deserialization failures, IO errors while reading the body, etc.)
+     * this library may synthesize a different {@link #getCode()} to represent a client-side failure.
+     * In those cases, this method returns the server-provided code that was observed before the failure.
+     * <p>
+     * If the request failed before a response was received, this method returns {@link #getCode()}.
+     *
+     * @return original server status code (when available); otherwise {@link #getCode()}
+     */
+    @Beta
+    default int getOriginalCode() {
+        return getCode();
+    }
+
+    /**
      * Gets the deserialized content from the response or returns a default value if content isn't present.
      *
      * @param defaultValue value to return if content isn't present

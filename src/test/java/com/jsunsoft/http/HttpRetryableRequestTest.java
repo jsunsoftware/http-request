@@ -23,14 +23,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 class HttpRetryableRequestTest {
 
     @RegisterExtension
     static WireMockExtension wireMockRule = WireMockExtension.newInstance()
-            .options(WireMockConfiguration.wireMockConfig().port(8080))
+            .options(WireMockConfiguration.wireMockConfig().dynamicPort())
             .build();
 
     private final RetryContext retryContext = new RetryContext() {
@@ -71,13 +74,16 @@ class HttpRetryableRequestTest {
         wireMockRule.stubFor(get(urlEqualTo("/header"))
                 .withHeader(HttpHeaders.AUTHORIZATION, equalTo("not retryable"))
                 .willReturn(aResponse().withStatus(400)));
+
+        wireMockRule.stubFor(get(urlEqualTo("/always-401"))
+                .willReturn(aResponse().withStatus(401)));
     }
 
     @Test
     void changeHeaderOnRetry() {
         assertEquals(
                 200,
-                httpRequest.retryableTarget("http://localhost:8080/header", retryContext)
+                httpRequest.retryableTarget(wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/header", retryContext)
                         .addHeader(HttpHeaders.AUTHORIZATION, "old header")
                         .rawGet()
                         .getCode()
@@ -88,10 +94,25 @@ class HttpRetryableRequestTest {
     void incorrectTestChangeHeaderOnRetry() {
         assertEquals(
                 400,
-                httpRequest.retryableTarget("http://localhost:8080/header", retryContext)
+                httpRequest.retryableTarget(wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/header", retryContext)
                         .addHeader(HttpHeaders.AUTHORIZATION, "not retryable")
                         .rawGet()
                         .getCode()
         );
+    }
+
+    @Test
+    void mustStopAfterRetryCount_whenAlwaysRetryable() {
+        assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
+            int code = httpRequest.retryableTarget(wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/always-401", retryContext)
+                    .addHeader(HttpHeaders.AUTHORIZATION, "old header")
+                    .rawGet()
+                    .getCode();
+
+            assertEquals(401, code);
+        });
+
+        // initial call + 2 retries
+        wireMockRule.verify(3, getRequestedFor(urlEqualTo("/always-401")));
     }
 }

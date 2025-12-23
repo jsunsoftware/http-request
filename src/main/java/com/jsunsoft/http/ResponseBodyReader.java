@@ -30,21 +30,27 @@ public interface ResponseBodyReader<T> {
 
     /**
      * @return returns reader which will always read response stream to string. Reader's result will be null if no content.
+     * @deprecated used by default. Will be removed in future releases.
      */
+    @Deprecated
     static ResponseBodyReader<String> stringReader() {
         return ResponseBodyReaders.stringReader();
     }
 
     /**
      * @return returns reader which will always read response stream to string only when status code is not success. Reader's result will be null if no content.
+     * @deprecated used by default. Will be removed in future releases.
      */
+    @Deprecated
     static ResponseBodyReader<String> whenNonSuccessStringReader() {
         return ResponseBodyReaders.whenNonSuccessStringReader();
     }
 
     /**
      * @return returns reader which will read response stream to string only when status code is success. Reader's result will be null if no content.
+     * @deprecated used by default. Will be removed in future releases.
      */
+    @Deprecated
     static ResponseBodyReader<String> whenSuccessStringReader() {
         return ResponseBodyReaders.whenSuccessStringReader();
     }

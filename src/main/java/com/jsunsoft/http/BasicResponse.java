@@ -16,7 +16,6 @@
 
 package com.jsunsoft.http;
 
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.slf4j.Logger;
@@ -27,7 +26,6 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.Iterator;
 import java.util.Locale;
-import java.util.Optional;
 
 class BasicResponse implements Response {
 
@@ -43,15 +41,27 @@ class BasicResponse implements Response {
         this.uri = uri;
     }
 
+    ResponseBodyReaderConfig getResponseBodyReaderConfig() {
+        return responseBodyReaderConfig;
+    }
+
     /**
-     * Ensures that the entity content is fully consumed and the content stream, if exists, is closed
-     * then calls {@link EntityUtils#consume(HttpEntity)} then {@link CloseableHttpResponse#close()}
+     * Best-effort close of the response.
+     * <p>
+     * Note: Entity consumption may fail (e.g. when response body size limit is exceeded). In such cases we still
+     * close the underlying response to release resources and avoid masking the original processing error.
      */
     @Override
     public void close() throws IOException {
 
         try {
-            EntityUtils.consume(getEntity());
+            HttpEntity entity = getEntity();
+            if (entity != null && responseBodyReaderConfig.getMaxResponseBodySizeBytes() <= 0) {
+                // Only fully consume when there is no body size limit configured (safe for unlimited reads).
+                // When a limit is configured we avoid consuming because consuming = reading the remainder of the body,
+                // which can be arbitrarily large / slow (and defeats the purpose of the size limit).
+                EntityUtils.consumeQuietly(entity);
+            }
         } finally {
             classicHttpResponse.close();
         }
@@ -313,30 +323,31 @@ class BasicResponse implements Response {
      */
     @SuppressWarnings("unchecked")
     private <T> T readEntityChecked(Class<T> type, Type genericType) throws IOException {
-        T content;
+        ResponseBodyReaderContext<T> responseBodyReaderContext = new BasicResponseBodyReaderContext<>(this, type, genericType, getURI(), responseBodyReaderConfig.getMaxResponseBodySizeBytes());
 
-        ResponseBodyReaderContext<T> responseBodyReaderContext = new BasicResponseBodyReaderContext<>(this, type, genericType, getURI());
-
-        Optional<ResponseBodyReader<?>> responseBodyReader =
-                responseBodyReaderConfig.getResponseBodyReaders().stream()
-                        .filter(rbr -> rbr.isReadable(responseBodyReaderContext))
-                        .findFirst();
-
-        if (responseBodyReader.isPresent()) {
-            content = ((ResponseBodyReader<T>) responseBodyReader.get()).read(responseBodyReaderContext);
-        } else if (responseBodyReaderConfig.isUseDefaultReader() && responseBodyReaderConfig.getDefaultResponseBodyReader().isReadable(responseBodyReaderContext)) {
-            content = ((ResponseBodyReader<T>) responseBodyReaderConfig.getDefaultResponseBodyReader()).read(responseBodyReaderContext);
-        } else if (hasEntity()) {
-
-            throw new ResponseBodyReaderNotFoundException(
-                    "Can't found body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType()
-            );
-        } else {
-            LOGGER.warn("Can't found body reader for type: {} when http entity is null.", responseBodyReaderContext.getType());
-            content = null;
+        for (ResponseBodyReader<?> reader : responseBodyReaderConfig.getResponseBodyReaders()) {
+            if (reader.isReadable(responseBodyReaderContext)) {
+                return ((ResponseBodyReader<T>) reader).read(responseBodyReaderContext);
+            }
         }
 
-        return content;
+        if (responseBodyReaderConfig.isUseDefaultReader()) {
+            for (ResponseBodyReader<?> reader : responseBodyReaderConfig.getDefaultResponseBodyReaders()) {
+                if (reader.isReadable(responseBodyReaderContext)) {
+                    return ((ResponseBodyReader<T>) reader).read(responseBodyReaderContext);
+                }
+            }
+        }
+
+        if (hasEntity()) {
+            throw new ResponseBodyReaderNotFoundException(
+                    "Can't find body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType()
+            );
+        } else {
+            LOGGER.warn("Can't find body reader for type: {} when http entity is null.", responseBodyReaderContext.getType());
+        }
+
+        return null;
     }
 
     @Override

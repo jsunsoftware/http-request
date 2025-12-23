@@ -16,14 +16,57 @@
 
 package com.jsunsoft.http;
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.io.IOException;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HttpRequestConnectionManagementLiveTest {
-    private static final String SERVER1 = "https://www.google.com/";
-    private static final String SERVER7 = "http://www.youtube.com/";
+
+    @RegisterExtension
+    static WireMockExtension server1 = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().dynamicPort())
+            .build();
+
+    @RegisterExtension
+    static WireMockExtension server2 = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().dynamicPort())
+            .build();
+
+    @RegisterExtension
+    static WireMockExtension server3 = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().dynamicPort())
+            .build();
+
+    @BeforeEach
+    void setup() {
+        server1.resetAll();
+        server2.resetAll();
+        server3.resetAll();
+
+        server1.stubFor(get(urlEqualTo("/")).willReturn(aResponse().withStatus(200).withBody("ok")));
+        server2.stubFor(get(urlEqualTo("/")).willReturn(aResponse().withStatus(200).withBody("ok")));
+        server3.stubFor(get(urlEqualTo("/")).willReturn(aResponse().withStatus(200).withBody("ok")));
+    }
+
+    private static String server1Url() {
+        return server1.getRuntimeInfo().getHttpBaseUrl();
+    }
+
+    private static String server2Url() {
+        return server2.getRuntimeInfo().getHttpBaseUrl();
+    }
+
+    private static String server3Url() {
+        return server3.getRuntimeInfo().getHttpBaseUrl();
+    }
 
     @Test
     void whenConnectionsNeededGreaterThanMaxTotal_thenReuseConnections() throws InterruptedException {
@@ -33,7 +76,7 @@ class HttpRequestConnectionManagementLiveTest {
         final HttpRequestThread[] threads = new HttpRequestThread[validThreadSize];
 
         for (int i = 0; i < threads.length; i++) {
-            threads[i] = new HttpRequestThread(httpRequest.target(SERVER1));
+            threads[i] = new HttpRequestThread(httpRequest.target(server1Url()));
         }
 
         for (HttpRequestThread thread : threads) {
@@ -51,8 +94,8 @@ class HttpRequestConnectionManagementLiveTest {
         HttpRequest httpRequest1 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
         HttpRequest httpRequest2 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
 
-        HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.target(SERVER1));
-        HttpRequestThread thread2 = new HttpRequestThread(httpRequest2.target(SERVER7));
+        HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.target(server1Url()));
+        HttpRequestThread thread2 = new HttpRequestThread(httpRequest2.target(server2Url()));
 
         thread1.start();
         thread2.start();
@@ -67,16 +110,19 @@ class HttpRequestConnectionManagementLiveTest {
         ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
 
         BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
-        httpRequest.target(SERVER1).rawGet();
+        httpRequest.target(server1Url()).rawGet();
         assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 
     @Test
-    void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptionsImmutableWebTarget() {
+    void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptionsImmutableWebTarget() throws IOException {
         ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
         BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
-        httpRequest.immutableTarget(SERVER1).get();
+
+        Response response = httpRequest.immutableTarget(server1Url()).get();
         assertEquals(1, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+        response.close();
+        assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 
     @Test
@@ -84,9 +130,9 @@ class HttpRequestConnectionManagementLiveTest {
         ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
 
         HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
-        final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.target(SERVER1));
-        final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.target(SERVER7));
-        final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.target("http://www.google.com/"));
+        final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.target(server1Url()));
+        final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.target(server2Url()));
+        final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.target(server3Url()));
         thread1.start();
         thread2.start();
         thread3.start();
@@ -104,7 +150,7 @@ class HttpRequestConnectionManagementLiveTest {
         final HttpRequestThread[] threads = new HttpRequestThread[validThreadSize];
 
         for (int i = 0; i < threads.length; i++) {
-            threads[i] = new HttpRequestThread(httpRequest.immutableTarget(SERVER1));
+            threads[i] = new HttpRequestThread(httpRequest.immutableTarget(server1Url()));
         }
 
         for (HttpRequestThread thread : threads) {
@@ -122,8 +168,8 @@ class HttpRequestConnectionManagementLiveTest {
         HttpRequest httpRequest1 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
         HttpRequest httpRequest2 = HttpRequestBuilder.create(ClientBuilder.create().build()).build();
 
-        HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.immutableTarget(SERVER1));
-        HttpRequestThread thread2 = new HttpRequestThread(httpRequest2.immutableTarget(SERVER7));
+        HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.immutableTarget(server1Url()));
+        HttpRequestThread thread2 = new HttpRequestThread(httpRequest2.immutableTarget(server2Url()));
 
         thread1.start();
         thread2.start();
@@ -138,9 +184,9 @@ class HttpRequestConnectionManagementLiveTest {
         ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
 
         HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
-        final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.immutableTarget(SERVER1));
-        final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.immutableTarget(SERVER7));
-        final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.immutableTarget("http://www.google.com/"));
+        final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.immutableTarget(server1Url()));
+        final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.immutableTarget(server2Url()));
+        final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.immutableTarget(server3Url()));
         thread1.start();
         thread2.start();
         thread3.start();

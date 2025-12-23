@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import com.jsunsoft.http.annotations.Beta;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -29,7 +30,10 @@ import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
 import org.apache.hc.client5.http.protocol.RedirectStrategy;
 import org.apache.hc.client5.http.routing.HttpRoutePlanner;
-import org.apache.hc.client5.http.ssl.*;
+import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
+import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
@@ -37,6 +41,8 @@ import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -62,6 +68,8 @@ import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
  * It is therefore advised to construct only a small number of {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient} instances in the application.
  */
 public class ClientBuilder {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientBuilder.class);
+
     private final RequestConfig.Builder defaultRequestConfigBuilder = RequestConfig.custom()
             .setResponseTimeout(Timeout.ofSeconds(30))
             .setConnectionRequestTimeout(Timeout.ofSeconds(30));
@@ -541,7 +549,9 @@ public class ClientBuilder {
     }
 
     /**
-     * Accept all certificates
+     * INSECURE: trust any TLS certificate (disables certificate validation).
+     * <p>
+     * Use only for testing or in controlled environments.
      *
      * @return ClientBuilder instance
      * @throws HttpRequestBuildException when can't build ssl.
@@ -561,7 +571,9 @@ public class ClientBuilder {
     }
 
     /**
-     * Accept all hosts
+     * INSECURE: accept any hostname during TLS handshake (disables hostname verification).
+     * <p>
+     * Use only for testing or in controlled environments.
      *
      * @return ClientBuilder instance
      */
@@ -579,15 +591,34 @@ public class ClientBuilder {
         return buildClientWithContext().getClient();
     }
 
+    /**
+     * Builds a {@link CloseableHttpClient} and exposes associated resources for proper cleanup.
+     * <p>
+     * This is useful when you want to close both the client and its connection manager explicitly.
+     *
+     * <pre>
+     * try (ClientBuilder.HttpClientWithResources res = ClientBuilder.create().buildWithResources()) {
+     *     CloseableHttpClient client = res.getClient();
+     * }
+     * </pre>
+     *
+     * @return wrapper that closes client and connection manager
+     */
+    @Beta
+    HttpClientWithResources buildWithResources() {
+        ClientContextHolder cch = buildClientWithContext();
+        return new HttpClientWithResources(cch.getClient(), cch.getConnectionManager());
+    }
+
     ClientContextHolder buildClientWithContext() {
         if (defaultRequestConfigBuilderCustomizers != null) {
-            defaultRequestConfigBuilderCustomizers.forEach(defaultRequestConfigBuilderConsumer -> defaultRequestConfigBuilderConsumer.accept(defaultRequestConfigBuilder));
+            defaultRequestConfigBuilderCustomizers.forEach(customizer -> customizer.accept(defaultRequestConfigBuilder));
         }
 
         RequestConfig requestConfig = defaultRequestConfigBuilder.build();
 
         if (defaultConnectionConfigBuilderCustomizers != null) {
-            defaultConnectionConfigBuilderCustomizers.forEach(defaultrequestconfigbuilderconsumer -> defaultrequestconfigbuilderconsumer.accept(defaultConnectionConfigBuilder));
+            defaultConnectionConfigBuilderCustomizers.forEach(customizer -> customizer.accept(defaultConnectionConfigBuilder));
         }
 
         ConnectionConfig connectionConfig = defaultConnectionConfigBuilder.build();
@@ -684,6 +715,34 @@ public class ClientBuilder {
 
         public HttpClientConnectionManager getConnectionManager() {
             return connectionManager;
+        }
+    }
+
+    /**
+     * AutoCloseable wrapper around the client and its connection manager.
+     */
+    static final class HttpClientWithResources extends ClientContextHolder implements AutoCloseable {
+
+        HttpClientWithResources(CloseableHttpClient client, HttpClientConnectionManager connectionManager) {
+            super(client, connectionManager);
+        }
+
+        @Override
+        public void close() {
+            try {
+                if (getClient() != null) {
+                    getClient().close();
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to close http client.", e);
+            }
+            try {
+                if (getConnectionManager() != null) {
+                    getConnectionManager().close();
+                }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to close connection manager.", e);
+            }
         }
     }
 }

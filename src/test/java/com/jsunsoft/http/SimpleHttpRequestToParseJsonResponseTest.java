@@ -155,7 +155,7 @@ class SimpleHttpRequestToParseJsonResponseTest {
 
     @RegisterExtension
     static WireMockExtension wireMockRule = WireMockExtension.newInstance()
-            .options(WireMockConfiguration.wireMockConfig().port(8080))
+            .options(WireMockConfiguration.wireMockConfig().dynamicPort())
             .build();
 
     private static final String RESPONSE_MAP_STRING = "{\n" +
@@ -194,7 +194,7 @@ class SimpleHttpRequestToParseJsonResponseTest {
 
     @Test
     void testParsingResponseDataWithDefaultBodyReader() {
-        HTTP_REQUEST.target("http://localhost:8080/get").get(ResponseData.class)
+        HTTP_REQUEST.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("get").get(ResponseData.class)
                 .ifHasContent(responseData -> {
                     Optional<User> foundedUser = responseData.getUsers()
                             .stream()
@@ -203,7 +203,7 @@ class SimpleHttpRequestToParseJsonResponseTest {
                     foundedUser.ifPresent(user -> assertEquals(2, user.getId()));
                 });
 
-        ResponseData responseData = HTTP_REQUEST.target("http://localhost:8080/get").get()
+        ResponseData responseData = HTTP_REQUEST.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("get").get()
                 .readEntity(ResponseData.class);
 
         Optional<User> foundedUser = responseData.getUsers()
@@ -215,7 +215,7 @@ class SimpleHttpRequestToParseJsonResponseTest {
 
     @Test
     void testParsingResponseDataWithDefaultBodyReaderDatePatternOverridden() {
-        HTTP_REQUEST_DATE_PATTERN_OVERRIDDEN.target("http://localhost:8080/getWithOverriddenDates").get(ResponseData.class)
+        HTTP_REQUEST_DATE_PATTERN_OVERRIDDEN.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("getWithOverriddenDates").get(ResponseData.class)
                 .ifHasContent(responseData -> {
                     Optional<User> foundedUser = responseData.getUsers()
                             .stream()
@@ -224,7 +224,7 @@ class SimpleHttpRequestToParseJsonResponseTest {
                     foundedUser.ifPresent(user -> assertEquals(2, user.getId()));
                 });
 
-        ResponseData responseData = HTTP_REQUEST_DATE_PATTERN_OVERRIDDEN.target("http://localhost:8080/getWithOverriddenDates").get()
+        ResponseData responseData = HTTP_REQUEST_DATE_PATTERN_OVERRIDDEN.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("getWithOverriddenDates").get()
                 .readEntity(ResponseData.class);
 
         assertEquals(LocalDateTime.of(1993, Month.MAY, 11, 5, 0, 0), responseData.getJavaLocalDateTime());
@@ -239,7 +239,7 @@ class SimpleHttpRequestToParseJsonResponseTest {
 
     @Test
     void testParsingResponseDataWithCustomBodyReader() {
-        HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get").get(ResponseData.class)
+        HTTP_REQUEST_WITH_BODY_READER.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("get").get(ResponseData.class)
                 .ifHasContent(rd -> {
                     Optional<User> foundedUser = rd.getUsers()
                             .stream()
@@ -248,7 +248,7 @@ class SimpleHttpRequestToParseJsonResponseTest {
                     foundedUser.ifPresent(user -> assertEquals(2, user.getId()));
                 });
 
-        ResponseData responseData = HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get").get()
+        ResponseData responseData = HTTP_REQUEST_WITH_BODY_READER.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("get").get()
                 .readEntity(ResponseData.class);
 
         Optional<User> foundedUser = responseData.getUsers()
@@ -260,11 +260,11 @@ class SimpleHttpRequestToParseJsonResponseTest {
 
     @Test
     void testParsingMapWithCustomBodyReader() {
-        HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get/map").get(new TypeReference<Map<String, String>>() {
+        HTTP_REQUEST_WITH_BODY_READER.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("get/map").get(new TypeReference<Map<String, String>>() {
                 })
                 .ifHasContent(r -> assertEquals("testValue", r.get("testKey")));
 
-        Map<String, String> r = HTTP_REQUEST_WITH_BODY_READER.target("http://localhost:8080/get/map").get()
+        Map<String, String> r = HTTP_REQUEST_WITH_BODY_READER.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("get/map").get()
                 .readEntity(new TypeReference<Map<String, String>>() {
                 });
 
