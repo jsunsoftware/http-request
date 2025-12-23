@@ -68,6 +68,9 @@ public class HttpRetryableRequestTest {
         wireMockRule.stubFor(get(urlEqualTo("/header"))
                 .withHeader(HttpHeaders.AUTHORIZATION, equalTo("not retryable"))
                 .willReturn(aResponse().withStatus(400)));
+
+        wireMockRule.stubFor(get(urlEqualTo("/always-401"))
+                .willReturn(aResponse().withStatus(401)));
     }
 
     @Test

@@ -77,9 +77,17 @@ class HttpRequestUtils {
 
             String slash = "/";
 
-            if (!path.startsWith(slash) || !currentPath.endsWith(slash)) {
+            boolean currentEndsWithSlash = currentPath.endsWith(slash);
+            boolean pathStartsWithSlash = path.startsWith(slash);
+
+            if (currentEndsWithSlash && pathStartsWithSlash) {
+                // avoid double slash
+                newPath = currentPath + path.substring(1);
+            } else if (!currentEndsWithSlash && !pathStartsWithSlash) {
+                // ensure single slash
                 newPath = currentPath + slash + path;
             } else {
+                // exactly one slash already present
                 newPath = currentPath + path;
             }
         }

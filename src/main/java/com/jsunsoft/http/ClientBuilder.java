@@ -464,7 +464,7 @@ public class ClientBuilder {
 
     ClientContextHolder buildClientWithContext() {
         if (defaultRequestConfigBuilderCustomizers != null) {
-            defaultRequestConfigBuilderCustomizers.forEach(defaultRequestConfigBuilderConsumer -> defaultRequestConfigBuilderConsumer.accept(defaultRequestConfigBuilder));
+            defaultRequestConfigBuilderCustomizers.forEach(customizer -> customizer.accept(defaultRequestConfigBuilder));
         }
 
         RequestConfig requestConfig = defaultRequestConfigBuilder.build();

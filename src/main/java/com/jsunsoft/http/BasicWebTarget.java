@@ -253,7 +253,7 @@ class BasicWebTarget implements WebTarget {
             LOGGER.debug("Request failed.", e);
         } catch (IOException e) {
 
-            LOGGER.error("", e);
+            LOGGER.error("IO error accrued.", e);
 
             result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, "Failed to close response resource: " + e, e, typeReference.getType(), null, getURI(), IO, startTime);
         }
@@ -330,7 +330,7 @@ class BasicWebTarget implements WebTarget {
     public <T> ResponseHandler<T> request(final HttpMethod method, final String payload, Class<T> responseType) {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(payload, "payload");
-        ArgsCheck.notNull(payload, "responseType");
+        ArgsCheck.notNull(responseType, "responseType");
 
         logRequestBody(method, payload);
 
@@ -346,7 +346,7 @@ class BasicWebTarget implements WebTarget {
     public <T> ResponseHandler<T> request(final HttpMethod method, final String payload, TypeReference<T> responseType) {
         ArgsCheck.notNull(method, "method");
         ArgsCheck.notNull(payload, "payload");
-        ArgsCheck.notNull(payload, "responseType");
+        ArgsCheck.notNull(responseType, "responseType");
 
         logRequestBody(method, payload);
 
@@ -392,7 +392,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     URIBuilder getUriBuilder() {
-        return new URIBuilder(getURI());
+        return new URIBuilder(getURI(), httpUriRequestBuilder.getCharset());
     }
 
     HttpUriRequestBuilder getHttpUriRequestBuilder() {

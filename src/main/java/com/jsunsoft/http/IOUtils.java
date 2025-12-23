@@ -16,11 +16,16 @@
 
 package com.jsunsoft.http;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 class IOUtils {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(IOUtils.class);
 
     private IOUtils() {
         throw new AssertionError("No com.jsunsoft.http.IOUtils instances for you!");
@@ -57,13 +62,15 @@ class IOUtils {
     private static int resolveBufferInitialSize(long contentLength) throws IOException {
         int result;
         if (contentLength > Integer.MAX_VALUE) {
-            throw new InvalidContentLengthException(contentLength, "Content length is large. Content length greater than Integer.MAX_VALUE");
+            throw new InvalidContentLengthException(contentLength, "Content length is large. Content length exceeds Integer.MAX_VALUE");
         }
         int integerContentLength = (int) contentLength;
 
         if (integerContentLength > 0) {
             result = integerContentLength;
         } else {
+            LOGGER.warn("Invalid content length: {}. Using default buffer size.", contentLength);
+
             result = 1024;
         }
 
