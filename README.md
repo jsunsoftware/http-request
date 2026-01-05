@@ -26,6 +26,25 @@ Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.ht
 
 **Note: HttpRequest objects are immutable and thread-safe, they can be reused after build the instance of HttpRequest.**
 
+### Concurrency and thread-safety
+
+- **HttpRequest**: immutable and thread-safe after build; reuse it.
+- **WebTarget from `target(...)`**: mutable and **not** thread-safe; do not share between threads.
+- **WebTarget from `immutableTarget(...)`**: intended to be safe to share and reuse.
+
+### Resource management (closing responses)
+
+Methods returning **`Response`** return a live, closable response. Always close it (prefer try-with-resources):
+
+```java
+try(Response response = httpRequest.target(uri).get()){
+int statusCode = response.getCode();
+SomeType body = response.readEntity(SomeType.class);
+}
+```
+
+Methods returning **`ResponseHandler<T>`** read/consume the response and close it internally.
+
 ### Client builder
 
 The `ClientBuilder` have been added to build `CloseableHttpClient` with some handy methods. You can also use the
@@ -61,8 +80,9 @@ class Demo {
     private final HttpRequest httpRequest = HttpRequestBuilder.create(httpClient).build();
 
     void request() {
-        Response response = httpRequest.target("https://www.jsunsoft.com/").get();
+      try (Response response = httpRequest.target("https://www.jsunsoft.com/").get()) {
         int statusCode = response.getCode();
+      }
     }
 }
 ```
@@ -86,8 +106,9 @@ SomeType someType = rh.requiredGet(); //throws UnexpectedStatusCodeException If 
 Using lazy converting -> the Response's readEntity:
 
 ```java
-Response r=httpRequest.target(uri).path(path).request(HttpMethod.GET,payload);
+try(Response r = httpRequest.target(uri).path(path).request(HttpMethod.GET, payload)){
 SomeType someType = r.readEntity(SomeType.class); //see javadoc of get method
+}
 ```
 
 Convert response body to Generic class (example List<T>) by some type you must build it so:
@@ -104,8 +125,10 @@ List<SomeType> someTypes = rh.orElse(Collections.emptyList()); //returns default
 Using lazy converting -> the Response's readEntity:
 
 ```java
-Response r=httpRequest.target(uri).path(path).request(HttpMethod.POST,payload);
-List<SomeType> someTypes = r.readEntity(new TypeReference<List<SomeType>>(){}); //see javadoc of get method
+try(Response r = httpRequest.target(uri).path(path).request(HttpMethod.POST, payload)){
+List<SomeType> someTypes = r.readEntity(new TypeReference<List<SomeType>>() {
+}); //see javadoc of get method
+}
 ```
 
 ###### You can use overridden methods instead of method `request()`
@@ -118,21 +141,23 @@ SomeType someType = rh.get();
 ```
 
 ```java
-Response r=httpRequest.target(uri).path(path).get();
-SomeType someType = r.readEntity(SomeType.class); 
+try(Response r = httpRequest.target(uri).path(path).get()){
+SomeType someType = r.readEntity(SomeType.class);
+}
 ```
 ###### Note: If the SomeType contains dates default deserialization patterns are - LocalTime -> HH:mm:ss, LocalDate -> dd/MM/yyyy, LocalDateTime -> dd/MM/yyyy HH:mm:ss
-###### It can be overridden by HttpRequestBuilder#addDefaultDateDeserializationPattern
+
+###### It can be overridden by HttpRequestBuilder#addResponseDefaultDateDeserializationPattern
 
 **Perform http request read response as String**
 
 ```java
-ResponseHandler<String> rh=httpRequest.target(uri).path(path).post(payload, String.class);
+ResponseHandler<String> rh = httpRequest.target(uri).path(path).post(payload);
 String response = rh.get(); 
 ```
 
 ```java
-Response r=httpRequest.target(uri).path(path).post(payload);
+ResponseHandler<String> r = httpRequest.target(uri).path(path).post(payload);
 String response = r.readEntity(String.class);
 ```
 
@@ -144,7 +169,7 @@ ResponseHandler<SomeType> rh=httpRequest.target(uri)
         .addParameter(name,value)
         .addParameter(new NameValuePair(name,value))
         .addParameters(queryString) //queryString example "param1=param1&param2=param2"
-        .get(SomeType.class);
+        .get(HttpMethod.GET, SomeType.class);
 
 int statusCode = rh.getCode();
 SomeType someType = rh.get();
@@ -155,14 +180,16 @@ SomeType someType = rh.orElseThrow();
 Get the `Response` and do manipulation yourself:
 
 ```java
-Response response=httpRequest.target(uri)
+try(Response response = httpRequest.target(uri)
         .path(path)
         .addParameter(name,value)
         .addParameter(new NameValuePair(name,value))
         .addParameters(queryString) //queryString example "param1=param1&param2=param2"
-        .get();
+        .get()){
+        response.
 
-response.readEntity(SomeType.class)
+readEntity(SomeType .class);
+}
 ```
 
 Note: The `Response` is implementation of `CloseableHttpResponse`
@@ -175,7 +202,7 @@ HttpRequest httpRequest=HttpRequestBuilder.create(httpClient)
         .addDefaultHeaders(someHeaderCollection)
         .addDefaultHeaders(someHeaderArray)
         .addDefaultHeader(headerName,headerValue)
-        .build();
+        .build()
 
 ```
 
@@ -222,7 +249,7 @@ CloseableHttpClient httpClient=ClientBuilder.create()
         .setMaxPoolSize(256)
         .setDefaultMaxPoolSizePerRoute(200)
         .setMaxPoolSizePerRoute(host,56)
-        .build();
+        .build()
 
 ```
 

@@ -302,6 +302,7 @@ class HttpUriRequestBuilder {
                             .build();
                 } catch (final URISyntaxException ex) {
                     // should never happen
+                    throw new IllegalArgumentException("Failed to build URI.", ex);
                 }
             }
         }

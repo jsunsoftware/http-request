@@ -30,4 +30,8 @@ public class UnexpectedResponseException extends ResponseException {
     public UnexpectedResponseException(int statusCode, String message, URI uri) {
         super(statusCode, message, uri);
     }
+
+    public UnexpectedResponseException(int statusCode, int originalStatusCode, String message, URI uri) {
+        super(statusCode, originalStatusCode, message, uri);
+    }
 }

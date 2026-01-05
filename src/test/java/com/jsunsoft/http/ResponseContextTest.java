@@ -47,9 +47,9 @@ class ResponseContextTest {
     void testBasicResponseContextMethods() throws IOException {
         BasicClassicHttpResponse httpResponse = new BasicClassicHttpResponse(200);
         httpResponse.setEntity(httpEntity);
-        ResponseBodyReaderContext<String> responseContext = new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class, URI.create(""));
+        ResponseBodyReaderContext<String> responseContext = new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class, URI.create(""), 0);
         assertEquals(content.length(), responseContext.getContentLength());
-        assertEquals(content, ResponseBodyReader.stringReader().read(responseContext));
+        assertEquals(content, ResponseBodyReaders.stringReader().read(responseContext));
         assertEquals(ContentType.APPLICATION_JSON.getMimeType(), responseContext.getContentType().getMimeType());
     }
 }

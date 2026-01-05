@@ -38,7 +38,19 @@ import java.util.Deque;
  *  TypeReference ref = new TypeReference&lt;List&lt;Integer&gt;&gt;() { };
  *  </pre>
  */
-@SuppressWarnings("rawtypes")
+
+/**
+ * Note: {@link Comparable} is implemented only to enforce supplying a generic type argument
+ * when constructing anonymous subclasses like:
+ *
+ * <pre>
+ *     List&lt;SomeType&gt; result = webTarget.get(new TypeReference&lt;List&lt;SomeType&gt;&gt;() {});
+ * </pre>
+ * <p>
+ * The natural ordering of {@code TypeReference} instances is intentionally undefined and should not be used
+ * for sorting or in sorted collections.
+ */
+@SuppressWarnings({"rawtypes", "ComparatorMethodParameterNotUsed"})
 public class TypeReference<T> implements Comparable<TypeReference<T>> {
 
     /**

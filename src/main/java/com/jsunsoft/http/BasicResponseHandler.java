@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import com.jsunsoft.http.annotations.Beta;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.message.HeaderGroup;
@@ -23,7 +24,6 @@ import org.apache.hc.core5.http.message.HeaderGroup;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.time.Duration;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -39,6 +39,7 @@ import java.util.function.Supplier;
 final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     private final int statusCode;
+    private final int originalStatusCode;
     private final T content;
     private final HeaderGroup headerGroup;
     private final String errorText;
@@ -50,28 +51,21 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     private final Duration duration;
     private final Exception errorCause;
 
-    BasicResponseHandler(T content, int statusCode, String errorText, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
-        this(content, statusCode, new HeaderGroup(), errorText, null, type, contentType, uri, connectionFailureType, startTime);
+    BasicResponseHandler(T content, int statusCode, int originalStatusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, long startTime) {
+        this(content, statusCode, originalStatusCode, headerGroup, errorText, null, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
     }
 
-    BasicResponseHandler(T content, int statusCode, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
-        this(content, statusCode, new HeaderGroup(), errorText, errorCause, type, contentType, uri, connectionFailureType, startTime);
+    BasicResponseHandler(T content, int statusCode, int originalStatusCode, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
+        this(content, statusCode, originalStatusCode, new HeaderGroup(), errorCause.getMessage(), errorCause, type, contentType, uri, connectionFailureType, startTime);
     }
 
-    BasicResponseHandler(T content, int statusCode, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
-        this(content, statusCode, new HeaderGroup(), errorCause.getMessage(), errorCause, type, contentType, uri, connectionFailureType, startTime);
+    BasicResponseHandler(T content, int statusCode, int originalStatusCode, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
+        this(content, statusCode, originalStatusCode, new HeaderGroup(), errorText, errorCause, type, contentType, uri, connectionFailureType, startTime);
     }
 
-    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, long startTime) {
-        this(content, statusCode, headerGroup, errorText, null, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
-    }
-
-    BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, long startTime) {
-        this(content, statusCode, headerGroup, errorText, errorCause, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
-    }
-
-    private BasicResponseHandler(T content, int statusCode, HeaderGroup headerGroup, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
+    private BasicResponseHandler(T content, int statusCode, int originalStatusCode, HeaderGroup headerGroup, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
         this.statusCode = statusCode;
+        this.originalStatusCode = originalStatusCode;
         this.content = content;
         this.headerGroup = headerGroup;
         this.errorText = errorText;
@@ -105,6 +99,12 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         return statusCode;
     }
 
+    @Override
+    @Beta
+    public int getOriginalCode() {
+        return originalStatusCode;
+    }
+
     /**
      * @param defaultValue value to return if content isn't present
      * @return Deserialized Content from response. If content isn't present returns defaultValue.
@@ -119,7 +119,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @param defaultValue value to return if status code is success and hasn't body
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
-     * @throws ResponseException If status code is not success
+     * @throws ResponseException             If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     @Override
@@ -195,7 +195,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     /**
      * @return Content from response. Returns null if hasn't body
-     * @throws ResponseException If response code is not success
+     * @throws ResponseException             If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     @Override
@@ -239,7 +239,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
             if (hasContent()) {
                 return content;
             } else {
-                throw new MissingResponseBodyException(statusCode, uri);
+                throw new MissingResponseBodyException(statusCode, originalStatusCode, uri);
             }
         } else {
             throw responseException();
@@ -276,15 +276,12 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     }
 
     /**
-     * @return Returns the error text if the connection failed but the server sent useful data nonetheless.
-     * @throws NoSuchElementException        If error text is not present
+     * @return Returns error text (for non-success responses) if available; may be {@code null} if the server did not
+     * send an error body.
      * @throws UnsupportedOperationException if generic type is a Void
      */
     @Override
     public String getErrorText() {
-        if (errorText == null) {
-            throw new IllegalStateException("Error text is not available: Response code: [" + statusCode + ']');
-        }
         return errorText;
     }
 
@@ -418,6 +415,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     public String toString() {
         return "ResponseHandler{" +
                 "statusCode=" + statusCode +
+                ", originalStatusCode=" + originalStatusCode +
                 ", content=" + content +
                 ", errorText='" + errorText + '\'' +
                 ", uri=" + uri +
@@ -436,11 +434,11 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
 
     private ResponseException responseException() {
         if (errorCause == null) {
-            return new UnexpectedStatusCodeException(statusCode, errorText, uri);
+            return new UnexpectedStatusCodeException(statusCode, originalStatusCode, errorText, uri);
         } else if (errorCause instanceof ResponseException) {
             return (ResponseException) errorCause;
         } else {
-            return new ResponseException(statusCode, errorText, uri, connectionFailureType, errorCause);
+            return new ResponseException(statusCode, originalStatusCode, errorText, uri, connectionFailureType, errorCause);
         }
     }
 }

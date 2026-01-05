@@ -50,4 +50,9 @@ Rename `addDefaultDateDeserializationPattern` of `HttpRequestBuilder` has been r
 `addResponseDefaultDateDeserializationPattern`.
 
 Removed support default deserialization of joda.time module. To achieve that, provide custom Json or Xml mapper e.g(
-`HttpRequestBuilder.setDefaultJsonMapper(mapper)`) or use custom response deserializer. 
+`HttpRequestBuilder.setDefaultJsonMapper(mapper)`) or use custom response reader.
+
+#3.5.x
+
+Removed `setDefaultRequestBodyConverter` of `HttpRequestBuilder`. To achieve that functional, call the
+`disableDefaultBodyReader` method and then add custom Reader as last reader by method`addBodyReader`.

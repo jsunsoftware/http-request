@@ -19,16 +19,25 @@ package com.jsunsoft.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 class RequestBodySerializeConfig {
     private final ObjectMapper defaultJsonMapper;
     private final ObjectMapper defaultXmlMapper;
+    private final Collection<RequestBodyConverter> requestBodyConverters;
+    private final Collection<RequestBodyConverter> defaultRequestBodyConverters;
+    private final boolean useDefaultBodySerializer;
 
-    RequestBodySerializeConfig(ObjectMapper defaultJsonMapper, ObjectMapper defaultXmlMapper) {
+    private RequestBodySerializeConfig(ObjectMapper defaultJsonMapper,
+                                       ObjectMapper defaultXmlMapper,
+                                       Collection<RequestBodyConverter> requestBodyConverters,
+                                       Collection<RequestBodyConverter> defaultRequestBodyConverters,
+                                       boolean useDefaultBodySerializer) {
         this.defaultJsonMapper = defaultJsonMapper;
         this.defaultXmlMapper = defaultXmlMapper;
+        this.requestBodyConverters = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(requestBodyConverters, "requestBodyConverters")));
+        this.defaultRequestBodyConverters = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultRequestBodyConverters, "defaultRequestBodyConverters")));
+        this.useDefaultBodySerializer = useDefaultBodySerializer;
     }
 
     public ObjectMapper getDefaultJsonMapper() {
@@ -37,6 +46,18 @@ class RequestBodySerializeConfig {
 
     public ObjectMapper getDefaultXmlMapper() {
         return defaultXmlMapper;
+    }
+
+    Collection<RequestBodyConverter> getRequestBodyConverters() {
+        return requestBodyConverters;
+    }
+
+    Collection<RequestBodyConverter> getDefaultRequestBodyConverters() {
+        return defaultRequestBodyConverters;
+    }
+
+    boolean isUseDefaultBodySerializer() {
+        return useDefaultBodySerializer;
     }
 
     static Builder create() {
@@ -49,6 +70,8 @@ class RequestBodySerializeConfig {
         private ObjectMapper defaultXmlMapper;
 
         private Map<Class<?>, String> dateTypeToPattern;
+        private Collection<RequestBodyConverter> requestBodyConverters;
+        private boolean useDefaultBodySerializer = true;
 
         private Builder() {
         }
@@ -60,6 +83,19 @@ class RequestBodySerializeConfig {
 
             dateTypeToPattern.put(dateType, pattern);
 
+            return this;
+        }
+
+        Builder addRequestBodyConverter(RequestBodyConverter requestBodyConverter) {
+            if (requestBodyConverters == null) {
+                requestBodyConverters = new LinkedHashSet<>();
+            }
+            requestBodyConverters.add(requestBodyConverter);
+            return this;
+        }
+
+        Builder setUseDefaultBodySerializer(boolean useDefaultBodySerializer) {
+            this.useDefaultBodySerializer = useDefaultBodySerializer;
             return this;
         }
 
@@ -77,11 +113,28 @@ class RequestBodySerializeConfig {
 
         RequestBodySerializeConfig build() {
 
-            ObjectMapper json = ObjectMapperInitializer.initJsonMapperIfNull(defaultJsonMapper, dateTypeToPattern);
-            ObjectMapper xml = ObjectMapperInitializer.initXmlMapperIfNull(defaultXmlMapper, dateTypeToPattern);
+            ObjectMapper json = null;
+            ObjectMapper xml = null;
+            Collection<RequestBodyConverter> defaultRequestBodyConverters = Collections.emptyList();
 
+            if (useDefaultBodySerializer) {
+                json = ObjectMapperInitializer.initJsonMapperIfNull(defaultJsonMapper, dateTypeToPattern);
+                xml = ObjectMapperInitializer.initXmlMapperIfNull(defaultXmlMapper, dateTypeToPattern);
+                List<RequestBodyConverter> defaults = new ArrayList<>(2);
+                defaults.add(RequestBodyConverters.jsonConverter(json));
+                defaults.add(RequestBodyConverters.xmlConverter(xml));
+                defaultRequestBodyConverters = Collections.unmodifiableList(defaults);
+            } else {
+                if (defaultJsonMapper != null || defaultXmlMapper != null || dateTypeToPattern != null) {
+                    throw new IllegalArgumentException("Do not provide defaultJsonMapper/defaultXmlMapper/dateTypeToPattern if default body serializer is disabled.");
+                }
+            }
 
-            return new RequestBodySerializeConfig(json, xml);
+            if (requestBodyConverters == null) {
+                requestBodyConverters = Collections.emptyList();
+            }
+
+            return new RequestBodySerializeConfig(json, xml, requestBodyConverters, defaultRequestBodyConverters, useDefaultBodySerializer);
         }
     }
 }

@@ -16,6 +16,8 @@
 
 package com.jsunsoft.http;
 
+import com.jsunsoft.http.annotations.Beta;
+
 import java.net.URI;
 import java.util.StringJoiner;
 
@@ -29,33 +31,53 @@ public class ResponseException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     private final int statusCode;
+    private final int originalStatusCode;
     private final URI uri;
     private final ConnectionFailureType connectionFailureType;
 
     public ResponseException(int statusCode, String message, URI uri) {
-        this(statusCode, message, uri, null);
+        this(statusCode, statusCode, message, uri, null);
     }
 
     public ResponseException(int statusCode, URI uri, Throwable cause) {
-        this(statusCode, null, uri, cause);
+        this(statusCode, -1, null, uri, cause);
     }
 
     public ResponseException(int statusCode, String msg, URI uri, Throwable cause) {
+        this(statusCode, -1, msg, uri, cause);
+    }
+
+    public ResponseException(int statusCode, int originalStatusCode, String msg, URI uri) {
+        this(statusCode, originalStatusCode, msg, uri, null);
+    }
+
+    public ResponseException(int statusCode, int originalStatusCode, String msg, URI uri, Throwable cause) {
         super(msg, cause);
         this.statusCode = statusCode;
+        this.originalStatusCode = originalStatusCode;
         this.uri = uri;
         connectionFailureType = UNDEFINED;
     }
 
     ResponseException(int statusCode, String msg, URI uri, ConnectionFailureType connectionFailureType, Throwable cause) {
+        this(statusCode, -1, msg, uri, connectionFailureType, cause);
+    }
+
+    ResponseException(int statusCode, int originalStatusCode, String msg, URI uri, ConnectionFailureType connectionFailureType, Throwable cause) {
         super(msg, cause);
         this.statusCode = statusCode;
+        this.originalStatusCode = originalStatusCode;
         this.uri = uri;
         this.connectionFailureType = connectionFailureType;
     }
 
     public int getStatusCode() {
         return statusCode;
+    }
+
+    @Beta
+    public int getOriginalStatusCode() {
+        return originalStatusCode;
     }
 
     public URI getURI() {
@@ -70,6 +92,7 @@ public class ResponseException extends RuntimeException {
     public String toString() {
         return new StringJoiner(", ", super.toString() + " [", "]")
                 .add("statusCode=" + statusCode)
+                .add("originalStatusCode=" + originalStatusCode)
                 .add("uri=" + uri)
                 .add("connectionFailureType=" + connectionFailureType)
                 .toString();

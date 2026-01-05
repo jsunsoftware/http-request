@@ -62,7 +62,7 @@ class HttpRequestUtils {
     }
 
     static boolean isVoidType(Type type) {
-        return type == Void.class;
+        return type == Void.class || Void.TYPE.equals(type);
     }
 
     static <T> T orDefault(T value, T defaultValue) {
@@ -79,9 +79,17 @@ class HttpRequestUtils {
 
             String slash = "/";
 
-            if (!path.startsWith(slash) || !currentPath.endsWith(slash)) {
+            boolean currentEndsWithSlash = currentPath.endsWith(slash);
+            boolean pathStartsWithSlash = path.startsWith(slash);
+
+            if (currentEndsWithSlash && pathStartsWithSlash) {
+                // avoid double slash
+                newPath = currentPath + path.substring(1);
+            } else if (!currentEndsWithSlash && !pathStartsWithSlash) {
+                // ensure single slash
                 newPath = currentPath + slash + path;
             } else {
+                // exactly one slash already present
                 newPath = currentPath + path;
             }
         }
@@ -90,6 +98,10 @@ class HttpRequestUtils {
     }
 
     static ContentType getContentTypeFromHttpEntity(HttpEntity httpEntity) {
-        return httpEntity == null ? null : ContentType.parse(httpEntity.getContentType());
+        if (httpEntity == null) {
+            return null;
+        }
+        String contentType = httpEntity.getContentType();
+        return contentType == null ? null : ContentType.parse(contentType);
     }
 }

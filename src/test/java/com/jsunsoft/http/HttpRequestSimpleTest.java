@@ -17,7 +17,6 @@
 package com.jsunsoft.http;
 
 import com.fasterxml.jackson.annotation.JsonRootName;
-import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.core5.http.HttpHeaders;
@@ -46,7 +45,7 @@ class HttpRequestSimpleTest {
 
     @RegisterExtension
     static WireMockExtension wireMockRule = WireMockExtension.newInstance()
-            .options(WireMockConfiguration.wireMockConfig())
+            .options(WireMockConfiguration.wireMockConfig().dynamicPort())
             .build();
 
     private final String userAgent = "JsunSoftAgent/1.0";
@@ -64,7 +63,7 @@ class HttpRequestSimpleTest {
 
     @BeforeEach
     public void setUp() {
-        WireMock.reset();
+        wireMockRule.resetAll();
     }
 
     @Test
@@ -73,7 +72,7 @@ class HttpRequestSimpleTest {
                 .withHeader("User-Agent", equalTo(userAgent))
                 .willReturn(aResponse().withStatus(200)));
 
-        assertTrue(httpRequestUserAgent.target("http://localhost:8080/userAgent").get(Void.class).isSuccess());
+        assertTrue(httpRequestUserAgent.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("userAgent").get(Void.class).isSuccess());
     }
 
     @Test
@@ -90,7 +89,7 @@ class HttpRequestSimpleTest {
                 )
         );
 
-        WebTarget webTarget = xmlHttpRequest.immutableTarget("http://localhost:8080/xml");
+        WebTarget webTarget = xmlHttpRequest.immutableTarget(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("xml");
 
         ResponseHandler<Wrapper> responseHandler = webTarget
                 .post(XML_BODY, Wrapper.class);
@@ -119,7 +118,7 @@ class HttpRequestSimpleTest {
                 )
         );
 
-        WebTarget webTarget = xmlHttpRequest.immutableTarget("http://localhost:8080/xml");
+        WebTarget webTarget = xmlHttpRequest.immutableTarget(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("xml");
 
         Wrapper xmlWrapper = webTarget
                 .post(XML_BODY, Wrapper.class)
@@ -146,7 +145,7 @@ class HttpRequestSimpleTest {
                 )
         );
 
-        ResponseHandler<String> responseHandler = basicHttpRequest.target("http://localhost:8080/text")
+        ResponseHandler<String> responseHandler = basicHttpRequest.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("text")
                 .post(String.class);
 
         assertEquals(TEXT_BODY, responseHandler.get());
@@ -164,7 +163,7 @@ class HttpRequestSimpleTest {
                 )
         );
 
-        ResponseHandler<String> responseHandler = basicHttpRequest.target("http://localhost:8080/json")
+        ResponseHandler<String> responseHandler = basicHttpRequest.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("json")
                 .post(String.class);
 
         assertEquals(JSON_BODY, responseHandler.get());
@@ -182,7 +181,7 @@ class HttpRequestSimpleTest {
                 )
         );
 
-        ResponseHandler<byte[]> responseHandler = basicHttpRequest.target("http://localhost:8080/json")
+        ResponseHandler<byte[]> responseHandler = basicHttpRequest.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("json")
                 .post(byte[].class);
 
         assertEquals(JSON_BODY, new String(responseHandler.get(), StandardCharsets.UTF_8));
@@ -202,7 +201,7 @@ class HttpRequestSimpleTest {
                 )
         );
 
-        WebTarget webTarget = basicHttpRequest.immutableTarget("http://localhost:8080/json");
+        WebTarget webTarget = basicHttpRequest.immutableTarget(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("json");
 
         Wrapper jsonWrapper = webTarget
                 .addContentType(APPLICATION_JSON)
@@ -230,7 +229,7 @@ class HttpRequestSimpleTest {
                 .willReturn(aResponse().withStatus(200)));
 
         assertTrue(
-                basicHttpRequest.target("http://localhost:8080/get-param")
+                basicHttpRequest.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("get-param")
                         .addParameters("test=testValue&param2=param2")
                         .get(Void.class)
                         .isSuccess()
@@ -247,7 +246,7 @@ class HttpRequestSimpleTest {
                 )
         );
 
-        ResponseHandler<String> responseHandler = basicHttpRequest.target("http://localhost:8080/text")
+        ResponseHandler<String> responseHandler = basicHttpRequest.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl()).path("text")
                 .post(String.class);
 
         assertEquals(TEXT_BODY, responseHandler.getErrorText());

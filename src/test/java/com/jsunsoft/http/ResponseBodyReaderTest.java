@@ -17,7 +17,6 @@
 package com.jsunsoft.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.io.entity.BasicHttpEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
@@ -57,9 +56,8 @@ class ResponseBodyReaderTest {
 
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
-        ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
-                ObjectMapperInitializer.defaultInit(new ObjectMapper(), DEFAULT),
-                ObjectMapperInitializer.defaultInit(new XmlMapper(), DEFAULT)
+        ResponseBodyReader<Result> responseBodyReader = ResponseBodyReaders.jsonReader(
+                ObjectMapperInitializer.defaultInit(new ObjectMapper(), DEFAULT)
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -97,9 +95,8 @@ class ResponseBodyReaderTest {
 
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
-        ResponseBodyReader<Result> responseBodyReader = new DefaultResponseBodyReader<>(
-                ObjectMapperInitializer.defaultInit(new ObjectMapper(), dateDeserializeContext),
-                ObjectMapperInitializer.defaultInit(new XmlMapper(), dateDeserializeContext)
+        ResponseBodyReader<Result> responseBodyReader = ResponseBodyReaders.jsonReader(
+                ObjectMapperInitializer.defaultInit(new ObjectMapper(), dateDeserializeContext)
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -121,7 +118,7 @@ class ResponseBodyReaderTest {
         BasicClassicHttpResponse httpResponse = new BasicClassicHttpResponse(200);
         httpResponse.setEntity(basicHttpEntity);
 
-        return new BasicResponseBodyReaderContext<>(httpResponse, Result.class, Result.class, URI.create(""));
+        return new BasicResponseBodyReaderContext<>(httpResponse, Result.class, Result.class, URI.create(""), 0);
     }
 
     private static class Result {

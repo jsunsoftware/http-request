@@ -16,9 +16,14 @@
 
 package com.jsunsoft.http;
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.core5.http.HttpStatus;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.apache.hc.core5.http.ContentType.APPLICATION_XML;
 import static org.apache.hc.core5.http.HttpHeaders.ACCEPT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,9 +36,29 @@ class HttpRequestSSLTest {
             .build()
     ).build();
 
+    @RegisterExtension
+    static WireMockExtension httpsServer = WireMockExtension.newInstance()
+            .options(
+                    WireMockConfiguration.wireMockConfig()
+                            .dynamicPort()
+                            .dynamicHttpsPort()
+            )
+            .build();
+
     @Test
     void ignoreSSLAndHostsTest() {
+        httpsServer.stubFor(get(urlEqualTo("/"))
+                .willReturn(aResponse().withStatus(200)));
 
-        assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getCode());
+        assertEquals(HttpStatus.SC_OK, httpRequest.target(httpsServer.getRuntimeInfo().getHttpsBaseUrl()).rawGet().getCode());
+    }
+
+    @Test
+    @Disabled
+    void ignoreRealSSLAndHostsTest() {
+        httpsServer.stubFor(get(urlEqualTo("/"))
+                .willReturn(aResponse().withStatus(200)));
+
+        assertEquals(HttpStatus.SC_OK, httpRequest.target(httpsServer.getRuntimeInfo().getHttpsBaseUrl()).rawGet().getCode());
     }
 }

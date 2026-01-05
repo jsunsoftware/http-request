@@ -16,20 +16,33 @@
 
 package com.jsunsoft.http;
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HttpRequestBasicTest {
+
+    @RegisterExtension
+    static WireMockExtension wireMockRule = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().dynamicPort())
+            .build();
 
     private static final HttpRequest HTTP_REQUEST =
             HttpRequestBuilder.create(new ClientBuilder().build()).build();
 
     @Test
     void largeResponseTest() {
-        ResponseHandler<String> rh = HTTP_REQUEST.target("https://httpbin.org")
+        String responseBody = "a".repeat(20000);
+        wireMockRule.stubFor(post(urlEqualTo("/anything"))
+                .willReturn(aResponse().withStatus(200).withBody(responseBody)));
+
+        ResponseHandler<String> rh = HTTP_REQUEST.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl())
                 .path("anything")
                 .post("a".repeat(50000), String.class);
 

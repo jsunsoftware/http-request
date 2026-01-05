@@ -29,6 +29,9 @@ public interface HttpRequest {
 
     /**
      * Build a new web resource target.
+     * <p>
+     * Note: the returned {@link WebTarget} is mutable and not thread-safe. If you need to share a target between
+     * threads or reuse it safely, prefer {@link #immutableTarget(URI)}.
      *
      * @param uri web resource URI. Must not be {@code null}.
      *
@@ -40,6 +43,9 @@ public interface HttpRequest {
 
     /**
      * Build a new web resource target.
+     * <p>
+     * Note: the returned {@link WebTarget} is mutable and not thread-safe. If you need to share a target between
+     * threads or reuse it safely, prefer {@link #immutableTarget(String)}.
      *
      * @param uri The string to be parsed into a URI
      *
