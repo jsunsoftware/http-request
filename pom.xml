@@ -22,11 +22,11 @@
 
     <groupId>com.jsunsoft.http</groupId>
     <artifactId>http-request</artifactId>
-    <version>3.4.8</version>
+    <version>3.5.0-rc1</version>
     <packaging>jar</packaging>
 
     <name>http-request</name>
-    <description>Enhancing apache http client</description>
+    <description>Enhancing Apache Http Client</description>
     <url>https://github.com/jsunsoftware/http-request</url>
 
     <licenses>
