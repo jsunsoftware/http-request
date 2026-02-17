@@ -80,7 +80,7 @@ Add this dependency to your `pom.xml`:
 <dependency>
   <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>3.5.0-rc1</version>
+  <version>3.5.0-rc2</version>
 </dependency>
 ```
 
