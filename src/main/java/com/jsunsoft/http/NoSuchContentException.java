@@ -18,6 +18,9 @@ package com.jsunsoft.http;
 
 import java.util.NoSuchElementException;
 
+/**
+ * Indicates that expected content is not available.
+ */
 @SuppressWarnings("serial")
 public class NoSuchContentException extends NoSuchElementException {
 

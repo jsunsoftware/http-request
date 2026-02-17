@@ -18,18 +18,37 @@ package com.jsunsoft.http;
 
 import java.io.IOException;
 
+/**
+ * Signals failures while reading or converting a response body.
+ */
 @SuppressWarnings("serial")
 //todo separate from IOException
 public class ResponseBodyReaderException extends IOException {
 
+    /**
+     * Creates a new exception with a message and cause.
+     *
+     * @param message error message
+     * @param cause root cause
+     */
     public ResponseBodyReaderException(String message, Throwable cause) {
         super(message, cause);
     }
 
+    /**
+     * Creates a new exception with a cause.
+     *
+     * @param cause root cause
+     */
     public ResponseBodyReaderException(Throwable cause) {
         super(cause);
     }
 
+    /**
+     * Creates a new exception with a message.
+     *
+     * @param message error message
+     */
     public ResponseBodyReaderException(String message) {
         super(message);
     }

@@ -94,6 +94,11 @@ public class ClientBuilder {
 
     }
 
+    /**
+     * Creates a new {@link ClientBuilder} with default configuration.
+     *
+     * @return new builder instance
+     */
     public static ClientBuilder create() {
         return new ClientBuilder();
     }

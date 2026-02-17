@@ -16,8 +16,12 @@
 
 package com.jsunsoft.http;
 
+/**
+ * Thrown when a response body has an invalid content length.
+ */
 @SuppressWarnings("serial")
 public class InvalidContentLengthException extends ResponseBodyReaderException {
+    /** Reported content length value. */
     private final long contentLength;
 
     InvalidContentLengthException(long contentLength, String message) {
@@ -25,6 +29,9 @@ public class InvalidContentLengthException extends ResponseBodyReaderException {
         this.contentLength = contentLength;
     }
 
+    /**
+     * @return reported content length
+     */
     public long getContentLength() {
         return contentLength;
     }

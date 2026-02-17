@@ -27,10 +27,25 @@ import java.net.URI;
 @Deprecated
 public class UnexpectedResponseException extends ResponseException {
 
+    /**
+     * Creates an exception with a status code and message.
+     *
+     * @param statusCode response status code
+     * @param message error message
+     * @param uri request URI
+     */
     public UnexpectedResponseException(int statusCode, String message, URI uri) {
         super(statusCode, message, uri);
     }
 
+    /**
+     * Creates an exception with status and original status codes.
+     *
+     * @param statusCode response status code
+     * @param originalStatusCode original status code
+     * @param message error message
+     * @param uri request URI
+     */
     public UnexpectedResponseException(int statusCode, int originalStatusCode, String message, URI uri) {
         super(statusCode, originalStatusCode, message, uri);
     }

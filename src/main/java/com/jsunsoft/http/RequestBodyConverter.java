@@ -26,6 +26,7 @@ import org.apache.hc.core5.http.HttpEntity;
  */
 public interface RequestBodyConverter {
     /**
+     * @param context request body conversion context
      * @return {@code true} if this converter can convert the request body for the given context.
      */
     boolean canConvert(RequestBodyConverterContext context);
@@ -33,9 +34,10 @@ public interface RequestBodyConverter {
     /**
      * Converts {@link RequestBodyConverterContext#getBody()} into an {@link HttpEntity}.
      *
+     * @param context request body conversion context
+     * @return converted {@link HttpEntity}
      * @throws RequestException if conversion fails
      */
     HttpEntity convert(RequestBodyConverterContext context) throws RequestException;
 }
-
 

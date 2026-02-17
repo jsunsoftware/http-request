@@ -16,13 +16,24 @@
 
 package com.jsunsoft.http;
 
+/**
+ * HTTP methods supported by this client.
+ */
 public enum HttpMethod {
+    /** HTTP GET method. */
     GET,
+    /** HTTP PUT method. */
     PUT,
+    /** HTTP POST method. */
     POST,
+    /** HTTP HEAD method. */
     HEAD,
+    /** HTTP DELETE method. */
     DELETE,
+    /** HTTP OPTIONS method. */
     OPTIONS,
+    /** HTTP PATCH method. */
     PATCH,
+    /** HTTP TRACE method. */
     TRACE
 }

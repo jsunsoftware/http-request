@@ -23,8 +23,14 @@ import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpStatus;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Context for retry behavior and counters.
+ */
 @Beta
 public interface RetryContext {
+    /**
+     * @return current retry attempt count
+     */
     int getRetryCount();
 
     /**

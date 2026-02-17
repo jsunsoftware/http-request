@@ -24,6 +24,9 @@ import org.apache.hc.core5.http.ContentType;
 import java.io.IOException;
 import java.net.URI;
 
+/**
+ * Abstraction over an HTTP response with helper methods for entity reading.
+ */
 public interface Response extends ClassicHttpResponse {
 
     /**
@@ -84,6 +87,9 @@ public interface Response extends ClassicHttpResponse {
      */
     URI getURI();
 
+    /**
+     * @return {@code true} if the response has a non-null entity
+     */
     default boolean hasEntity() {
         return getEntity() != null;
     }

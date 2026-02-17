@@ -21,6 +21,9 @@ import org.apache.hc.core5.http.ContentType;
 import java.lang.reflect.Type;
 import java.net.URI;
 
+/**
+ * Read-only context describing a response body to be deserialized.
+ */
 public interface ResponseBodyReadableContext {
 
     /**
