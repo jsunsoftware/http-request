@@ -1,407 +1,604 @@
-# http-request
+A powerful, fluent Java wrapper built on top of Apache HTTP Client 5 that simplifies making REST API calls.
 
-The http-request library is a Java wrapper built on top of Apache HTTP Client that simplifies making REST API calls.
+## Table of Contents
 
-The main purpose is to create a simple REST client quickly, manage responses easily, and handle exceptions gracefully.
+- [Overview](#overview)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Resource Management](#resource-management)
+- [Usage Examples](#usage-examples)
+  - [Creating an HttpRequest](#creating-an-httprequest)
+  - [Making Simple Requests](#making-simple-requests)
+  - [Working with Request Parameters](#working-with-request-parameters)
+  - [Working with Headers](#working-with-headers)
+  - [Handling Responses](#handling-responses)
+  - [Error Handling](#error-handling)
+  - [Working with JSON and XML](#working-with-json-and-xml)
+- [Advanced Features](#advanced-features)
+  - [Connection Pooling](#connection-pooling)
+  - [Timeouts](#timeouts)
+  - [SSL Configuration](#ssl-configuration)
+  - [Authentication](#authentication)
+  - [Redirects](#redirects)
+  - [Retry Mechanism](#retry-mechanism)
+  - [Custom Response Body Readers](#custom-response-body-readers)
+  - [Limiting Response Body Size](#limiting-response-body-size)
+  - [Character Encoding](#character-encoding)
+  - [Debugging](#debugging)
+- [Why use http-request?](#why-use-http-request)
+- [API Documentation](#api-documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
-**http-request** Features:
-Building your HttpRequest requires no more than 5 minutes. <br/>
-Used builder pattern to create HttpClient, HttpRequest. <br/>
-HttpRequest wraps HttpClient inside and provide handy functions to manage. <br/>
-HttpRequest is immutable (thread safe after build). <br/>
-There are overloaded methods of request() for sending request. <br/>
-All exceptions are wrapped: <br/>
-If connection failure -> status code is a 503(SC_SERVICE_UNAVAILABLE), If deserialization of response body is failed ->
-status code is a 502(SC_BAD_GATEWAY). <br/>
-After request can be provided the ResponseHandler instance to manipulate response data. <br/>
-Supported:
+## Overview
 
-* converting response to the type which you want. <br/>
-* ignore response body if you interested in only status code. <br/>
-* converting from Json. <br/>
-* converting from Xml. <br/>
-  Optimized performance. <br/>
+The http-request library is designed to create a simple REST client quickly, manage responses easily, and handle
+exceptions gracefully. It provides a fluent API that makes HTTP requests more readable and maintainable.
 
-Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.http/http-request).
+The main purpose is to simplify the process of making HTTP requests while providing powerful features for handling
+responses, managing connections, and processing data, building on top of the robust and performant Apache HttpClient 5.
 
-**Note: HttpRequest objects are immutable and thread-safe, they can be reused after build the instance of HttpRequest.**
+## Features
 
-### Concurrency and thread-safety
+- **Fluent API**: Build and execute HTTP requests with a clean, chainable API.
+- **Thread-safe**: `HttpRequest` objects are immutable and thread-safe after building.
+- **Simplified Error Handling**: All exceptions are wrapped with meaningful status codes.
+- **Simplified Resource Management**: Automatic closing of responses with `ResponseHandler` and `AutoCloseable` client
+  resources.
+- **Flexible Response Processing**:
+  - Convert responses to Java objects automatically.
+  - Support for JSON and XML deserialization.
+  - Type-safe generic response handling with `TypeReference`.
+- **Connection Management**:
+  - Simplified connection pooling.
+  - Configurable timeouts.
+  - Easy SSL configuration.
+- **Advanced Features**:
+  - Flexible retry mechanism for failed requests.
+  - Custom response body readers and request body converters.
+  - Secure password handling for basic authentication.
+  - Request duration monitoring.
 
-- **HttpRequest**: immutable and thread-safe after build; reuse it.
-- **WebTarget from `target(...)`**: mutable and **not** thread-safe; do not share between threads.
-- **WebTarget from `immutableTarget(...)`**: intended to be safe to share and reuse.
+## Requirements
 
-### Resource management (closing responses)
+- Java 8 or higher
+- Dependencies (automatically managed by build tools):
+  - Apache HttpClient 5.x
+  - Jackson (for JSON/XML processing)
+  - SLF4J (for logging)
 
-Methods returning **`Response`** return a live, closable response. Always close it (prefer try-with-resources):
+## Installation
+
+### Maven
+
+Add this dependency to your `pom.xml`:
+
+```xml
+
+<dependency>
+  <groupId>com.jsunsoft.http</groupId>
+  <artifactId>http-request</artifactId>
+  <version>3.5.0-rc1</version>
+</dependency>
+```
+
+### Gradle
+
+Add this dependency to your `build.gradle`:
+
+```groovy
+implementation 'com.jsunsoft.http:http-request:3.5.0-rc1'
+```
+
+## Quick Start
+
+Here's a simple example to get you started:
+
+```java
+import com.jsunsoft.http.*;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+
+public class QuickStart {
+  public static void main(String[] args) {
+    // Create an HTTP client and manage its resources with try-with-resources
+    try (ClientBuilder.HttpClientWithResources clientWithResources = ClientBuilder.create().buildWithResources()) {
+      CloseableHttpClient httpClient = clientWithResources.getClient();
+
+      // Build an HTTP request
+      HttpRequest httpRequest = HttpRequestBuilder.create(httpClient).build();
+
+      // Make a GET request and get the response
+      try (Response response = httpRequest.target("https://api.example.com/users/1").get()) {
+        // Check the status code
+        int statusCode = response.getCode();
+        System.out.println("Status code: " + statusCode);
+
+        if (response.isSuccess()) {
+          // Read the response as a string
+          String responseBody = response.readEntity(String.class);
+          System.out.println("Response body: " + responseBody);
+        }
+      }
+    }
+  }
+}
+```
+
+## Resource Management
+
+This library simplifies resource management to prevent connection leaks.
+
+### 1. Using `ResponseHandler` (Recommended for most cases)
+
+When you use methods that return a `ResponseHandler<T>` (e.g., `get(User.class)`), the response is consumed and closed
+automatically. This is the most convenient and safest way to handle responses.
+
+```java
+// The response is closed automatically after the operation.
+User user = httpRequest.target("https://api.example.com/users/1")
+                .get(User.class)
+                .orElseThrow();
+```
+
+### 2. Using `Response` with try-with-resources
+
+When you need direct access to the `Response` object, always use a try-with-resources statement to ensure it's closed,
+even if exceptions occur.
 
 ```java
 try(Response response = httpRequest.target(uri).get()){
 int statusCode = response.getCode();
 SomeType body = response.readEntity(SomeType.class);
-}
+} // response.close() is called automatically
 ```
 
-Methods returning **`ResponseHandler<T>`** read/consume the response and close it internally.
+### 3. Managing the `HttpClient`
 
-### Client builder
-
-The `ClientBuilder` have been added to build `CloseableHttpClient` with some handy methods. You can also use the
-apache [HttpClientBuilder](https://hc.apache.org/httpcomponents-client-5.1.x/current/httpclient5/apidocs/)
-. <br/>
-If you build the `CloseableHttpClient` there are overridden values:
-
-* ResponseTimeout: 30000ms
-* ConnectTimeout: 10000ms
-* ConnectionRequestTimeout: 30000ms
-* connectionManager#setDefaultMaxPerRoute:  128
-* connectionManager#setMaxTotal: 128
-
-Can be changed through Client builder. See the API documentation `ClientBuilder`
-
-##### Note: the httpClientInstance of `CloseableHttpClient` must't be shared over HttpRequests. It is strong advice don't create `CloseableHttpClient` instance for any request.
-
-##### build httpClient Example:
+`CloseableHttpClient` manages the connection pool and should be shared across your application. It's a heavy-weight
+object. It's crucial to close it when your application shuts down.
 
 ```java
-CloseableHttpClient httpClient=ClientBuilder.create().setMaxPoolSize(256).build();
-```
-
-### How to use
-
-**Retrieve the Status Code from the Http Response**
-
-After sending the Http request – we get back an instance of com.jsunsoft.http.Response – <br/>
-which allows us to access the status line of the response, and implicitly the Status Code:
-
-```java
-class Demo {
-    private final HttpRequest httpRequest = HttpRequestBuilder.create(httpClient).build();
-
-    void request() {
-        try (Response response = httpRequest.target("https://www.jsunsoft.com/").get()) {
-            int statusCode = response.getCode();
+// Use try-with-resources to manage the client lifecycle
+try(CloseableHttpClient httpClient = ClientBuilder.create().build()){
+        // ... use the client
         }
+```
+
+## Usage Examples
+
+### Creating an `HttpRequest`
+
+The `HttpRequestBuilder` is used to create and configure `HttpRequest` instances. `HttpRequest` objects are immutable
+and thread-safe, so you can create one and reuse it.
+
+```java
+// Create a simple HttpRequest
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient).build();
+
+// Create an HttpRequest with default headers and content type
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .addDefaultHeader("User-Agent", "MyApp/1.0")
+        .addContentType(ContentType.APPLICATION_JSON)
+        .build();
+
+// Create an HttpRequest with basic authentication
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .basicAuth("username", "password")
+        .build();
+```
+
+### Making Simple Requests
+
+The library provides convenient methods for all standard HTTP verbs.
+
+- **`get()`**, **`post()`**, **`put()`**, etc., returning a `ResponseHandler<T>` (eager processing): The response is
+  automatically read and converted.
+- **`get()`**, **`post()`**, **`put()`**, etc., returning a `Response` (lazy processing): You have direct control over
+  the response stream.
+
+```java
+// Eager GET: Convert response body to a User object
+ResponseHandler<User> userHandler = httpRequest.target("https://api.example.com/users/1").get(User.class);
+User user = userHandler.orElseThrow(); // Throws exception if request was not successful
+
+// Eager POST with a JSON payload
+String jsonPayload = "{\"name\":\"John\",\"email\":\"john@example.com\"}";
+ResponseHandler<String> postHandler = httpRequest.target("https://api.example.com/users").post(jsonPayload, String.class);
+System.out.
+
+println("Response: "+postHandler.get());
+
+// Lazy PUT: Get the Response object and handle it manually
+        try(
+Response putResponse = httpRequest.target("https://api.example.com/users/1").put(jsonPayload)){
+        System.out.
+
+println("Status code: "+putResponse.getCode());
+}
+```
+
+### Working with Request Parameters
+
+You can add query parameters to your requests easily.
+
+```java
+// Add parameters
+Response response = httpRequest.target("https://api.example.com/users")
+                .addParameter("page", "1")
+                .addParameter("limit", "10")
+                .get();
+
+// Add multiple parameters from a map
+Map<String, String> params = new HashMap<>();
+params.
+
+put("limit","10");
+params.
+
+put("sort","name");
+
+Response response = httpRequest.target("https://api.example.com/users")
+        .addParameters(params)
+        .get();
+```
+
+### Working with Headers
+
+You can add headers to individual requests or set default headers on the `HttpRequestBuilder`.
+
+```java
+// Add a header to a single request
+Response response = httpRequest.target("https://api.example.com/users")
+                .addHeader("X-API-Key", "your-api-key")
+                .get();
+
+// Set a default header for all requests made with this httpRequest instance
+HttpRequest httpRequestWithAuth = HttpRequestBuilder.create(httpClient)
+        .addDefaultHeader("Authorization", "Bearer your-token")
+        .build();
+```
+
+### Handling Responses
+
+The `ResponseHandler` provides a powerful and fluent way to process responses.
+
+```java
+ResponseHandler<User> handler = httpRequest.target("https://api.example.com/users/123").get(User.class);
+
+// Chain success and error handling
+handler.
+
+ifSuccess(h ->System.out.
+
+println("User: "+h.get().
+
+getName()))
+        .
+
+otherwise(h ->System.err.
+
+println("Error: "+h.getErrorText()));
+
+// Using filter and conditional processing
+        handler.
+
+filter(ResponseHandler::hasContent)
+       .
+
+ifPassed(h ->System.out.
+
+println("User: "+h.get().
+
+getName()))
+        .
+
+otherwise(h ->System.out.
+
+println("No content"));
+
+// Get the result or a default value
+User user = handler.orElse(new User("Default"));
+
+// Get the request duration
+Duration duration = handler.getDuration();
+System.out.
+
+println("Request took: "+duration.toMillis() +"ms");
+```
+
+### Error Handling
+
+The library wraps exceptions and provides convenient ways to handle errors.
+
+- **Connection failures** → `RequestException` (often with status code 503)
+- **Deserialization failures** → `ResponseBodyProcessingException` (often with status code 502)
+- **Non-2xx status codes** → `UnexpectedStatusCodeException`
+
+```java
+try{
+// Throws UnexpectedStatusCodeException for non-2xx responses
+// Throws MissingResponseBodyException if the body is empty but required
+User user = httpRequest.target("https://api.example.com/users/999")
+        .get(User.class)
+        .requiredGet();
+}catch(
+        ResponseException e){
+        System.err.
+
+        println("Response failed: "+e.getMessage());
+        if(e instanceof UnexpectedStatusCodeException){
+        System.err.
+
+        println("Status code: "+((UnexpectedStatusCodeException) e).
+
+        getStatusCode());
+        }
+        }
+```
+
+### Working with JSON and XML
+
+The library automatically handles JSON and XML serialization/deserialization using Jackson.
+
+```java
+// POST a Java object as JSON
+User newUser = new User("John Doe", "john@example.com");
+Response response = httpRequest.target("https://api.example.com/users")
+        .post(newUser); // Content-Type is automatically handled for Objects
+
+// GET and parse a generic type (List<User>)
+List<User> users = httpRequest.target("https://api.example.com/users")
+        .get(new TypeReference<List<User>>() {
+        })
+        .orElseThrow();
+
+// Custom date formats for JSON/XML
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .addResponseDefaultDateDeserializationPattern(LocalDate.class, "yyyy-MM-dd")
+        .addRequestDefaultDateSerializationPattern(LocalDateTime.class, "yyyy-MM-dd'T'HH:mm:ss")
+        .build();
+```
+
+## Advanced Features
+
+### Connection Pooling
+
+Configure the connection pool using `ClientBuilder`.
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .setMaxPoolSize(200) // Total connections
+        .setDefaultMaxPoolSizePerRoute(50) // Connections per host
+        .setMaxPoolSizePerRoute("api.example.com", 100) // Specific host
+        .build();
+```
+
+### Timeouts
+
+Configure various timeouts for your HTTP client.
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .setConnectTimeout(5000)          // Connection timeout in ms
+        .setResponseTimeout(30000)        // Response timeout in ms
+        .build();
+```
+
+### SSL Configuration
+
+Easily configure SSL settings.
+
+```java
+// Trust all certificates (INSECURE: for testing only)
+CloseableHttpClient httpClient = ClientBuilder.create()
+                .trustAllCertificates()
+                .trustAllHosts()
+                .build();
+```
+
+### Authentication
+
+The library supports basic authentication securely.
+
+```java
+// Securely provide password as a char array (will be cleared after use)
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+                .basicAuth("user", new char[]{'s', 'e', 'c', 'r', 'e', 't'})
+                .build();
+```
+
+### Redirects
+
+Configure how redirects are handled. By default, they are disabled.
+
+```java
+// Enable a standard redirect strategy
+CloseableHttpClient httpClient = ClientBuilder.create()
+                .enableDefaultRedirectStrategy()
+                .build();
+```
+
+### Retry Mechanism
+
+The library offers two ways to handle retries:
+
+#### 1. `RetryableWebTarget` (Recommended)
+
+This provides fine-grained control over retry logic.
+
+```java
+// Retry 3 times with a 2-second delay if the status is 503
+RetryContext retryContext = new RetryContext(3, 2000, response -> response.getCode() == 503);
+
+Response response = httpRequest.retryableTarget("https://api.example.com/status/503", retryContext)
+        .get();
+```
+
+#### 2. Apache HttpClient's Automatic Retries
+
+Enable the default, less flexible retry mechanism from the underlying client.
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .enableAutomaticRetries()
+        .build();
+```
+
+### Custom Response Body Readers
+
+Create custom readers for special response formats.
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .addBodyReader(new MyCustomReader())
+        .build();
+```
+
+### Limiting Response Body Size
+
+To protect your application from OutOfMemoryErrors caused by unexpectedly large HTTP responses, you can set a maximum
+size for the response body. This feature is now consistently applied to all response types (String, JSON/XML objects,
+etc.).
+
+By default, the response body size is **unlimited**. You can configure a limit on the `HttpRequestBuilder`.
+
+The limit is enforced by wrapping the response entity as soon as the response is received. If the response size exceeds
+this limit during reading, an `InvalidContentLengthException` is thrown. This exception is then wrapped and propagated
+to you.
+
+- When using a `ResponseHandler`, methods like `.orElseThrow()` will throw a `ResponseException`. The cause of this
+  exception will be the `InvalidContentLengthException`.
+
+**Important:** Even when this limit is exceeded, the underlying HTTP connection is **always safely closed and released
+back to the pool**. The library ensures resources are cleaned up correctly to prevent connection leaks.
+
+```java
+// Configure a client with a 1KB limit
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+                .setMaxResponseBodySizeBytes(1024)
+                .build();
+
+// This endpoint returns a 2KB response
+server.
+
+stubFor(get(urlEqualTo("/large-response"))
+        .
+
+willReturn(aResponse().
+
+withStatus(200).
+
+withBody("a".repeat(2048))));
+
+        try{
+        httpRequest.
+
+target(httpUri("/large-response"))
+        .
+
+get(String .class)
+               .
+
+orElseThrow();
+
+}catch(
+ResponseException e){
+        System.out.
+
+println("Correctly caught expected exception: "+e.getClass().
+
+getName());
+
+        // Check the cause to see if it was due to the size limit
+        if(e.
+
+getCause() instanceof InvalidContentLengthException){
+        System.out.
+
+println("Cause was InvalidContentLengthException, as expected.");
+// Handle the error appropriately
     }
-}
-```
-
-**Perform simple http request**
-
-Convert response body to Java class by some type you must build it so:
-
-Using eager converting -> the response handler:
-
-```java
-ResponseHandler<SomeType> rh = httpRequest.target(uri).path(path).request(HttpMethod.GET,SomeType.class);
-SomeType someType = rh.get(); //see javadoc of get method
-//or
-SomeType someType = rh.orElseThrow(); //throws UnexpectedStatusCodeException If response code is not success
-
-SomeType someType = rh.requiredGet(); //throws UnexpectedStatusCodeException If response code is not success, MissingResponseBodyException if response code is success but response body is missing
-
-```
-
-Using lazy converting -> the Response's readEntity:
-
-```java
-try(Response r = httpRequest.target(uri).path(path).request(HttpMethod.GET, payload)){
-SomeType someType = r.readEntity(SomeType.class); //see javadoc of get method
-}
-```
-
-Convert response body to Generic class (example List<T>) by some type you must build it so:
-
-Using eager converting -> the response handler:
-
-```java
-ResponseHandler<SomeType> rh = httpRequest.target(uri).path(path).request(HttpMethod.POST,new TypeReference<List<SomeType>>(){});
-List<SomeType> someTypes = rh.get(); //see javadoc of get method
-//or
-List<SomeType> someTypes = rh.orElse(Collections.emptyList()); //returns defaultValue value to return if content isn't present
-```
-
-Using lazy converting -> the Response's readEntity:
-
-```java
-try(Response r = httpRequest.target(uri).path(path).request(HttpMethod.POST, payload)){
-List<SomeType> someTypes = r.readEntity(new TypeReference<List<SomeType>>() {
-}); //see javadoc of get method
-}
-```
-
-###### You can use overridden methods instead of method `request()`
-
-Do the same as above example.
-
-```java
-ResponseHandler<SomeType> rh=httpRequest.target(uri).path(path).get(SomeType.class);
-SomeType someType = rh.get(); 
-```
-
-```java
-try(Response r = httpRequest.target(uri).path(path).get()){
-SomeType someType = r.readEntity(SomeType.class);
-}
-```
-###### Note: If the SomeType contains dates default deserialization patterns are - LocalTime -> HH:mm:ss, LocalDate -> dd/MM/yyyy, LocalDateTime -> dd/MM/yyyy HH:mm:ss
-
-###### It can be overridden by HttpRequestBuilder#addResponseDefaultDateDeserializationPattern
-
-**Perform http request read response as String**
-
-```java
-ResponseHandler<String> rh=httpRequest.target(uri).path(path).post(payload);
-String response = rh.get(); 
-```
-
-```java
-ResponseHandler<String> r=httpRequest.target(uri).path(path).post(payload);
-String response = r.readEntity(String.class);
-```
-
-**Perform http get request with parameters**
-
-```java
-ResponseHandler<SomeType> rh=httpRequest.target(uri)
-        .path(path)
-        .addParameter(name,value)
-        .addParameter(new NameValuePair(name,value))
-        .addParameters(queryString) //queryString example "param1=param1&param2=param2"
-        .get(HttpMethod.GET,SomeType.class);
-
-int statusCode = rh.getCode();
-SomeType someType = rh.get();
-//or
-SomeType someType = rh.orElseThrow(); 
-```
-
-Get the `Response` and do manipulation yourself:
-
-```java
-try(Response response = httpRequest.target(uri)
-        .path(path)
-        .addParameter(name,value)
-        .addParameter(new NameValuePair(name,value))
-        .addParameters(queryString) //queryString example "param1=param1&param2=param2"
-        .get()){
-        response.
-
-readEntity(SomeType .class);
-}
-```
-
-Note: The `Response` is implementation of `CloseableHttpResponse`
-
-**Build HttpRequest and add HEADERS which should be send always through httpRequest**
-
-```java
-HttpRequest httpRequest=HttpRequestBuilder.create(httpClient)
-        .addDefaultHeader(someHeader)
-        .addDefaultHeaders(someHeaderCollection)
-        .addDefaultHeaders(someHeaderArray)
-        .addDefaultHeader(headerName,headerValue)
-        .build()
-
-```
-
-**Add custom body reader**
-
-```java
-import com.jsunsoft.http.*;
-
-import java.util.Map;
-
-class Demo {
-  private final HttpRequest httpRequest = HttpRequestBuilder.create(closeableHttpClient)
-          //.disableDefaultBodyReader() to disable default body reader even if custom is not readable in case if default body reader enabled but custom body reader exists and is readable the custom reader will be chosen.
-          .addBodyReader(new ResponseBodyReader<Map<String, String>>() {
-            @Override
-            public boolean isReadable(ResponseBodyReadableContext bodyReadableContext) {
-              return bodyReadableContext.getType() == Map.class;
             }
-
-            @Override
-            public ResponseData read(ResponseBodyReaderContext<SomeType> bodyReaderContext) throws IOException, ResponseBodyReaderException {
-              return new ObjectMapper()
-                      .disable(FAIL_ON_UNKNOWN_PROPERTIES)
-                      .readValue(bodyReaderContext.getContent(), bodyReaderContext.getGenericType());
-            }
-          })
-          .build();
-
-  void request() {
-    Response response = httpRequest.target("https://www.jsunsoft.com/").get();
-    int statusCode = response.getCode();
-    Map<String, String> responseMap = response.readEntity(new TypeReference<Map<String, String>>() {});
-  }
-}
 ```
 
-**Configure connection pool**
+> **A Note on Connection Handling:** The library's closing behavior changes depending on whether a size limit is set.
+> - **Without a size limit:** The library attempts to fully consume the response body before closing. This is a
+    performance optimization that allows the underlying connection to be kept alive and reused for subsequent requests
+    to the same host.
+> - **With a size limit:** The library **intentionally does not** consume the rest of the body. It immediately closes
+    the connection to avoid downloading potentially huge amounts of unwanted data. While this may prevent the connection
+    from being reused, it guarantees safety and responsiveness, and the connection is always correctly returned to the
+    pool.
 
-By default connection pool size of apache http client is 2. When httpClient is built by ClientBuilder the default value
-changed to 128. To set custom value you can:
+### Character Encoding
+
+Specify charsets for URI paths/queries and for request bodies.
 
 ```java
-CloseableHttpClient httpClient=ClientBuilder.create()
-        .setMaxPoolSize(256)
-        .setDefaultMaxPoolSizePerRoute(200)
-        .setMaxPoolSizePerRoute(host,56)
-        .build()
+httpRequest.target("https://api.example.com/search")
+    .
 
+setUriCharset(StandardCharsets.UTF_8) // For query params
+    .
+
+setBodyCharset(StandardCharsets.ISO_8859_1) // For request body
+    .
+
+addParameter("q","你好")
+    .
+
+post("some-body");
 ```
 
-**How to set proxy** <br/>
+### Debugging
+
+Enable request payload logging for easier debugging.
 
 ```java
-CloseableHttpClient httpClient=ClientBuilder.create().proxy(host,port).build();
-```
-
-**Default request Timeouts**
-
-```text
-socketTimeOut is 30000ms
-connectionRequestTimeout is 30000ms
-connectTimeout is 5000ms;
-```
-
-For more information see (https://hc.apache.org/httpcomponents-client-ga/tutorial/html/connmgmt.html)
-or (http://www.baeldung.com/httpclient-timeout)
-
-To change default timeouts you can:
-
-```java
-CloseableHttpClient httpClient=ClientBuilder.create()
-        .setConnectTimeout(intValue)
-        .setSocketTimeOut(intValue)
-        .setConnectionRequestTimeout(intValue)
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .enableRequestPayloadLogging()
         .build();
 ```
 
-Timeouts can be overridden for each request:
+## Why use http-request?
 
-```java
-HttpRequest httpRequest=HttpRequestBuilder.create(httpClient).build();
+While Apache HttpClient is a powerful and flexible library, `http-request` provides a higher-level, fluent API that
+makes common tasks simpler, safer, and more readable.
 
-        httpRequest.target(uri).setRequestConfig(customReequestConfig).get();
-```
+| Feature                  | Pure Apache HttpClient 5                                          | `http-request` Library                                                                             |
+|--------------------------|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| **Request Creation**     | Manually create `ClassicRequestBuilder`, set URI, method, entity. | Fluent, chainable API: `httpRequest.target(uri).get()`.                                            |
+| **JSON/XML Handling**    | Manually use `ObjectMapper` to serialize/deserialize entities.    | Automatic conversion: `post(userObject)`, `get(User.class)`.                                       |
+| **Resource Management**  | Manually close `CloseableHttpResponse` and `CloseableHttpClient`. | Automatic with `ResponseHandler` or simple with `try-with-resources`.                              |
+| **Error Handling**       | Check status codes manually, handle `IOException`s.               | Fluent `ifSuccess().otherwise()` chains, specific exceptions like `UnexpectedStatusCodeException`. |
+| **Configuration**        | Verbose builders for client, request config, connection manager.  | Simplified `ClientBuilder` and `HttpRequestBuilder` for common settings.                           |
+| **Generics (`List<T>`)** | Manually handle `TypeReference` with `ObjectMapper`.              | Built-in support: `get(new TypeReference<List<User>>() {})`.                                       |
+| **Retry Logic**          | Implement a custom `HttpRequestRetryStrategy`.                    | Simple and powerful `RetryableWebTarget` with `RetryContext`.                                      |
+| **Readability**          | Can become verbose and procedural.                                | Clean, declarative, and easy to read.                                                              |
 
-**Following redirects**
+In short, `http-request` accelerates development, reduces boilerplate, and helps you write more maintainable and robust
+HTTP client code.
 
-By default redirecting are disabled. to enable you can:
+## API Documentation
 
-```java
-CloseableHttpClient httpClient=ClientBuilder.create().enableLaxRedirectStrategy().build();
-        or
-        CloseableHttpClient httpClient=ClientBuilder.create().enableDefaultRedirectStrategy().build();
-        or set custom redirect strategy
-        CloseableHttpClient httpClient=ClientBuilder.create().setRedirectStrategy(yourRedirectStrategyInstance).build();
-```
+Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.http/http-request).
 
-**Ignore SSL certificate**
+## Contributing
 
-```java
-CloseableHttpClient httpClient=ClientBuilder.create()
-        .trustAllCertificates()
-        .trustAllHosts()
-        .build();
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-        int statusCode=httpRequest.target("https://mms.nw.ru/")
-        .addHeader("accept","application/json")
-        .get().getCode(); // 200
-```
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-**Basic Authentication**
+## License
 
-```java
-HttpRequest httpRequest=HttpRequestBuilder.create(httpClient)
-        .basicAuth("username_admin","secret_password").build();
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
-        int statusCode=httpRequest.get().getCode(); //200
-```
+---
 
-**Customize CloseableHttpClient before the http-request is built**
-
-```java
-ClietBuilder.create()
-        .addHttpClientCustomizer(httpClientBuilder-> /* here you can customize your client*/)
-        .build();
-```
-
-For example if you want to add the Keep-Alive:
-
-```java
-ClietBuilder.create()
-        .addHttpClientCustomizer(httpClientBuilder->httpClientBuilder.setKeepAliveStrategy((response,context)->{
-        //your code;
-        }))
-        .build();
-```
-
-**Real world example how http-request simple and useful**.
-
-No try/catch, No if/else
-
-```java
-import com.jsunsoft.http.ClientBuilder;
-import com.jsunsoft.http.ResponseHandler;
-import com.jsunsoft.http.TypeReference;
-import org.apache.hc.core5.http.ContentType;
-
-import java.util.List;
-
-
-public class Rest {
-
-  private static final HttpRequest httpRequest =
-          HttpRequestBuilder.create(ClientBuilder.create().build())
-                  .addContentType(ContentType.APPLICATION_JSON)
-                  .build();
-
-  public void send(String jsonData) {
-    httpRequest.target("https://www.jsunsoft.com/").get(jsonData, new TypeReference<List<String>>() {})
-            .ifSuccess(this::whenSuccess) //call whenSuccess method if request is success
-            .otherwise(this::whenNotSuccess); //call whenNotSuccess method if request is success
-  }
-
-  private void whenSuccess(ResponseHandler<List<String>> responseHandler) {
-    //When predicate of filter returns true, calls whenHasContent else calls whenHasNotContent
-    responseHandler.filter(ResponseHandler::hasContent) //if request has content will be executed ifPassed consumer else otherwise consumer
-            .ifPassed(this::whenHasContent)  //call hasContent method if request body is present
-            .otherwise(this::whenHasNotContent);
-  }
-
-  private void whenNotSuccess(ResponseHandler<List<String>> responseHandler) {
-    //For demo. You can handle what you want
-    System.err.println("Error code: " + responseHandler.getCode() + ", error message: " + responseHandler.getErrorText());
-  }
-
-  private void whenHasContent(ResponseHandler<List<String>> responseHandler) {
-    //For demo. 
-    List<String> responseBody = responseHandler.get();
-    System.out.println(responseBody);
-  }
-
-  private void whenHasNotContent(ResponseHandler<List<String>> responseHandler) {
-    //For demo. 
-    System.out.println("Response is success but body is missing. Response code: " + responseHandler.getCode());
-  }
-}
-```
-
-To use from maven add this snippet to the pom.xml `dependencies` section:
-
-```xml
-
-<dependency>
-    <groupId>com.jsunsoft.http</groupId>
-  <artifactId>http-request</artifactId>
-  <version>3.4.8</version>
-</dependency>
-```
-
-Pull requests are welcome.
-
-Supported by https://www.jetbrains.com/?from=http-request
+Supported by [JetBrains](https://www.jetbrains.com/?from=http-request)

@@ -39,6 +39,11 @@ class BasicResponse implements Response {
         this.classicHttpResponse = classicHttpResponse;
         this.responseBodyReaderConfig = responseBodyReaderConfig;
         this.uri = uri;
+
+        HttpEntity entity = classicHttpResponse.getEntity();
+        if (entity != null && responseBodyReaderConfig.getMaxResponseBodySizeBytes() > 0) {
+            classicHttpResponse.setEntity(new BoundedHttpEntity(entity, responseBodyReaderConfig.getMaxResponseBodySizeBytes()));
+        }
     }
 
     ResponseBodyReaderConfig getResponseBodyReaderConfig() {

@@ -16,7 +16,6 @@
 
 package com.jsunsoft.http;
 
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.apache.hc.client5.http.HttpHostConnectException;
@@ -37,8 +36,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Collection;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -158,6 +155,28 @@ class BasicWebTarget implements WebTarget {
 
         ClassicHttpRequest request = resolveRequest(method);
 
+        ClassicHttpResponse response = executeRequest(request, context);
+
+        URI uri = resolveRequestURI(request);
+
+
+        try {
+            return new BasicResponse(response, responseBodyReaderConfig, uri);
+        } catch (ResponseException e) {
+            try {
+                response.close();
+            } catch (IOException ioe) {
+                e.addSuppressed(ioe);
+                LOGGER.error("Failed to close http response. URI: [{}]", uri, ioe);
+            }
+            throw e;
+        }
+
+    }
+
+    private ClassicHttpResponse executeRequest(ClassicHttpRequest request, HttpContext context) {
+
+
         URI uri = resolveRequestURI(request);
 
         LOGGER.trace("Executing request: {}", httpUriRequestBuilder);
@@ -165,7 +184,7 @@ class BasicWebTarget implements WebTarget {
         try {
             HttpHost httpHost = resolveHttpHost(request);
 
-            return new BasicResponse(closeableHttpClient.executeOpen(httpHost, request, context), responseBodyReaderConfig, uri);
+            return closeableHttpClient.executeOpen(httpHost, request, context);
         } catch (ConnectionRequestTimeoutException e) {
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection pool is empty", uri, CONNECTION_POOL_IS_EMPTY, e);
         } catch (ConnectTimeoutException e) {
@@ -224,7 +243,9 @@ class BasicWebTarget implements WebTarget {
             boolean hasBody = HttpRequestUtils.hasBody(statusCode);
 
             T content = null;
+            Exception errorCause = null;
             String failedMessage = null;
+
             if (hasBody && httpEntity == null) {
                 failedMessage = "Response entity is null";
                 LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, responseUri, statusCode);
@@ -247,15 +268,19 @@ class BasicWebTarget implements WebTarget {
                         }
                     }
                 } catch (ResponseBodyReaderException e) {
-                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "]. Reason: " + throwableDeepMessages(e);
+                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "].";
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(failedMessage + ". Uri: [" + responseUri + "]. Status code: " + statusCode, e);
                     }
                     statusCode = SC_BAD_GATEWAY;
+                    errorCause = e;
                 } catch (IOException e) {
                     failedMessage = "Get content from response failed: " + e;
-                    LOGGER.debug("Stream could not be created. Uri: [" + responseUri + "]. Status code: " + statusCode, e);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("Stream could not be created. Uri: [" + responseUri + "]. Status code: " + statusCode, e);
+                    }
                     statusCode = SC_SERVICE_UNAVAILABLE;
+                    errorCause = e;
                 }
             }
 
@@ -264,7 +289,7 @@ class BasicWebTarget implements WebTarget {
 
             ContentType responseContentType = HttpRequestUtils.getContentTypeFromHttpEntity(httpEntity);
             // here we don't consume the httpEntity e.g. EntityUtils.consumeQuietly(httpEntity); as The close method of BasicResponse will do it
-            result = new BasicResponseHandler<>(content, statusCode, originalStatusCode, headerGroup, failedMessage, typeReference.getType(), responseContentType, responseUri, startTime);
+            result = new BasicResponseHandler<>(content, statusCode, originalStatusCode, headerGroup, errorCause, failedMessage, typeReference.getType(), responseContentType, responseUri, startTime);
         } catch (ResponseException e) {
 
             result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getOriginalStatusCode(), e, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
@@ -273,7 +298,7 @@ class BasicWebTarget implements WebTarget {
 
             LOGGER.error("IO error occurred.", e);
 
-            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, originalStatusCode, "Failed to close response resource: " + e, e, typeReference.getType(), null, getURI(), IO, startTime);
+            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, originalStatusCode, "IO error occurred while closing response.", e, typeReference.getType(), null, getURI(), IO, startTime);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Executing of uri: [{}] completed. Time: {}", result.getURI(), HttpRequestUtils.humanTime(startTime));
@@ -486,14 +511,5 @@ class BasicWebTarget implements WebTarget {
                     .addArgument(payload)
                     .log("Requesting to: [{}] with HTTP method: [{}] and body: {}");
         }
-    }
-
-    private static String throwableDeepMessages(Throwable t) {
-
-        return ExceptionUtils.getThrowableList(t)
-                .stream()
-                .filter(Objects::nonNull)
-                .map(Throwable::toString)
-                .collect(Collectors.joining(". Cause: "));
     }
 }

@@ -50,7 +50,7 @@ import java.util.Deque;
  * The natural ordering of {@code TypeReference} instances is intentionally undefined and should not be used
  * for sorting or in sorted collections.
  */
-@SuppressWarnings({"rawtypes", "ComparatorMethodParameterNotUsed"})
+@SuppressWarnings({"rawtypes"})
 public class TypeReference<T> implements Comparable<TypeReference<T>> {
 
     /**

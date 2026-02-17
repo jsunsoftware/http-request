@@ -106,40 +106,43 @@ class HttpRequestConnectionManagementLiveTest {
     }
 
     @Test
-    void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptions() {
-        ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
+    void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptions() throws IOException {
+        try (ClientBuilder.HttpClientWithResourcesWrapper cch = ClientBuilder.create().buildWithResources()) {
+            BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
+            httpRequest.target(server1Url()).rawGet();
+            assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+        }
 
-        BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
-        httpRequest.target(server1Url()).rawGet();
-        assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
     }
 
     @Test
     void whenPollingConnectionManagerIsConfiguredOnHttpClient_thenNoExceptionsImmutableWebTarget() throws IOException {
-        ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
-        BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
+        try (ClientBuilder.HttpClientWithResourcesWrapper cch = ClientBuilder.create().buildWithResources()) {
+            BasicHttpRequest httpRequest = (BasicHttpRequest) HttpRequestBuilder.create(cch.getClient()).build();
 
-        Response response = httpRequest.immutableTarget(server1Url()).get();
-        assertEquals(1, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
-        response.close();
-        assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+            Response response = httpRequest.immutableTarget(server1Url()).get();
+            assertEquals(1, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+            response.close();
+            assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+        }
     }
 
     @Test
-    void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeased() throws InterruptedException {
-        ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
+    void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeased() throws InterruptedException, IOException {
+        try (ClientBuilder.HttpClientWithResourcesWrapper cch = ClientBuilder.create().buildWithResources()) {
 
-        HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
-        final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.target(server1Url()));
-        final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.target(server2Url()));
-        final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.target(server3Url()));
-        thread1.start();
-        thread2.start();
-        thread3.start();
-        thread1.join();
-        thread2.join(1000);
-        thread3.join();
-        assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+            HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
+            final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.target(server1Url()));
+            final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.target(server2Url()));
+            final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.target(server3Url()));
+            thread1.start();
+            thread2.start();
+            thread3.start();
+            thread1.join();
+            thread2.join(1000);
+            thread3.join();
+            assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+        }
     }
 
     @Test
@@ -180,19 +183,20 @@ class HttpRequestConnectionManagementLiveTest {
     }
 
     @Test
-    void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeasedImmutableWebTarget() throws InterruptedException {
-        ClientBuilder.ClientContextHolder cch = ClientBuilder.create().buildClientWithContext();
+    void whenThreeConnectionsForThreeRequests_thenConnectionsAreNotLeasedImmutableWebTarget() throws InterruptedException, IOException {
+        try (ClientBuilder.HttpClientWithResourcesWrapper cch = ClientBuilder.create().buildWithResources()) {
 
-        HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
-        final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.immutableTarget(server1Url()));
-        final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.immutableTarget(server2Url()));
-        final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.immutableTarget(server3Url()));
-        thread1.start();
-        thread2.start();
-        thread3.start();
-        thread1.join();
-        thread2.join(1000);
-        thread3.join();
-        assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+            HttpRequest httpRequest1 = HttpRequestBuilder.create(cch.getClient()).build();
+            final HttpRequestThread thread1 = new HttpRequestThread(httpRequest1.immutableTarget(server1Url()));
+            final HttpRequestThread thread2 = new HttpRequestThread(httpRequest1.immutableTarget(server2Url()));
+            final HttpRequestThread thread3 = new HttpRequestThread(httpRequest1.immutableTarget(server3Url()));
+            thread1.start();
+            thread2.start();
+            thread3.start();
+            thread1.join();
+            thread2.join(1000);
+            thread3.join();
+            assertEquals(0, ((PoolingHttpClientConnectionManager) cch.getConnectionManager()).getTotalStats().getLeased());
+        }
     }
 }
