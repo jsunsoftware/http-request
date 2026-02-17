@@ -22,7 +22,6 @@ import org.apache.hc.core5.http.Header;
 
 import java.net.URI;
 import java.time.Duration;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -220,7 +219,6 @@ public interface ResponseHandler<T> {
      * Gets the error text if the connection failed, but the server sent useful data nonetheless.
      *
      * @return Returns the error text if the connection failed, but the server sent useful data nonetheless.
-     * @throws NoSuchElementException        If error text is not present
      * @throws UnsupportedOperationException if generic type is a Void
      */
     String getErrorText();

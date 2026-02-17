@@ -155,19 +155,15 @@ class ResponseBodyReaders {
         }
 
         @Override
-        public T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException, ResponseBodyReaderException {
-            try {
-                InputStream content = bodyReaderContext.getContent();
+        public T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException {
+            InputStream content = bodyReaderContext.getContent();
 
-                if (content == null) {
-                    LOGGER.warn("No content to read. Content length is: {}", bodyReaderContext.getContentLength());
-                    return null;
-                }
-
-                return ResponseBodyReaders.deserialize(content, bodyReaderContext.getGenericType(), objectMapper, LOGGER);
-            } catch (IOException e) {
-                throw new ResponseBodyReaderException(e);
+            if (content == null) {
+                LOGGER.warn("No content to read. Content length is: {}", bodyReaderContext.getContentLength());
+                return null;
             }
+
+            return ResponseBodyReaders.deserialize(content, bodyReaderContext.getGenericType(), objectMapper, LOGGER);
         }
     }
 
@@ -187,20 +183,15 @@ class ResponseBodyReaders {
         }
 
         @Override
-        public T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException, ResponseBodyReaderException {
-            try {
-                InputStream content = bodyReaderContext.getContent();
+        public T read(ResponseBodyReaderContext<T> bodyReaderContext) throws IOException {
+            InputStream content = bodyReaderContext.getContent();
 
-                if (content == null) {
-                    LOGGER.warn("No content to read. Content length is: {}", bodyReaderContext.getContentLength());
-                    return null;
-                }
-
-                return ResponseBodyReaders.deserialize(content, bodyReaderContext.getGenericType(), objectMapper, LOGGER);
-
-            } catch (IOException e) {
-                throw new ResponseBodyReaderException(e);
+            if (content == null) {
+                LOGGER.warn("No content to read. Content length is: {}", bodyReaderContext.getContentLength());
+                return null;
             }
+
+            return ResponseBodyReaders.deserialize(content, bodyReaderContext.getGenericType(), objectMapper, LOGGER);
         }
     }
 

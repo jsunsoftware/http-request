@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
+import java.io.IOException;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.security.KeyManagementException;
@@ -559,6 +560,8 @@ public class ClientBuilder {
     public ClientBuilder trustAllCertificates() {
         SSLContext sslContext;
 
+        LOGGER.warn("Configuring HttpClient to trust all TLS certificates. This is INSECURE and should only be used in controlled environments.");
+
         try {
             sslContext = SSLContexts.custom()
                     .loadTrustMaterial(null, TrustAllStrategy.INSTANCE).build();
@@ -588,7 +591,7 @@ public class ClientBuilder {
      * @return {@link  org.apache.hc.client5.http.impl.classic.CloseableHttpClient} instance by build parameters
      */
     public CloseableHttpClient build() {
-        return buildClientWithContext().getClient();
+        return buildWithResources().getClient();
     }
 
     /**
@@ -601,16 +604,13 @@ public class ClientBuilder {
      *     CloseableHttpClient client = res.getClient();
      * }
      * </pre>
+     * Note that the connection manager is closed only if it is not marked as shared.
+     * The close method of the HttpClientWithResources will call only close for underlined Client, not Connection Manager.
      *
      * @return wrapper that closes client and connection manager
      */
     @Beta
-    HttpClientWithResources buildWithResources() {
-        ClientContextHolder cch = buildClientWithContext();
-        return new HttpClientWithResources(cch.getClient(), cch.getConnectionManager());
-    }
-
-    ClientContextHolder buildClientWithContext() {
+    HttpClientWithResourcesWrapper buildWithResources() {
         if (defaultRequestConfigBuilderCustomizers != null) {
             defaultRequestConfigBuilderCustomizers.forEach(customizer -> customizer.accept(defaultRequestConfigBuilder));
         }
@@ -688,7 +688,7 @@ public class ClientBuilder {
         }
 
 
-        return new ClientContextHolder(
+        return new HttpClientWithResourcesWrapper(
                 clientBuilder.build(),
                 connectionManager
         );
@@ -700,11 +700,12 @@ public class ClientBuilder {
         }
     }
 
-    static class ClientContextHolder {
+    @Beta
+    static class HttpClientWithResourcesWrapper implements AutoCloseable {
         private final CloseableHttpClient client;
         private final HttpClientConnectionManager connectionManager;
 
-        ClientContextHolder(CloseableHttpClient client, HttpClientConnectionManager connectionManager) {
+        HttpClientWithResourcesWrapper(CloseableHttpClient client, HttpClientConnectionManager connectionManager) {
             this.client = client;
             this.connectionManager = connectionManager;
         }
@@ -716,33 +717,11 @@ public class ClientBuilder {
         public HttpClientConnectionManager getConnectionManager() {
             return connectionManager;
         }
-    }
-
-    /**
-     * AutoCloseable wrapper around the client and its connection manager.
-     */
-    static final class HttpClientWithResources extends ClientContextHolder implements AutoCloseable {
-
-        HttpClientWithResources(CloseableHttpClient client, HttpClientConnectionManager connectionManager) {
-            super(client, connectionManager);
-        }
 
         @Override
-        public void close() {
-            try {
-                if (getClient() != null) {
-                    getClient().close();
-                }
-            } catch (Exception e) {
-                LOGGER.warn("Failed to close http client.", e);
-            }
-            try {
-                if (getConnectionManager() != null) {
-                    getConnectionManager().close();
-                }
-            } catch (Exception e) {
-                LOGGER.warn("Failed to close connection manager.", e);
-            }
+        public void close() throws IOException {
+            //closes also underlined connection manager if connection manager not marked as shared
+            client.close();
         }
     }
 }

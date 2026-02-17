@@ -56,9 +56,7 @@ class HttpRequestSSLTest {
     @Test
     @Disabled
     void ignoreRealSSLAndHostsTest() {
-        httpsServer.stubFor(get(urlEqualTo("/"))
-                .willReturn(aResponse().withStatus(200)));
 
-        assertEquals(HttpStatus.SC_OK, httpRequest.target(httpsServer.getRuntimeInfo().getHttpsBaseUrl()).rawGet().getCode());
+        assertEquals(HttpStatus.SC_OK, httpRequest.target("https://mms.nw.ru/").rawGet().getCode());
     }
 }

@@ -17,6 +17,8 @@
 package com.jsunsoft.http;
 
 import com.jsunsoft.http.annotations.Beta;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.message.HeaderGroup;
@@ -24,11 +26,13 @@ import org.apache.hc.core5.http.message.HeaderGroup;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * ResponseHandler objects are immutable they can be shared.
@@ -51,8 +55,8 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     private final Duration duration;
     private final Exception errorCause;
 
-    BasicResponseHandler(T content, int statusCode, int originalStatusCode, HeaderGroup headerGroup, String errorText, Type type, ContentType contentType, URI uri, long startTime) {
-        this(content, statusCode, originalStatusCode, headerGroup, errorText, null, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
+    BasicResponseHandler(T content, int statusCode, int originalStatusCode, HeaderGroup headerGroup, Exception errorCause, String errorText, Type type, ContentType contentType, URI uri, long startTime) {
+        this(content, statusCode, originalStatusCode, headerGroup, errorText, errorCause, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
     }
 
     BasicResponseHandler(T content, int statusCode, int originalStatusCode, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
@@ -278,11 +282,18 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     /**
      * @return Returns error text (for non-success responses) if available; may be {@code null} if the server did not
      * send an error body.
-     * @throws UnsupportedOperationException if generic type is a Void
      */
     @Override
     public String getErrorText() {
-        return errorText;
+        if (errorCause == null) {
+            return errorText;
+        }
+
+        if (errorText == null || StringUtils.isBlank(errorText)) {
+            return throwableDeepMessages(errorCause);
+        }
+
+        return ensureEndsWithDot(errorText) + " Reason: " + throwableDeepMessages(errorCause);
     }
 
     /**
@@ -417,7 +428,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
                 "statusCode=" + statusCode +
                 ", originalStatusCode=" + originalStatusCode +
                 ", content=" + content +
-                ", errorText='" + errorText + '\'' +
+                ", errorText='" + getErrorText() + '\'' +
                 ", uri=" + uri +
                 ", connectionFailureType=" + connectionFailureType +
                 ", duration=" + duration +
@@ -440,5 +451,20 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         } else {
             return new ResponseException(statusCode, originalStatusCode, errorText, uri, connectionFailureType, errorCause);
         }
+    }
+
+    private static String throwableDeepMessages(Throwable t) {
+
+        return ExceptionUtils.getThrowableList(t)
+                .stream()
+                .filter(Objects::nonNull)
+                .map(Throwable::toString)
+                .collect(Collectors.joining(". Cause: "));
+    }
+
+    private static String ensureEndsWithDot(String text) {
+        String trimmed = text.trim();
+
+        return trimmed.endsWith(".") ? trimmed : trimmed + ".";
     }
 }
