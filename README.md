@@ -89,7 +89,7 @@ Add this dependency to your `pom.xml`:
 Add this dependency to your `build.gradle`:
 
 ```groovy
-implementation 'com.jsunsoft.http:http-request:3.5.0-rc1'
+implementation 'com.jsunsoft.http:http-request:3.5.0-rc2'
 ```
 
 ## Quick Start
@@ -103,8 +103,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 public class QuickStart {
   public static void main(String[] args) {
     // Create an HTTP client and manage its resources with try-with-resources
-    try (ClientBuilder.HttpClientWithResources clientWithResources = ClientBuilder.create().buildWithResources()) {
-      CloseableHttpClient httpClient = clientWithResources.getClient();
+    try (CloseableHttpClient httpClient = ClientBuilder.create().build()) {
 
       // Build an HTTP request
       HttpRequest httpRequest = HttpRequestBuilder.create(httpClient).build();
@@ -130,6 +129,12 @@ public class QuickStart {
 
 This library simplifies resource management to prevent connection leaks.
 
+### Concurrency and Thread Safety
+
+- **HttpRequest**: immutable and thread-safe after building; reuse it across threads.
+- **WebTarget from `target(...)`**: mutable and **not** thread-safe; don't share between threads.
+- **WebTarget from `immutableTarget(...)`**: safe to share and reuse across threads.
+
 ### 1. Using `ResponseHandler` (Recommended for most cases)
 
 When you use methods that return a `ResponseHandler<T>` (e.g., `get(User.class)`), the response is consumed and closed
@@ -149,8 +154,8 @@ even if exceptions occur.
 
 ```java
 try(Response response = httpRequest.target(uri).get()){
-int statusCode = response.getCode();
-SomeType body = response.readEntity(SomeType.class);
+    int statusCode = response.getCode();
+    SomeType body = response.readEntity(SomeType.class);
 } // response.close() is called automatically
 ```
 
@@ -163,7 +168,7 @@ object. It's crucial to close it when your application shuts down.
 // Use try-with-resources to manage the client lifecycle
 try(CloseableHttpClient httpClient = ClientBuilder.create().build()){
         // ... use the client
-        }
+}
 ```
 
 ## Usage Examples
@@ -206,16 +211,12 @@ User user = userHandler.orElseThrow(); // Throws exception if request was not su
 // Eager POST with a JSON payload
 String jsonPayload = "{\"name\":\"John\",\"email\":\"john@example.com\"}";
 ResponseHandler<String> postHandler = httpRequest.target("https://api.example.com/users").post(jsonPayload, String.class);
-System.out.
-
-println("Response: "+postHandler.get());
+System.out.println("Response: " + postHandler.get());
 
 // Lazy PUT: Get the Response object and handle it manually
-        try(
-Response putResponse = httpRequest.target("https://api.example.com/users/1").put(jsonPayload)){
-        System.out.
-
-println("Status code: "+putResponse.getCode());
+try(
+    Response putResponse = httpRequest.target("https://api.example.com/users/1").put(jsonPayload)){
+            System.out.println("Status code: " + putResponse.getCode());
 }
 ```
 
@@ -232,15 +233,16 @@ Response response = httpRequest.target("https://api.example.com/users")
 
 // Add multiple parameters from a map
 Map<String, String> params = new HashMap<>();
-params.
-
-put("limit","10");
-params.
-
-put("sort","name");
+params.put("limit","10");
+params.put("sort","name");
 
 Response response = httpRequest.target("https://api.example.com/users")
         .addParameters(params)
+        .get();
+
+// Add parameters from a query string
+Response response = httpRequest.target("https://api.example.com/users")
+        .addParameters("page=1&limit=10&sort=name")
         .get();
 ```
 
@@ -253,6 +255,19 @@ You can add headers to individual requests or set default headers on the `HttpRe
 Response response = httpRequest.target("https://api.example.com/users")
                 .addHeader("X-API-Key", "your-api-key")
                 .get();
+
+// Add multiple headers
+Response response = httpRequest.target("https://api.example.com/users")
+        .addHeader("X-API-Key", "your-api-key")
+        .addHeader("Accept-Language", "en-US")
+        .get();
+
+// Update or remove headers
+Response response = httpRequest.target("https://api.example.com/users")
+        .addHeader("Accept", "application/json")
+        .updateHeader("Accept", "application/xml")
+        .removeHeader("X-Temporary")
+        .get();
 
 // Set a default header for all requests made with this httpRequest instance
 HttpRequest httpRequestWithAuth = HttpRequestBuilder.create(httpClient)
@@ -268,44 +283,23 @@ The `ResponseHandler` provides a powerful and fluent way to process responses.
 ResponseHandler<User> handler = httpRequest.target("https://api.example.com/users/123").get(User.class);
 
 // Chain success and error handling
-handler.
-
-ifSuccess(h ->System.out.
-
-println("User: "+h.get().
-
-getName()))
-        .
-
-otherwise(h ->System.err.
-
-println("Error: "+h.getErrorText()));
+handler.ifSuccess(h ->System.out.println("User: "+h.get().getName()))
+        .otherwise(h ->System.err.println("Error: "+h.getErrorText()));
 
 // Using filter and conditional processing
-        handler.
-
-filter(ResponseHandler::hasContent)
-       .
-
-ifPassed(h ->System.out.
-
-println("User: "+h.get().
-
-getName()))
-        .
-
-otherwise(h ->System.out.
-
-println("No content"));
+handler.filter(ResponseHandler::hasContent).ifPassed(h ->System.out.println("User: "+h.get().getName()))
+        .otherwise(h ->System.out.println("No content"));
 
 // Get the result or a default value
 User user = handler.orElse(new User("Default"));
 
 // Get the request duration
 Duration duration = handler.getDuration();
-System.out.
+System.out.println("Request took: "+duration.toMillis() +"ms");
 
-println("Request took: "+duration.toMillis() +"ms");
+// Status codes: mapped vs original (ResponseHandler only)
+int code = handler.getCode(); // May be mapped for failures (e.g., 503/502)
+int originalCode = handler.getOriginalCode(); // -1 if no response was received
 ```
 
 ### Error Handling
@@ -323,19 +317,13 @@ try{
 User user = httpRequest.target("https://api.example.com/users/999")
         .get(User.class)
         .requiredGet();
-}catch(
-        ResponseException e){
-        System.err.
-
-        println("Response failed: "+e.getMessage());
+}catch(ResponseException e){
+        System.err.println("Response failed: " + e.getMessage());
+        
         if(e instanceof UnexpectedStatusCodeException){
-        System.err.
-
-        println("Status code: "+((UnexpectedStatusCodeException) e).
-
-        getStatusCode());
+            System.err.println("Status code: " + ((UnexpectedStatusCodeException) e).getStatusCode());
         }
-        }
+}
 ```
 
 ### Working with JSON and XML
@@ -357,6 +345,7 @@ List<User> users = httpRequest.target("https://api.example.com/users")
 // Custom date formats for JSON/XML
 HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .addResponseDefaultDateDeserializationPattern(LocalDate.class, "yyyy-MM-dd")
+        .addResponseDefaultDateDeserializationPattern(LocalDateTime.class, "yyyy-MM-dd HH:mm:ss")
         .addRequestDefaultDateSerializationPattern(LocalDateTime.class, "yyyy-MM-dd'T'HH:mm:ss")
         .build();
 ```
@@ -375,15 +364,54 @@ CloseableHttpClient httpClient = ClientBuilder.create()
         .build();
 ```
 
+By default, Apache HttpClient uses small pool limits (for example, 2 per route). When you use `ClientBuilder`, the
+defaults are set to 128 for max total and max per route. Override them based on your traffic patterns.
+
+You can also configure a proxy:
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .proxy("proxy.mycorp.local", 8080)
+        .build();
+```
+
+Or customize the underlying `HttpClientBuilder`:
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .addHttpClientCustomizer(builder ->
+                builder.setKeepAliveStrategy((response, context) -> /* your strategy */ 30_000))
+        .build();
+```
+
 ### Timeouts
 
 Configure various timeouts for your HTTP client.
 
 ```java
 CloseableHttpClient httpClient = ClientBuilder.create()
-        .setConnectTimeout(5000)          // Connection timeout in ms
-        .setResponseTimeout(30000)        // Response timeout in ms
+        .setConnectTimeout(5000)               // Connection timeout in ms
+        .setResponseTimeout(30000)             // Response timeout in ms
+        .setConnectionRequestTimeout(30000)    // Time to wait for a pooled connection
+        .setSocketTimeout(30000)               // Socket timeout in ms
         .build();
+```
+
+Default timeouts used by `ClientBuilder`:
+
+- Response timeout: 30000ms
+- Connection request timeout: 30000ms
+- Connect timeout: 10000ms
+- Socket timeout: 30000ms
+
+Timeouts can be overridden per request:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient).build();
+
+httpRequest.target(uri)
+        .setRequestConfig(customRequestConfig)
+        .get();
 ```
 
 ### SSL Configuration
@@ -418,6 +446,16 @@ Configure how redirects are handled. By default, they are disabled.
 CloseableHttpClient httpClient = ClientBuilder.create()
                 .enableDefaultRedirectStrategy()
                 .build();
+
+// Enable lax redirect strategy
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .enableLaxRedirectStrategy()
+        .build();
+
+// Set a custom redirect strategy
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .setRedirectStrategy(customRedirectStrategy)
+        .build();
 ```
 
 ### Retry Mechanism
@@ -456,6 +494,28 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .build();
 ```
 
+You can also implement a `ResponseBodyReader` directly and (optionally) disable default readers:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(closeableHttpClient)
+        // .disableDefaultBodyReader() // Disable defaults if needed
+        .addBodyReader(new ResponseBodyReader<Map<String, String>>() {
+            @Override
+            public boolean isReadable(ResponseBodyReadableContext ctx) {
+                return ctx.getType() == Map.class;
+            }
+
+            @Override
+            public ResponseData read(ResponseBodyReaderContext<Map<String, String>> ctx)
+                    throws IOException, ResponseBodyReaderException {
+                return new ObjectMapper()
+                        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                        .readValue(ctx.getContent(), ctx.getGenericType());
+            }
+        })
+        .build();
+```
+
 ### Limiting Response Body Size
 
 To protect your application from OutOfMemoryErrors caused by unexpectedly large HTTP responses, you can set a maximum
@@ -481,46 +541,23 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
                 .build();
 
 // This endpoint returns a 2KB response
-server.
+server.stubFor(get(urlEqualTo("/large-response"))
+        .willReturn(aResponse().withStatus(200).withBody("a".repeat(2048))));
 
-stubFor(get(urlEqualTo("/large-response"))
-        .
+try{
+    httpRequest.target(httpUri("/large-response"))
+        .get(String.class)
+        .orElseThrow();
 
-willReturn(aResponse().
-
-withStatus(200).
-
-withBody("a".repeat(2048))));
-
-        try{
-        httpRequest.
-
-target(httpUri("/large-response"))
-        .
-
-get(String .class)
-               .
-
-orElseThrow();
-
-}catch(
-ResponseException e){
-        System.out.
-
-println("Correctly caught expected exception: "+e.getClass().
-
-getName());
+}catch(ResponseException e){
+        System.out.println("Correctly caught expected exception: "+e.getClass().getName());
 
         // Check the cause to see if it was due to the size limit
-        if(e.
-
-getCause() instanceof InvalidContentLengthException){
-        System.out.
-
-println("Cause was InvalidContentLengthException, as expected.");
-// Handle the error appropriately
-    }
-            }
+        if(e.getCause() instanceof InvalidContentLengthException){
+            System.out.println("Cause was InvalidContentLengthException, as expected.");
+        // Handle the error appropriately
+        }
+}
 ```
 
 > **A Note on Connection Handling:** The library's closing behavior changes depending on whether a size limit is set.
@@ -538,18 +575,10 @@ Specify charsets for URI paths/queries and for request bodies.
 
 ```java
 httpRequest.target("https://api.example.com/search")
-    .
-
-setUriCharset(StandardCharsets.UTF_8) // For query params
-    .
-
-setBodyCharset(StandardCharsets.ISO_8859_1) // For request body
-    .
-
-addParameter("q","你好")
-    .
-
-post("some-body");
+    .setUriCharset(StandardCharsets.UTF_8) // For query params
+    .setBodyCharset(StandardCharsets.ISO_8859_1) // For request body
+    .addParameter("q","你好")
+    .post("some-body");
 ```
 
 ### Debugging
@@ -584,6 +613,11 @@ HTTP client code.
 ## API Documentation
 
 Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.http/http-request).
+
+Additional documentation:
+
+- [Release Changes](CHANGES.md)
+- [Migration Guide](MIGRATION.md)
 
 ## Contributing
 
