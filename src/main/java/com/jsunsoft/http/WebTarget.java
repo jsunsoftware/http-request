@@ -286,14 +286,15 @@ public interface WebTarget {
     WebTarget addHeader(final Header header);
 
     /**
-     * Sets both URI charset and request body charset for the request.
+     * Sets both query-string charset and request body charset for the request.
      * <p>
      * Starting from version <b>3.5.0</b> this method affects:
      * <ul>
-     *     <li>URI encoding (query/path components)</li>
-     *     <li>request body conversion (for {@code Object} payload overloads)</li>
+     *     <li>URI query-string percent-encoding (see {@link #setQueryCharset(Charset)})</li>
+     *     <li>request body conversion for {@code Object} payload overloads (see {@link #setBodyCharset(Charset)})</li>
      * </ul>
-     * For more granular control use {@link #setUriCharset(Charset)} and {@link #setBodyCharset(Charset)}.
+     * URI path segments are always percent-encoded as UTF-8, per RFC 3986. If you need non-UTF-8
+     * path encoding, percent-encode the path segments yourself before passing them to {@code target(...)}.
      *
      * @param charset the charset to set.
      * @return WebTarget instance
@@ -301,23 +302,28 @@ public interface WebTarget {
     WebTarget setCharset(final Charset charset);
 
     /**
-     * Sets charset used for URI encoding (query/path).
+     * Sets charset used for URI query-string percent-encoding (i.e. encoding of values added via
+     * {@link #addParameter(NameValuePair)} / {@link #addParameters(Map)} / {@link #addParameters(String)}).
      * <p>
-     * Default implementation delegates to {@link #setCharset(Charset)} for backward compatibility. Implementations
-     * are expected to override this method and only update URI encoding charset.
+     * URI path segments are always percent-encoded as UTF-8, per RFC 3986, and are unaffected by
+     * this setting. If you need non-UTF-8 path encoding, percent-encode the path segments yourself
+     * before passing them to {@code target(...)}.
+     * <p>
+     * Default implementation delegates to {@link #setCharset(Charset)}. Implementations are expected
+     * to override this method and only update the query-string charset.
      *
      * @param charset the charset to set.
      * @return WebTarget instance
      */
-    default WebTarget setUriCharset(final Charset charset) {
+    default WebTarget setQueryCharset(final Charset charset) {
         return setCharset(charset);
     }
 
     /**
      * Sets charset used for request body conversion when using {@code Object} payload overloads.
      * <p>
-     * Default implementation delegates to {@link #setCharset(Charset)} for backward compatibility. Implementations
-     * are expected to override this method and only update body charset.
+     * Default implementation delegates to {@link #setCharset(Charset)}. Implementations are expected
+     * to override this method and only update the body charset.
      *
      * @param charset the charset to set.
      * @return WebTarget instance

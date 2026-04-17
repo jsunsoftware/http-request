@@ -364,13 +364,13 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public WebTarget setCharset(Charset charset) {
-        setUriCharset(charset);
+        setQueryCharset(charset);
         setBodyCharset(charset);
         return this;
     }
 
     @Override
-    public WebTarget setUriCharset(Charset charset) {
+    public WebTarget setQueryCharset(Charset charset) {
         httpUriRequestBuilder.setCharset(charset != null ? charset : UTF_8);
         return this;
     }

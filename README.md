@@ -571,11 +571,13 @@ try{
 
 ### Character Encoding
 
-Specify charsets for URI paths/queries and for request bodies.
+Specify charsets for query-string percent-encoding and for request bodies. URI path segments are
+always percent-encoded as UTF-8, per RFC 3986 — pre-encode them yourself if you need a different
+encoding.
 
 ```java
 httpRequest.target("https://api.example.com/search")
-    .setUriCharset(StandardCharsets.UTF_8) // For query params
+    .setQueryCharset(StandardCharsets.UTF_8) // For query-string parameter encoding
     .setBodyCharset(StandardCharsets.ISO_8859_1) // For request body
     .addParameter("q","你好")
     .post("some-body");

@@ -62,7 +62,9 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
 # 3.5.0
 
 * Charset handling was clarified and split:
-  * `WebTarget#setCharset(Charset)` now sets both URI charset and request body charset.
-  * Added `WebTarget#setUriCharset(Charset)` to control only URI encoding charset.
-  * Added `WebTarget#setBodyCharset(Charset)` to control only request body charset used by request body converters.
-* Default charset for both URI and body is `UTF-8`.
+  * `WebTarget#setCharset(Charset)` now sets both the query-string charset and the request body charset.
+  * Added `WebTarget#setQueryCharset(Charset)` to control only the URI query-string percent-encoding charset.
+  * Added `WebTarget#setBodyCharset(Charset)` to control only the request body charset used by request body converters.
+  * URI path segments are always percent-encoded as UTF-8 per RFC 3986; if you need non-UTF-8 path
+    encoding, percent-encode the path yourself before passing it to `target(...)`.
+* Default charset for both query-string and body is `UTF-8`.

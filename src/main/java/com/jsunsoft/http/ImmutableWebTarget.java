@@ -140,7 +140,7 @@ class ImmutableWebTarget extends BasicWebTarget {
     }
 
     @Override
-    public WebTarget setUriCharset(Charset charset) {
+    public WebTarget setQueryCharset(Charset charset) {
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder(),
