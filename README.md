@@ -477,14 +477,58 @@ The library offers two ways to handle retries:
 
 #### 1. `RetryableWebTarget` (Recommended)
 
-This provides fine-grained control over retry logic.
+Use one of the bundled policies, or implement `RetryContext` for full control.
 
 ```java
-// Retry 3 times with a 2-second delay if the status is 503
-RetryContext retryContext = new RetryContext(3, 2000, response -> response.getCode() == 503);
+// Safe default: retry idempotent methods (GET/HEAD/OPTIONS/PUT/DELETE/TRACE) on any 5xx up to 3
+// times with a 2-second delay. Honors the Retry-After response header when present.
+RetryContext retryContext = RetryContext.onIdempotent5xx(3, Duration.ofSeconds(2));
 
 Response response = httpRequest.retryableTarget("https://api.example.com/status/503", retryContext)
         .get();
+```
+
+> **Why idempotent-only by default?** Retrying a `POST` on a 5xx response is unsafe in general —
+> the 5xx may have been returned by a proxy while the backend already committed the change, the
+> response may have been lost on the return path, or processing may have failed after a partial
+> write. Retrying blindly can create duplicate resources. The default policy refuses to retry
+> `POST` and `PATCH` for this reason.
+
+If your API is designed around idempotency keys (e.g. Stripe-style `Idempotency-Key` headers) and
+retrying `POST`/`PATCH` on 5xx is genuinely safe, opt in explicitly:
+
+```java
+RetryContext retryContext = RetryContext.onAnyMethod5xx(3, Duration.ofSeconds(2));
+```
+
+For fine-grained policies, implement `RetryContext` directly. The attempt passed to the predicate
+carries the response, the HTTP method, the URI, and a 1-based attempt number:
+
+```java
+RetryContext custom = new RetryContext() {
+    @Override public int getRetryCount() { return 3; }
+
+    @Override
+    public boolean mustBeRetried(RetryAttempt attempt) {
+        if (attempt.getResponse() == null) return false;
+        // Only retry GET on 5xx, and only up to attempt 3 total (1 original + 2 retries).
+        return attempt.getMethod() == HttpMethod.GET
+                && attempt.getResponse().getCode() >= 500
+                && attempt.getAttemptNumber() < 3;
+    }
+
+    @Override
+    public Duration getRetryDelay(RetryAttempt attempt) {
+        // Exponential backoff: 200ms, 400ms, 800ms, ...
+        return Duration.ofMillis(100L << attempt.getAttemptNumber());
+    }
+
+    @Override
+    public WebTarget beforeRetry(RetryAttempt attempt, WebTarget webTarget) {
+        // E.g. rotate auth token before the next attempt.
+        return webTarget.updateHeader(HttpHeaders.AUTHORIZATION, refreshToken());
+    }
+};
 ```
 
 #### 2. Apache HttpClient's Automatic Retries

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
@@ -141,7 +142,8 @@ class HttpRequestComplexTest {
 
         HttpRequest httpRequest = HttpRequestBuilder.create(new ClientBuilder().build()).build();
 
-        // Configure retry context: 3 retries, retry on 503
+        // Configure retry context: 3 retries, retry on 503 (GET is idempotent — default gate is
+        // not an obstacle here, but we override mustBeRetried explicitly for clarity).
         RetryContext retryContext = new RetryContext() {
             @Override
             public int getRetryCount() {
@@ -149,13 +151,13 @@ class HttpRequestComplexTest {
             }
 
             @Override
-            public boolean mustBeRetried(Response response) {
-                return response.getCode() == 503;
+            public boolean mustBeRetried(RetryAttempt attempt) {
+                return attempt.getResponse() != null && attempt.getResponse().getCode() == 503;
             }
 
             @Override
-            public int getRetryDelay(Response response) {
-                return 1;
+            public Duration getRetryDelay(RetryAttempt attempt) {
+                return Duration.ofSeconds(1);
             }
         };
 

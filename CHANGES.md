@@ -68,3 +68,22 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   * URI path segments are always percent-encoded as UTF-8 per RFC 3986; if you need non-UTF-8 path
     encoding, percent-encode the path yourself before passing it to `target(...)`.
 * Default charset for both query-string and body is `UTF-8`.
+* `HttpRequestBuilder.setDefaultJsonMapper` / `setDefaultXmlMapper` now take a defensive copy of the
+  supplied mapper at the moment the setter is called; the caller's instance is never mutated by the
+  library. `addResponseDefaultDateDeserializationPattern` / `addRequestDefaultDateSerializationPattern`
+  now compose correctly with a user-supplied mapper — previously the patterns were silently dropped.
+* Retry API refresh (`@Beta` — breaking):
+  * New `RetryAttempt` type exposes `response`, `method`, `uri`, `attemptNumber`, and `error` to
+    retry predicates.
+  * `RetryContext` methods now take a `RetryAttempt`: `mustBeRetried(RetryAttempt)`,
+    `getRetryDelay(RetryAttempt)` (returns `Duration`), `beforeRetry(RetryAttempt, WebTarget)`.
+  * **Removed** the pre-3.5.0 response-only overloads (`mustBeRetried(Response)`,
+    `getRetryDelay(Response)`, `beforeRetry(WebTarget)`). 3.4.x custom `RetryContext`
+    implementations will no longer compile — see `MIGRATION.md` for the before/after template.
+  * The default `mustBeRetried(RetryAttempt)` is idempotency-gated: only retries
+    GET/HEAD/OPTIONS/PUT/DELETE/TRACE (RFC 9110 §9.2.2) on 503 by default. Retrying POST/PATCH
+    must be an explicit opt-in — see the new factory helper `RetryContext.onAnyMethod5xx(int,
+    Duration)`.
+  * New factory helper `RetryContext.onIdempotent5xx(int, Duration)` — safe default that retries
+    idempotent methods on any 5xx, honoring `Retry-After` when present.
+  * Added `HttpMethod.isIdempotent()` per RFC 9110.
