@@ -135,3 +135,25 @@ RetryContext safe = RetryContext.onIdempotent5xx(3, Duration.ofSeconds(2));
 // Opt-in for non-idempotent retries; only use with idempotency-key-aware backends.
 RetryContext anyMethod = RetryContext.onAnyMethod5xx(3, Duration.ofSeconds(2));
 ```
+
+### Retrying requests with bodies
+
+Before 3.5.0 any retryable request that had its `HttpEntity` initialized would fail on retry with
+the generic message *"After initializing the httpEntity builder can't be copied."*
+
+In 3.5.0 the retry transport replays requests whose entity is
+{@link org.apache.hc.core5.http.HttpEntity#isRepeatable() repeatable} — which covers all built-in
+body paths: `rawRequest(POST, String)` and `request(POST, String)` (wrap in `StringEntity`),
+`post(Object)` (wrap in a `StringEntity` via Jackson), plus any `ByteArrayEntity` / `FileEntity`
+the caller constructs directly. No action needed for these cases; retries just work.
+
+Non-repeatable entities (`InputStreamEntity` and similar one-shot streaming sources) still cannot
+be replayed. Attempting to retry one now fails with an actionable error that names the cause and
+points at the fix:
+
+> Cannot copy request builder: the HttpEntity is non-repeatable (e.g. InputStreamEntity) and cannot
+> be re-sent on retry. Wrap the body in a repeatable entity such as StringEntity, ByteArrayEntity,
+> or FileEntity.
+
+A `RetryContext#withEntityFactory(Supplier<HttpEntity>)` hook for streaming bodies may be added in
+a later release on demand.

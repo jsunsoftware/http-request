@@ -87,3 +87,10 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   * New factory helper `RetryContext.onIdempotent5xx(int, Duration)` — safe default that retries
     idempotent methods on any 5xx, honoring `Retry-After` when present.
   * Added `HttpMethod.isIdempotent()` per RFC 9110.
+* Retries now work for requests with repeatable bodies. Previously, any retryable request whose
+  `HttpEntity` had been initialized failed on first retry with *"After initializing the httpEntity
+  builder can't be copied."* `HttpUriRequestBuilder` now shares the entity reference with the
+  copy when `entity.isRepeatable()` is `true` (covers all built-in body paths: `StringEntity`,
+  `ByteArrayEntity`, `FileEntity`, and Jackson-produced bodies). Non-repeatable entities
+  (`InputStreamEntity` and similar streaming sources) still cannot be replayed and now fail with
+  an actionable error pointing at the fix.

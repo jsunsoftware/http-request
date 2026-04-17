@@ -149,12 +149,48 @@ class HttpRetryableRequestTest {
         wireMockRule.verify(3, getRequestedFor(urlEqualTo("/read")));
     }
 
-    // NOTE: an end-to-end test for onAnyMethod5xx retrying a POST is deferred. The policy layer
-    // correctly decides to retry (covered by RetryContextTest), but the transport layer currently
-    // throws IllegalStateException when it tries to replay a request whose HttpEntity has been set
-    // — see CLAUDE_ANALIZE_CODE.md §3.6 ("Retry replays a request whose body stream has already
-    // been consumed"). When that limitation is lifted, an end-to-end "POST retried 3 times with
-    // onAnyMethod5xx" test belongs here.
+    @Test
+    void postWithRepeatableBodyIsRetried_whenOnAnyMethod5xxIsConfigured() {
+        // StringEntity (used by rawRequest(POST, "{}")) is repeatable, so the request copy path
+        // can safely replay it on each retry attempt.
+        wireMockRule.stubFor(post(urlEqualTo("/idempotent-post"))
+                .willReturn(aResponse().withStatus(503)));
+
+        int code = httpRequest.retryableTarget(
+                        wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/idempotent-post",
+                        RetryContext.onAnyMethod5xx(2, Duration.ofMillis(1)))
+                .rawRequest(HttpMethod.POST, "{}")
+                .getCode();
+
+        assertEquals(503, code);
+        // initial POST + 2 retries — caller explicitly opted into non-idempotent retries, and the
+        // body is repeatable so the transport path can replay it.
+        wireMockRule.verify(3, postRequestedFor(urlEqualTo("/idempotent-post")));
+    }
+
+    @Test
+    void nonRepeatableBodyFailsWithActionableErrorOnRetry() {
+        // InputStreamEntity is not repeatable — the request cannot be replayed. We expect an
+        // IllegalStateException that names the cause (non-repeatable entity) and points users
+        // at the fix (use a repeatable entity type).
+        wireMockRule.stubFor(post(urlEqualTo("/stream-post"))
+                .willReturn(aResponse().withStatus(503)));
+
+        org.apache.hc.core5.http.HttpEntity streaming = new org.apache.hc.core5.http.io.entity.InputStreamEntity(
+                new java.io.ByteArrayInputStream("{}".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                org.apache.hc.core5.http.ContentType.APPLICATION_JSON);
+
+        IllegalStateException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class,
+                () -> httpRequest.retryableTarget(
+                                wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/stream-post",
+                                RetryContext.onAnyMethod5xx(2, Duration.ofMillis(1)))
+                        .rawRequest(HttpMethod.POST, streaming));
+
+        org.junit.jupiter.api.Assertions.assertTrue(
+                thrown.getMessage().contains("non-repeatable"),
+                "Error message should name the cause: " + thrown.getMessage());
+    }
 
     @Test
     void defaultRetryContextDoesNotRetryPostOn503() {

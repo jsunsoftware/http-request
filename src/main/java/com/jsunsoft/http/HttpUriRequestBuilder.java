@@ -101,7 +101,18 @@ class HttpUriRequestBuilder {
         }
 
         if (entity != null) {
-            throw new IllegalStateException("After initializing the httpEntity builder can't be copied.");
+            // Repeatable entities (StringEntity, ByteArrayEntity, FileEntity, ...) can be re-sent
+            // on each attempt — safe to share the reference with the copy. Non-repeatable entities
+            // (InputStreamEntity and similar streaming sources) are consumed on first send and
+            // cannot be replayed; reject these with an actionable error so retries don't silently
+            // produce empty-body requests.
+            if (!entity.isRepeatable()) {
+                throw new IllegalStateException(
+                        "Cannot copy request builder: the HttpEntity is non-repeatable (e.g. " +
+                                "InputStreamEntity) and cannot be re-sent on retry. Wrap the body in a " +
+                                "repeatable entity such as StringEntity, ByteArrayEntity, or FileEntity.");
+            }
+            copyHttpUriRequestBuilder.entity = entity;
         }
 
         if (parameters != null) {
