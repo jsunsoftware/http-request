@@ -53,7 +53,8 @@ final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderConte
 
     @Override
     public long getContentLength() {
-        return getHttpEntity().getContentLength();
+        HttpEntity entity = getHttpEntity();
+        return entity != null ? entity.getContentLength() : -1L;
     }
 
     @Override

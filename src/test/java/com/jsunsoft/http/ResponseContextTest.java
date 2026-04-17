@@ -29,7 +29,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class ResponseContextTest {
     private HttpEntity httpEntity;
@@ -51,5 +51,16 @@ class ResponseContextTest {
         assertEquals(content.length(), responseContext.getContentLength());
         assertEquals(content, ResponseBodyReaders.stringReader().read(responseContext));
         assertEquals(ContentType.APPLICATION_JSON.getMimeType(), responseContext.getContentType().getMimeType());
+    }
+
+    @Test
+    void getContentLength_returnsUnknownWhenEntityIsNull() {
+        // 204 No Content / HEAD responses carry no entity; reader context must not NPE.
+        BasicClassicHttpResponse httpResponse = new BasicClassicHttpResponse(204);
+        ResponseBodyReaderContext<String> responseContext = new BasicResponseBodyReaderContext<>(httpResponse, String.class, String.class, URI.create(""), 0);
+
+        assertFalse(responseContext.hasEntity());
+        assertEquals(-1L, responseContext.getContentLength());
+        assertNull(responseContext.getContentType());
     }
 }
