@@ -350,6 +350,19 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .build();
 ```
 
+Date patterns also compose cleanly with a user-supplied `ObjectMapper`:
+
+```java
+// Your shared application ObjectMapper (e.g. a Spring bean) is used as-is…
+ObjectMapper appMapper = /* injected from your app */;
+
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .setDefaultJsonMapper(appMapper)
+        // …and the date patterns are installed on a defensive copy of it; `appMapper` itself is not mutated.
+        .addResponseDefaultDateDeserializationPattern(LocalDate.class, "yyyy-MM-dd")
+        .build();
+```
+
 ## Advanced Features
 
 ### Connection Pooling

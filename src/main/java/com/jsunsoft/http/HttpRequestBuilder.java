@@ -276,7 +276,11 @@ public class HttpRequestBuilder {
     /**
      * Adds a date deserialization pattern for the default response deserializer.
      * <p>
-     * Note: This method will be ignored if {@link #setDefaultJsonMapper} is called.
+     * When a custom {@link ObjectMapper} is supplied via {@link #setDefaultJsonMapper(ObjectMapper)}
+     * or {@link #setDefaultXmlMapper(ObjectMapper)}, the pattern is applied on a {@link ObjectMapper#copy() copy}
+     * of the provided mapper — the caller's instance is left unmodified — and is registered as a
+     * Jackson {@code configOverride} for the given type. A {@code configOverride} already set by the
+     * caller for the same type will be replaced on the copy.
      *
      * @param dateType the date type
      * @param pattern  the pattern to use for deserialization
@@ -288,12 +292,16 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Adds a date deserialization pattern for the request body serialization.
+     * Adds a date serialization pattern for the request body serialization.
      * <p>
-     * Note: This method will be ignored if {@link #setDefaultJsonMapper} is called.
+     * When a custom {@link ObjectMapper} is supplied via {@link #setDefaultJsonMapper(ObjectMapper)}
+     * or {@link #setDefaultXmlMapper(ObjectMapper)}, the pattern is applied on a {@link ObjectMapper#copy() copy}
+     * of the provided mapper — the caller's instance is left unmodified — and is registered as a
+     * Jackson {@code configOverride} for the given type. A {@code configOverride} already set by the
+     * caller for the same type will be replaced on the copy.
      *
      * @param dateType the date type
-     * @param pattern  the pattern to use for sserialization
+     * @param pattern  the pattern to use for serialization
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addRequestDefaultDateSerializationPattern(Class<?> dateType, String pattern) {
@@ -302,26 +310,40 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Sets the default JSON mapper for response body deserialization.
+     * Sets the default JSON mapper used for request body serialization and response body deserialization.
+     * <p>
+     * A defensive {@link ObjectMapper#copy() copy} of the supplied mapper is taken at the moment this
+     * method is called. The caller's instance is never mutated by the library, and any later changes
+     * to it are ignored — the builder uses the snapshot captured here. Pass {@code null} to fall back
+     * to the library default mapper.
      *
-     * @param defaultJsonMapper the JSON mapper to set
+     * @param defaultJsonMapper the JSON mapper to snapshot, or {@code null} to restore the default
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder setDefaultJsonMapper(ObjectMapper defaultJsonMapper) {
-        requestBodySerializeConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
-        responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
+        // Eager defensive copy: one independent snapshot per downstream config. Protects the caller's
+        // instance from library-side mutation and keeps each config's date-pattern overrides from
+        // leaking into the other. Runs twice at builder-build time; not on the per-request hot path.
+        requestBodySerializeConfigBuilder.setDefaultJsonMapper(defaultJsonMapper == null ? null : defaultJsonMapper.copy());
+        responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper == null ? null : defaultJsonMapper.copy());
         return this;
     }
 
     /**
-     * Sets the default XML mapper for response body deserialization.
+     * Sets the default XML mapper used for request body serialization and response body deserialization.
+     * <p>
+     * A defensive {@link ObjectMapper#copy() copy} of the supplied mapper is taken at the moment this
+     * method is called. The caller's instance is never mutated by the library, and any later changes
+     * to it are ignored — the builder uses the snapshot captured here. Pass {@code null} to fall back
+     * to the library default mapper.
      *
-     * @param defaultXmlMapper the XML mapper to set
+     * @param defaultXmlMapper the XML mapper to snapshot, or {@code null} to restore the default
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder setDefaultXmlMapper(ObjectMapper defaultXmlMapper) {
-        requestBodySerializeConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
-        responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
+        // See setDefaultJsonMapper — eager per-config defensive copy.
+        requestBodySerializeConfigBuilder.setDefaultXmlMapper(defaultXmlMapper == null ? null : defaultXmlMapper.copy());
+        responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper == null ? null : defaultXmlMapper.copy());
         return this;
     }
 

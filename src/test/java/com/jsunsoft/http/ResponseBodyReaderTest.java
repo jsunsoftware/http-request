@@ -16,7 +16,9 @@
 
 package com.jsunsoft.http;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.io.entity.BasicHttpEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
@@ -69,6 +71,72 @@ class ResponseBodyReaderTest {
         Assertions.assertEquals(LocalDate.of(1993, 5, 11), result.getRelations().get(0).localDate);
         Assertions.assertEquals("54321", result.getRelations().get(1).string);
         Assertions.assertEquals(LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
+    }
+
+    @Test
+    void initJsonMapperIfNullAppliesPatternsInPlaceOnOwnedMapper() throws IOException {
+        // Contract at the internal boundary: the caller (HttpRequestBuilder.setDefaultJsonMapper)
+        // has already taken a defensive copy, so the mapper arriving here is owned. This method
+        // installs date-pattern configOverrides directly on it and returns the same instance.
+        String content = "{\n" +
+                "              \"value\": 1,\n" +
+                "              \"message\": \"Test message\",\n" +
+                "              \"relations\": [\n" +
+                "                {\n" +
+                "                  \"string\": \"12345\",\n" +
+                "                  \"localDate\": \"19930511\"\n" +
+                "                }\n" +
+                "              ]\n" +
+                "            }";
+
+        ObjectMapper owned = new ObjectMapper()
+                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                .registerModule(new com.fasterxml.jackson.module.paramnames.ParameterNamesModule(com.fasterxml.jackson.annotation.JsonCreator.Mode.PROPERTIES))
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+        Map<Class<?>, String> dateTypeToPattern = new HashMap<>();
+        dateTypeToPattern.put(LocalDate.class, "yyyyMMdd");
+
+        ObjectMapper effective = ObjectMapperInitializer.initJsonMapperIfNull(owned, dateTypeToPattern);
+
+        Assertions.assertSame(owned, effective, "Owned mapper must be mutated in place, not copied again");
+        Assertions.assertNotNull(owned.getDeserializationConfig().findConfigOverride(LocalDate.class), "LocalDate configOverride must be installed");
+
+        Result result = ResponseBodyReaders.<Result>jsonReader(effective).read(resolveResponseContext(content));
+        Assertions.assertEquals(LocalDate.of(1993, 5, 11), result.getRelations().get(0).localDate);
+    }
+
+    @Test
+    void httpRequestBuilderTakesDefensiveSnapshotOfUserJsonMapper() throws IOException {
+        // End-to-end: routing a user mapper through the public setter + a date pattern must not
+        // mutate the user's instance in any observable way.
+        ObjectMapper userMapper = new ObjectMapper()
+                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+
+        boolean failOnUnknownBefore = userMapper.getDeserializationConfig().isEnabled(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        int modulesBefore = userMapper.getRegisteredModuleIds().size();
+
+        try (CloseableHttpClient client = ClientBuilder.create().build()) {
+            HttpRequestBuilder.create(client)
+                    .setDefaultJsonMapper(userMapper)
+                    .addResponseDefaultDateDeserializationPattern(LocalDate.class, "yyyy-MM-dd")
+                    .build();
+        }
+
+        Assertions.assertEquals(failOnUnknownBefore, userMapper.getDeserializationConfig().isEnabled(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES), "setDefaultJsonMapper must not flip FAIL_ON_UNKNOWN_PROPERTIES on the caller's mapper");
+        Assertions.assertEquals(modulesBefore, userMapper.getRegisteredModuleIds().size(), "setDefaultJsonMapper must not register additional modules on the caller's mapper");
+        Assertions.assertNull(userMapper.getDeserializationConfig().findConfigOverride(LocalDate.class), "setDefaultJsonMapper must not install date configOverrides on the caller's mapper");
+    }
+
+    @Test
+    void noPatternsReturnsUserMapperUnchanged() {
+        ObjectMapper userMapper = new ObjectMapper();
+        ObjectMapper effective = ObjectMapperInitializer.initJsonMapperIfNull(userMapper, (Map<Class<?>, String>) null);
+        Assertions.assertSame(userMapper, effective, "With no patterns, user's mapper should be returned as-is");
+
+        Map<Class<?>, String> emptyPatterns = new HashMap<>();
+        Assertions.assertSame(userMapper, ObjectMapperInitializer.initJsonMapperIfNull(userMapper, emptyPatterns),
+                "With empty patterns, user's mapper should be returned as-is");
     }
 
     @Test
