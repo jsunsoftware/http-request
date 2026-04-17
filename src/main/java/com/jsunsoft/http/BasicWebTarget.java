@@ -162,7 +162,10 @@ class BasicWebTarget implements WebTarget {
 
         try {
             return new BasicResponse(response, responseBodyReaderConfig, uri);
-        } catch (ResponseException e) {
+        } catch (RuntimeException e) {
+            // Safety net: if wrapping the raw response fails (e.g. BoundedHttpEntity construction
+            // throws, or a downstream constructor blows up on malformed state), make sure we don't
+            // leak the underlying ClassicHttpResponse before bubbling the failure up.
             try {
                 response.close();
             } catch (IOException ioe) {
