@@ -316,6 +316,19 @@ public class HttpRequestBuilder {
      * method is called. The caller's instance is never mutated by the library, and any later changes
      * to it are ignored — the builder uses the snapshot captured here. Pass {@code null} to fall back
      * to the library default mapper.
+     * <p>
+     * <b>Strict vs. lenient deserialization.</b> When no mapper is supplied, the library default
+     * disables {@code FAIL_ON_UNKNOWN_PROPERTIES} — unrecognized JSON fields are silently dropped.
+     * That trade-off favours forward-compatibility (the server can add new fields without
+     * breaking existing clients), but masks typos in field names and silent API drift in
+     * development. To opt into Jackson's stricter default (throw on unknown properties), pass an
+     * {@code ObjectMapper} you've configured yourself — your choice is preserved on the snapshot
+     * since the library never re-applies its own defaults to a user-supplied mapper:
+     * <pre>{@code
+     *   HttpRequestBuilder.create(client)
+     *           .setDefaultJsonMapper(new ObjectMapper())  // Jackson default = strict
+     *           .build();
+     * }</pre>
      *
      * @param defaultJsonMapper the JSON mapper to snapshot, or {@code null} to restore the default
      * @return the current instance of HttpRequestBuilder
@@ -336,6 +349,9 @@ public class HttpRequestBuilder {
      * method is called. The caller's instance is never mutated by the library, and any later changes
      * to it are ignored — the builder uses the snapshot captured here. Pass {@code null} to fall back
      * to the library default mapper.
+     * <p>
+     * Strict / lenient deserialization works the same as for the JSON mapper — see
+     * {@link #setDefaultJsonMapper(ObjectMapper)} for the discussion.
      *
      * @param defaultXmlMapper the XML mapper to snapshot, or {@code null} to restore the default
      * @return the current instance of HttpRequestBuilder

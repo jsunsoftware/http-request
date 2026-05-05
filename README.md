@@ -369,6 +369,26 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .build();
 ```
 
+#### Strict vs. lenient deserialization
+
+When you don't supply an `ObjectMapper` of your own, the library default disables Jackson's
+`FAIL_ON_UNKNOWN_PROPERTIES` — unknown JSON fields are silently dropped. This favours
+forward-compatibility (the server can roll out new fields without breaking existing clients) but
+it also masks typos in field names and silent API drift while you're developing. To opt into
+the stricter Jackson default, supply your own `ObjectMapper`:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        // A bare new ObjectMapper() inherits Jackson's default — strict on unknowns.
+        .setDefaultJsonMapper(new ObjectMapper())
+        .build();
+```
+
+The library never mutates your supplied mapper, so its `FAIL_ON_UNKNOWN_PROPERTIES`,
+`FAIL_ON_NULL_FOR_PRIMITIVES`, registered modules, etc. all flow through unchanged.
+
+```
+
 ## Advanced Features
 
 ### Connection Pooling
