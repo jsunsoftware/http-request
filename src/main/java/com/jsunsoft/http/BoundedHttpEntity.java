@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.HttpEntityWrapper;
@@ -76,16 +77,22 @@ final class BoundedHttpEntity extends HttpEntityWrapper {
                 .get();
     }
 
+    /**
+     * Writes the bounded content to {@code outStream}.
+     * <p>
+     * <b>This override is load-bearing — do not remove it.</b> {@link HttpEntityWrapper#writeTo}
+     * delegates straight to the wrapped entity's {@code writeTo}, which would bypass our
+     * {@link BoundedInputStream} entirely and let an oversize body stream out unchecked. By
+     * routing through {@link #getContent()} we guarantee the size cap is enforced on every
+     * read, regardless of which API the caller uses (e.g. {@code response.getEntity().writeTo(...)}
+     * to spool a response to disk).
+     */
     @Override
     public void writeTo(final OutputStream outStream) throws IOException {
         ArgsCheck.notNull(outStream, "Output stream");
 
         try (InputStream inStream = getContent()) {
-            final byte[] buffer = new byte[4096];
-            int l;
-            while ((l = inStream.read(buffer)) != -1) {
-                outStream.write(buffer, 0, l);
-            }
+            IOUtils.copy(inStream, outStream);
         }
     }
 }

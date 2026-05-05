@@ -115,3 +115,8 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   `EntityUtils.toByteArray`. The cap is enforced at the byte level by the wrapped
   `BoundedInputStream`; passing a `maxLen` (which is a *character* limit for `toString`) would
   silently truncate the result at a char boundary instead of triggering the byte-cap throw.
+* `BoundedHttpEntity#writeTo` is now documented and regression-tested as a load-bearing override
+  for the size-cap guarantee: without it `HttpEntityWrapper#writeTo` would delegate straight to
+  the wrapped entity, bypassing `BoundedInputStream` and silently spooling oversize bodies through
+  callers that use `response.getEntity().writeTo(...)` (e.g. spooling a response to disk). The
+  override now also uses `IOUtils.copy` (commons-io) instead of a hand-rolled buffered loop.
