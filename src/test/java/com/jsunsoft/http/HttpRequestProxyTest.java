@@ -22,8 +22,10 @@ import org.apache.hc.core5.http.HttpHost;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.net.URI;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class HttpRequestProxyTest {
     //when
@@ -66,6 +68,27 @@ class HttpRequestProxyTest {
         assertEquals(200, httpRequestToSimpleProxy.target("http://localhost:8089/private").get(Void.class).getCode());
         proxyMock.verify(getRequestedFor(urlEqualTo("/private")));
         serviceMock.verify(getRequestedFor(urlEqualTo("/private")));
+    }
+
+    @Test
+    void proxyUriWithUserinfoIsRejectedWithActionableMessage() {
+        // URI userinfo (http://user:pass@proxy) was previously stripped silently by the Apache
+        // HttpHost constructor — users who think they're configuring proxy auth would see no
+        // credentials sent. We now reject this loudly and point at the proper Apache HC5 path
+        // (BasicCredentialsProvider on HttpClientContext).
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                ClientBuilder.create().proxy(URI.create("http://user:secret@proxy.corp:8080")));
+        assertTrue(ex.getMessage().contains("userinfo"),
+                "Error message should name the cause: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("CredentialsProvider"),
+                "Error message should point at the fix: " + ex.getMessage());
+    }
+
+    @Test
+    void proxyUriWithoutUserinfoIsAccepted() {
+        // Sanity check: clean URIs (no userinfo) still flow through proxy(URI) unchanged.
+        ClientBuilder.create().proxy(URI.create("http://proxy.corp:8080"));
+        ClientBuilder.create().proxy(URI.create("https://proxy.corp")); // default-port resolves via scheme
     }
 
     @Test

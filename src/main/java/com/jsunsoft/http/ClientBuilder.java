@@ -465,6 +465,17 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(URI proxyUri) {
+        ArgsCheck.notNull(proxyUri, "proxyUri");
+        if (proxyUri.getUserInfo() != null) {
+            // userinfo in the URI (e.g. http://user:pass@proxy.corp) would silently be discarded by
+            // HttpHost — the user almost certainly means "authenticate to the proxy with these
+            // credentials," but Apache HC5's proxy auth path is HttpClientContext + a
+            // CredentialsProvider, not URI userinfo. Fail loudly instead of silently dropping it.
+            throw new IllegalArgumentException(
+                    "Proxy URI must not contain userinfo (username:password). For authenticated " +
+                            "proxies, supply credentials via Apache HC5's BasicCredentialsProvider on the " +
+                            "HttpClientContext. Got: '" + proxyUri.getRawUserInfo() + "@" + proxyUri.getHost() + "'");
+        }
         return proxy(
                 new HttpHost(
                         proxyUri.getScheme(),
@@ -544,8 +555,14 @@ public class ClientBuilder {
     }
 
     /**
-     * By default, the {@link HttpClientBuilder#disableCookieManagement} called.
-     * This method will prevent the call.
+     * By default, the underlying {@link HttpClientBuilder#disableAutomaticRetries} is called and
+     * Apache HC5's built-in retry-on-IOException logic is suppressed. Calling this method opts
+     * back into Apache's default retry behavior.
+     * <p>
+     * Note: this is the underlying-client retry mechanism. For richer policy (status-code
+     * predicates, per-attempt header rewriting, exponential backoff, idempotency gating) prefer
+     * the higher-level {@link RetryContext} API exposed via
+     * {@link HttpRequest#retryableTarget(java.net.URI, RetryContext)}.
      *
      * @return ClientBuilder instance
      */
@@ -616,17 +633,22 @@ public class ClientBuilder {
      */
     @Beta
     HttpClientWithResourcesWrapper buildWithResources() {
+        // Snapshot the configured timeouts/setters and apply customizers to a FRESH builder per
+        // build(). Otherwise calling build() twice would re-apply the customizers to the same
+        // persistent Builder field, compounding any non-idempotent state changes (e.g. a
+        // customizer that does b.setMaxRedirects(b.getMaxRedirects() + 1) would increment
+        // unboundedly, and a customizer that re-registers an interceptor would duplicate it).
+        RequestConfig.Builder freshRequestConfigBuilder = RequestConfig.copy(defaultRequestConfigBuilder.build());
         if (defaultRequestConfigBuilderCustomizers != null) {
-            defaultRequestConfigBuilderCustomizers.forEach(customizer -> customizer.accept(defaultRequestConfigBuilder));
+            defaultRequestConfigBuilderCustomizers.forEach(customizer -> customizer.accept(freshRequestConfigBuilder));
         }
+        RequestConfig requestConfig = freshRequestConfigBuilder.build();
 
-        RequestConfig requestConfig = defaultRequestConfigBuilder.build();
-
+        ConnectionConfig.Builder freshConnectionConfigBuilder = ConnectionConfig.copy(defaultConnectionConfigBuilder.build());
         if (defaultConnectionConfigBuilderCustomizers != null) {
-            defaultConnectionConfigBuilderCustomizers.forEach(customizer -> customizer.accept(defaultConnectionConfigBuilder));
+            defaultConnectionConfigBuilderCustomizers.forEach(customizer -> customizer.accept(freshConnectionConfigBuilder));
         }
-
-        ConnectionConfig connectionConfig = defaultConnectionConfigBuilder.build();
+        ConnectionConfig connectionConfig = freshConnectionConfigBuilder.build();
 
         PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create()
                 .setMaxConnPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute())

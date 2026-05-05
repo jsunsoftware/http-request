@@ -16,6 +16,8 @@
 
 package com.jsunsoft.http;
 
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.junit.jupiter.api.Test;
 
@@ -31,6 +33,37 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code MIGRATION.md} for the rationale.
  */
 class ClientBuilderDefaultsTest {
+
+    @Test
+    void buildIsIdempotent_customizerSeesFreshBuilderEachTime() throws IOException {
+        // Regression guard for §3.18: previously, ClientBuilder kept its RequestConfig.Builder and
+        // ConnectionConfig.Builder as fields, and customizers were applied to those persistent
+        // instances on every build() call. The user-visible bug surfaces only when a customizer
+        // makes a *state-dependent* decision — i.e., it inspects what's already on the Builder
+        // and reacts to it. We probe that with a customizer that records each Builder reference
+        // it sees: after two build() calls, the customizer must have observed two DIFFERENT
+        // Builder instances (one per build), not the same persistent field reused across calls.
+        java.util.List<RequestConfig.Builder> seenRequestBuilders = new java.util.ArrayList<>();
+        java.util.List<org.apache.hc.client5.http.config.ConnectionConfig.Builder> seenConnectionBuilders = new java.util.ArrayList<>();
+
+        ClientBuilder builder = ClientBuilder.create()
+                .addDefaultRequestConfigCustomizer(seenRequestBuilders::add)
+                .addDefaultConnectionConfigCustomizer(seenConnectionBuilders::add);
+
+        try (CloseableHttpClient first = builder.build();
+             CloseableHttpClient second = builder.build()) {
+            assertTrue(first != second, "Each build() must produce an independent client");
+        }
+
+        assertEquals(2, seenRequestBuilders.size(), "customizer invoked once per build()");
+        assertTrue(seenRequestBuilders.get(0) != seenRequestBuilders.get(1),
+                "Each build() must hand the customizer a FRESH RequestConfig.Builder, not the " +
+                        "persistent field — otherwise stateful customizers compound across builds.");
+
+        assertEquals(2, seenConnectionBuilders.size(), "customizer invoked once per build()");
+        assertTrue(seenConnectionBuilders.get(0) != seenConnectionBuilders.get(1),
+                "Each build() must hand the customizer a FRESH ConnectionConfig.Builder.");
+    }
 
     @Test
     void poolDefaultsPreserveMultiHostFairness() throws IOException {

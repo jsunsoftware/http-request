@@ -126,3 +126,16 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   `total / 4` ratio matches industry conventions (Apache HC, AWS SDK, Spring) and preserves
   multi-host fairness. Single-upstream workloads that want the old behavior should call
   `setDefaultMaxPoolSizePerRoute(128)` explicitly — see `MIGRATION.md`.
+* `ClientBuilder.proxy(URI)` now rejects URIs that include userinfo (e.g.
+  `http://user:pass@proxy.corp`) with `IllegalArgumentException` and a message pointing at Apache
+  HC5's `BasicCredentialsProvider`. Previously, the userinfo was silently discarded by the
+  `HttpHost` constructor — users who thought they were configuring proxy auth would see no
+  credentials sent.
+* `ClientBuilder.enableAutomaticRetries()` Javadoc rewritten — the previous text was a copy-paste
+  of `enableCookieManagement()` and described the wrong feature.
+* `ClientBuilder.build()` is now idempotent across repeated calls. Previously, the
+  `defaultRequestConfigBuilder` and `defaultConnectionConfigBuilder` were stored as fields and
+  user-supplied customizers were applied to those persistent instances on every `build()` —
+  state-dependent customizers (e.g. ones that re-register an interceptor or react to current
+  builder state) would compound across calls. Each `build()` now snapshots the configured state
+  and applies customizers to a fresh `Builder` per call.
