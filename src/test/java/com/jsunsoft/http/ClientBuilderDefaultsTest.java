@@ -28,15 +28,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pins the connection-pool defaults so they don't silently drift back to "single hot host can
- * saturate the entire pool" (the bug §3.15 in the analysis doc flagged). The 4× total-to-per-route
- * ratio is a deliberate fairness guarantee — see {@code HostPoolConfig} Javadoc and
- * {@code MIGRATION.md} for the rationale.
+ * saturate the entire pool." The 4× total-to-per-route ratio is a deliberate fairness
+ * guarantee — see {@code HostPoolConfig} Javadoc and {@code MIGRATION.md} for the rationale.
  */
 class ClientBuilderDefaultsTest {
 
     @Test
     void buildIsIdempotent_customizerSeesFreshBuilderEachTime() throws IOException {
-        // Regression guard for §3.18: previously, ClientBuilder kept its RequestConfig.Builder and
+        // Regression guard: previously, ClientBuilder kept its RequestConfig.Builder and
         // ConnectionConfig.Builder as fields, and customizers were applied to those persistent
         // instances on every build() call. The user-visible bug surfaces only when a customizer
         // makes a *state-dependent* decision — i.e., it inspects what's already on the Builder
@@ -67,11 +66,11 @@ class ClientBuilderDefaultsTest {
 
     @Test
     void http1HeaderLimitsAndTlsKnobsCompileAndDoNotBlowUp() throws IOException {
-        // §6.4 + §6.2 smoke test: setMaxHeaderCount / setMaxLineLength / setTlsVersions /
-        // setCipherSuites all flow through to the underlying Apache HC5 builders without
-        // throwing during build(). End-to-end behavior (a malicious server with 1000-headers
-        // is rejected at the wire) requires controlling the wire — out of scope for a unit
-        // test. This pin keeps the API call sites compiling.
+        // Smoke test: setMaxHeaderCount / setMaxLineLength / setTlsVersions / setCipherSuites
+        // all flow through to the underlying Apache HC5 builders without throwing during
+        // build(). End-to-end behavior (a malicious server with 1000-headers is rejected at the
+        // wire) requires controlling the wire — out of scope for a unit test. This pin keeps
+        // the API call sites compiling.
         try (CloseableHttpClient client = ClientBuilder.create()
                 .setMaxHeaderCount(64)
                 .setMaxLineLength(8192)

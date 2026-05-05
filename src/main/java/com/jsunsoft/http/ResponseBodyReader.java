@@ -19,12 +19,35 @@ package com.jsunsoft.http;
 import java.io.IOException;
 
 /**
- * Implementation of this interface must provided deserialization of response body to type {@code T}
+ * Strategy for deserializing an HTTP response body into a Java object of type {@code T}.
+ * Reader instances are consulted by the library in registration order: the first reader whose
+ * {@link #isReadable(ResponseBodyReadableContext)} returns {@code true} for the given context
+ * (target type + content-type + status) wins, and its {@link #read(ResponseBodyReaderContext)}
+ * method is invoked to produce the value.
+ * <p>
+ * Built-in readers cover {@code String}, {@code byte[]}, JSON ({@code application/json}), and
+ * XML ({@code application/xml} / {@code text/xml}) — register a custom one via
+ * {@link HttpRequestBuilder#addBodyReader(ResponseBodyReader)} when you need something else
+ * (e.g. CBOR, Protobuf, MessagePack). User-supplied readers are tried <em>before</em> the
+ * built-ins, so you can also override the defaults.
  *
- * @param <T> Type of deserialized instance
- *            <p>
- *            Note: All implementations must be thread safe in case of multi-thread environment.
- *            </p>
+ * <h2>Implementation contract</h2>
+ *
+ * <ul>
+ *   <li><b>Thread safety:</b> implementations <b>must</b> be safe for concurrent use. A single
+ *       reader instance is reused across requests and threads — store no per-request state in
+ *       fields. Use the {@link ResponseBodyReaderContext} parameter for everything you need.</li>
+ *   <li><b>Stream consumption:</b> the {@link ResponseBodyReaderContext#getContent() content
+ *       stream} is one-shot. Read it once; do not stash it for later.</li>
+ *   <li><b>Resource ownership:</b> do <em>not</em> close the content stream from inside
+ *       {@link #read}. The library closes it when the surrounding {@link Response} is closed.</li>
+ *   <li><b>Failure modes:</b> throw {@link ResponseBodyReaderException} for deserialization
+ *       failures (the library will wrap it in {@link ResponseBodyProcessingException} for the
+ *       lazy-API and surface it as a {@code 502 Bad Gateway} for the eager API). Throw plain
+ *       {@link IOException} for I/O errors reading the stream.</li>
+ * </ul>
+ *
+ * @param <T> the type produced by this reader
  */
 public interface ResponseBodyReader<T> {
 

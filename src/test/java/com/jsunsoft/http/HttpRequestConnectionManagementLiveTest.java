@@ -246,7 +246,7 @@ class HttpRequestConnectionManagementLiveTest {
 
     @Test
     void hotHostCannotStarveOtherRoutes_whenPerRouteIsLessThanTotal() throws InterruptedException, IOException {
-        // The §3.15 fairness invariant: with perRoute < maxTotal, saturating one route's per-route
+        // The multi-host fairness invariant: with perRoute < maxTotal, saturating one route's per-route
         // quota must NOT block requests to other routes. Configures perRoute=2 / maxTotal=4, fills
         // server1 with 2 in-flight slow requests, then verifies server2 still completes promptly
         // because the total budget has slack beyond server1's per-route cap.
@@ -283,11 +283,11 @@ class HttpRequestConnectionManagementLiveTest {
     }
 
     @Test
-    void hotHostStarvesOtherRoutes_whenPerRouteEqualsTotal_documentingBug3_15() throws InterruptedException {
-        // Negative regression guard for §3.15: with perRoute == maxTotal, a saturated route DOES
-        // starve other routes. This test pins the broken behavior so any future change that
-        // re-aligns the default per-route to the total cap will fail loudly here and force a
-        // reviewer to confront the multi-host-fairness regression.
+    void hotHostStarvesOtherRoutes_whenPerRouteEqualsTotal() throws InterruptedException {
+        // Negative regression guard: with perRoute == maxTotal, a saturated route DOES starve
+        // other routes. This test pins the broken behavior so any future change that re-aligns
+        // the default per-route to the total cap will fail loudly here and force a reviewer to
+        // confront the multi-host-fairness regression.
         server1.stubFor(get(urlEqualTo("/slow"))
                 .willReturn(aResponse().withStatus(200).withFixedDelay(3000).withBody("ok")));
 
@@ -311,7 +311,7 @@ class HttpRequestConnectionManagementLiveTest {
         server2Thread.start();
         server2Thread.join();
         assertTrue(server2Thread.getResponseHandler().getConnectionFailureType().isConnectionPoolEmpty(),
-                "When perRoute == maxTotal, a saturated route must starve other routes (the §3.15 bug). " +
+                "When perRoute == maxTotal, a saturated route must starve other routes (the multi-host fairness bug). " +
                         "If this assertion fails, the pool default has been tightened in a way that fixed " +
                         "the bug — update the test to match the new (good) behavior or remove it.");
 

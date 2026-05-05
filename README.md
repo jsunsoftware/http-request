@@ -708,6 +708,19 @@ Additional documentation:
 - [Release Changes](CHANGES.md)
 - [Migration Guide](MIGRATION.md)
 
+### A note on `@Beta`
+
+Methods, types, and parameters annotated with `@com.jsunsoft.http.annotations.Beta` are
+explicitly **excluded** from the library's compatibility guarantees. Their signatures, default
+behavior, exception types, and even names may change between minor (3.x → 3.y) and patch
+(3.5.0 → 3.5.1) releases without a deprecation cycle. The annotation says nothing about quality
+or performance — only that the API is not yet "frozen."
+
+It's generally safe for *applications* to depend on `@Beta` APIs, at the cost of some extra work
+during upgrades. It's generally inadvisable for *libraries* (whose users' classpaths are outside
+the library developer's control) to do so — an application picking up the dependency
+transitively can break silently when the library upgrades.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

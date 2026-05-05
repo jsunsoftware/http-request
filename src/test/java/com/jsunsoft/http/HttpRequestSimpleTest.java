@@ -68,7 +68,7 @@ class HttpRequestSimpleTest {
 
     @Test
     void headRequest_successfulResponseKeepsItsStatusEvenWhenEntityIsNull() {
-        // §4.9 regression: Apache HC5 always returns null HttpEntity for HEAD responses (HTTP
+        // Regression guard: Apache HC5 always returns null HttpEntity for HEAD responses (HTTP
         // forbids a body on HEAD), but hasBody(200) returns true. The previous code remapped
         // any "hasBody && entity == null" combination to 502, turning a successful HEAD into a
         // Bad Gateway report on the ResponseHandler. The fix excludes HEAD from that remap so

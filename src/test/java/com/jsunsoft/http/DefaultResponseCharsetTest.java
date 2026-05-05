@@ -33,10 +33,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * §4.8: response charset behavior. Apache HC5's {@code EntityUtils.toString(entity)} (the form
- * used before this fix) silently falls back to ISO-8859-1 when the response Content-Type lacks
- * a {@code charset} parameter. The library now defaults that fallback to UTF-8, with an opt-in
- * override via {@link HttpRequestBuilder#setDefaultResponseCharset}.
+ * Response-charset behavior. Apache HC5's {@code EntityUtils.toString(entity)} silently falls
+ * back to ISO-8859-1 when the response Content-Type lacks a {@code charset} parameter. The
+ * library defaults that fallback to UTF-8, with an opt-in override via
+ * {@link HttpRequestBuilder#setDefaultResponseCharset}.
  */
 class DefaultResponseCharsetTest {
 

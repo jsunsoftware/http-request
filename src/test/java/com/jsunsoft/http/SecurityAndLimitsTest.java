@@ -45,7 +45,7 @@ class SecurityAndLimitsTest {
 
     @Test
     void disallowPrivateAndLoopbackHosts_blocksLoopbackAndPrivateAddresses() {
-        // §6.1: opt-in SSRF guard rejects URIs that resolve to loopback / private / link-local
+        // The opt-in SSRF guard rejects URIs that resolve to loopback / private / link-local
         // ranges. The cloud-metadata endpoint at 169.254.169.254 (link-local, AWS/GCP/Azure) is
         // the canonical attack target; we exercise it explicitly.
         HttpRequest httpRequest = HttpRequestBuilder.create(new ClientBuilder().build())

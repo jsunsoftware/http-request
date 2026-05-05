@@ -21,9 +21,44 @@ import com.jsunsoft.http.annotations.Beta;
 import java.net.URI;
 
 /**
- * HttpRequest is the main entry point to the API used to build and execute client requests.
+ * Entry point for building and executing HTTP requests against a configured
+ * {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient}.
  * <p>
- * HttpRequest objects are immutable they can be shared.
+ * Obtain an instance via {@link HttpRequestBuilder#create(org.apache.hc.client5.http.impl.classic.CloseableHttpClient)
+ * HttpRequestBuilder.create(client).build()}. From there, call one of the {@code target} family
+ * of methods to materialise a {@link WebTarget} bound to a URI; configure it with headers,
+ * parameters, and a body; then invoke a verb method ({@code get}, {@code post}, etc.) to fire
+ * the request.
+ *
+ * <h2>Lifecycle and reuse</h2>
+ *
+ * {@code HttpRequest} is intended to be built once and reused indefinitely — typically a
+ * singleton (or a small set of pre-configured singletons) per process. Each call to
+ * {@link #target(URI)} / {@link #immutableTarget(URI)} / {@link #retryableTarget(URI, RetryContext)}
+ * returns a fresh, independent {@link WebTarget}; the {@code HttpRequest} itself is not consumed
+ * by these calls.
+ *
+ * <h2>Thread safety</h2>
+ *
+ * {@code HttpRequest} is <b>immutable and thread-safe</b> after the call to
+ * {@link HttpRequestBuilder#build()} returns. All instance state — default headers,
+ * default parameters, response body readers, request body converters, retry/scheme/host policy —
+ * is captured at build time and never mutates. Concurrent {@code target(...)} calls on the same
+ * {@code HttpRequest} produce independent {@link WebTarget} instances; mutations on one do not
+ * leak to another.
+ * <p>
+ * Note that the {@link WebTarget} returned by {@link #target(URI)} is itself <em>not</em>
+ * thread-safe (it is the discoverable mutable variant) — see the per-method Javadoc for the
+ * recommended single-thread usage pattern. {@link #immutableTarget(URI)} returns a thread-safe
+ * variant for cross-thread sharing.
+ *
+ * <h2>Exception model</h2>
+ *
+ * Methods that return {@link Response} surface a live, closable HTTP response — wrap them in
+ * try-with-resources. Methods that return {@link ResponseHandler} consume the response
+ * internally and surface failures via the handler's status, error text, and the
+ * {@link ResponseHandler#orElseThrow()} / {@link ResponseHandler#requiredGet()} family. See
+ * {@link ResponseHandler} for the accessor decision matrix.
  */
 public interface HttpRequest {
 

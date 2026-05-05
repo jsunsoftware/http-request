@@ -32,8 +32,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * §6.5: payload redactors mask sensitive content (passwords, tokens, …) before the request body
- * is logged via {@link HttpRequestBuilder#enableRequestPayloadLogging()}. Asserting on log output
+ * Payload redactors mask sensitive content (passwords, tokens, …) before the request body is
+ * logged via {@link HttpRequestBuilder#enableRequestPayloadLogging()}. Asserting on log output
  * directly is fragile, so we instead assert on the redactor's <em>input</em> via a
  * capture-and-no-op redactor — which proves the redactor is invoked when logging is enabled.
  */
