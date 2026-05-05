@@ -75,6 +75,37 @@ class SizeLimitTest {
     }
 
     @Test
+    void bodyExactlyAtTheLimitIsAccepted() {
+        // Boundary case: a body of EXACTLY maxBytes must succeed — the user explicitly said this
+        // size is acceptable. Regression guard for the `setMaxCount(maxBytes + 1)` offset in
+        // BoundedHttpEntity#getContent — without the +1, a body of size maxBytes would trip the
+        // BoundedInputStream cap on the next read after consuming the last byte and throw, even
+        // though it fits the contract.
+        String body = "x".repeat(1024); // exactly the configured limit
+        server.stubFor(get(urlEqualTo("/exact"))
+                .willReturn(aResponse().withStatus(200).withBody(body)));
+
+        String result = httpRequest.target(httpUri("/exact")).get(String.class).orElseThrow();
+        assertEquals(body, result);
+    }
+
+    @Test
+    void bodyOneOverLimitThrows() {
+        // Mirror of the above: maxBytes + 1 must trip the cap. Together these two tests pin the
+        // boundary semantics so the +1 offset can't drift in either direction.
+        String body = "x".repeat(1025); // one byte over the 1024 limit
+        server.stubFor(get(urlEqualTo("/over-by-one"))
+                .willReturn(aResponse().withStatus(200).withBody(body)));
+
+        ResponseException exception = assertThrows(ResponseException.class, () ->
+                httpRequest.target(httpUri("/over-by-one")).get(String.class).orElseThrow());
+
+        assertNotNull(exception.getCause());
+        assertTrue(exception.getCause() instanceof InvalidContentLengthException,
+                "Expected InvalidContentLengthException, got: " + exception.getCause().getClass().getName());
+    }
+
+    @Test
     void throwsExceptionWhenJsonResponseExceedsLimit() {
         String oversizedJson = "{\"data\":\"" + "a".repeat(2048) + "\"}";
         server.stubFor(get(urlEqualTo("/large-json"))

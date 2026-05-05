@@ -95,13 +95,13 @@ class ResponseBodyReaders {
 
             String result;
             try {
-                long maxBytes = bodyReaderContext.getMaxResponseBodySizeBytes();
-                if (maxBytes > 0) {
-                    int maxLen = maxBytes > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) maxBytes;
-                    result = EntityUtils.toString(bodyReaderContext.getHttpEntity(), maxLen);
-                } else {
-                    result = EntityUtils.toString(bodyReaderContext.getHttpEntity());
-                }
+                // The size cap is enforced one layer down by BoundedHttpEntity wrapping the
+                // entity stream in commons-io's BoundedInputStream — that throws
+                // InvalidContentLengthException as soon as the byte cap is exceeded. Passing
+                // an additional `maxLen` here would only truncate the resulting String at a
+                // CHARACTER boundary while letting the byte cap pass silently for the read
+                // pattern EntityUtils.toString uses.
+                result = EntityUtils.toString(bodyReaderContext.getHttpEntity());
             } catch (ParseException e) {
                 throw new ResponseBodyReaderException(e);
             }
@@ -130,13 +130,10 @@ class ResponseBodyReaders {
 
         @Override
         public byte[] read(ResponseBodyReaderContext<byte[]> bodyReaderContext) throws IOException, ResponseBodyReaderException {
-            long maxBytes = bodyReaderContext.getMaxResponseBodySizeBytes();
-            if (maxBytes > 0) {
-                int maxLen = maxBytes > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) maxBytes;
-                return EntityUtils.toByteArray(bodyReaderContext.getHttpEntity(), maxLen);
-            } else {
-                return EntityUtils.toByteArray(bodyReaderContext.getHttpEntity());
-            }
+            // See StringReader#read for why no maxLen is passed: BoundedHttpEntity already
+            // wraps the stream in BoundedInputStream and throws InvalidContentLengthException
+            // when the byte cap is exceeded.
+            return EntityUtils.toByteArray(bodyReaderContext.getHttpEntity());
         }
     }
 

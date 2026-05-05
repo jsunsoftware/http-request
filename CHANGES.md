@@ -101,3 +101,17 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   Reader chains (`isReadable()` predicates) now fall through cleanly to
   `ResponseBodyReaderNotFoundException` instead of letting an unchecked exception escape from a
   getter.
+* Replaced the custom `LimitedInputStream` with `commons-io`'s
+  `org.apache.commons.io.input.BoundedInputStream`. The response-body size cap is now enforced
+  by configuring `BoundedInputStream` with `setMaxCount(maxBytes + 1)` (so a body of exactly
+  `maxBytes` still drains cleanly to EOF) and an `setOnMaxCount` consumer that throws
+  `InvalidContentLengthException` the moment the cap is exceeded. The swap closes three latent
+  gaps in the previous custom class in one stroke: `skip()` and `read(b, off, len)` no longer
+  over-pull the underlying stream past the cap (commons-io clamps both via `toReadLen`),
+  `markSupported()` no longer falsely advertises mark support that would corrupt the byte
+  counter on `reset()`, and we drop ~70 lines of custom code in favor of a battle-tested upstream
+  implementation. `commons-io 2.22.0` is now a compile-scope dependency.
+* `StringReader` and `ByteReader` no longer pass `maxLen` to `EntityUtils.toString` /
+  `EntityUtils.toByteArray`. The cap is enforced at the byte level by the wrapped
+  `BoundedInputStream`; passing a `maxLen` (which is a *character* limit for `toString`) would
+  silently truncate the result at a char boundary instead of triggering the byte-cap throw.
