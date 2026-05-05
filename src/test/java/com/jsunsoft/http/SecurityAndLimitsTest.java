@@ -27,6 +27,37 @@ class SecurityAndLimitsTest {
     }
 
     @Test
+    void uriSchemeValidation_isCaseInsensitive() {
+        // Pins the BasicHttpRequest#validateUriScheme contract: the URI's scheme is normalised to
+        // Locale.ROOT lowercase before lookup against the allow-list, so uppercase / mixed-case
+        // schemes match an allow-list entry stored in lowercase form. A future "simplification"
+        // that drops the toLowerCase call would silently reject HTTPS://example.com — this test
+        // is the regression guard.
+        HttpRequest httpRequest = HttpRequestBuilder.create(new ClientBuilder().build())
+                .allowHttpAndHttpsOnly()
+                .build();
+
+        // None of these should throw; we don't actually issue requests, just construct the targets.
+        httpRequest.target("HTTPS://example.com/foo");
+        httpRequest.target("HtTpS://example.com/foo");
+        httpRequest.target("HTTP://example.com/foo");
+    }
+
+    @Test
+    void uriSchemeValidation_rejectsRelativeOrSchemeLessUris_whenAllowListIsActive() {
+        // Relative URIs (no scheme) must not slip past the allow-list — URI.getScheme() returns
+        // null and the validator's null-check is the only thing standing between this and a
+        // misrouted request. Pinned because skipping the null-check is an easy oversight when
+        // refactoring.
+        HttpRequest httpRequest = HttpRequestBuilder.create(new ClientBuilder().build())
+                .allowHttpAndHttpsOnly()
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("/just/a/path"));
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("//example.com/foo"));
+    }
+
+    @Test
     void responseSizeLimit_enforced_forJsonDeserialization() {
         String largeJson = "{\"data\":\"" + "a".repeat(5000) + "\"}";
         wm.stubFor(get(urlEqualTo("/large"))
