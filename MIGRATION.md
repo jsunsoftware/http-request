@@ -157,3 +157,29 @@ points at the fix:
 
 A `RetryContext#withEntityFactory(Supplier<HttpEntity>)` hook for streaming bodies may be added in
 a later release on demand.
+
+### Connection pool default (`defaultMaxPoolSizePerRoute`)
+
+The default per-route cap on `ClientBuilder` was lowered from `128` to `32`. The total pool cap is
+unchanged at `128`. Rationale: when `defaultMaxPoolSizePerRoute == maxPoolSize` a single hot host
+can saturate the entire pool, leaving parallel requests to other hosts blocked on
+`connectionRequestTimeout` — the new ratio (`total / 4`) preserves multi-host fairness while keeping
+typical microservice workloads well within budget. Industry conventions land in the same range
+(Apache HC `200 / 50` in Spring's typical config, AWS SDK `50 / per-service`, etc.).
+
+If your workload genuinely talks to a single upstream and was implicitly relying on the old `128`
+per-route cap, restore it explicitly:
+
+```java
+CloseableHttpClient client = ClientBuilder.create()
+        .setDefaultMaxPoolSizePerRoute(128)
+        .build();
+```
+
+Or use the per-route override for hot hosts only:
+
+```java
+CloseableHttpClient client = ClientBuilder.create()
+        .setMaxPoolSizePerRoute(new HttpHost("hot.example.com"), 96)
+        .build();
+```

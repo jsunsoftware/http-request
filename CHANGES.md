@@ -120,3 +120,9 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   the wrapped entity, bypassing `BoundedInputStream` and silently spooling oversize bodies through
   callers that use `response.getEntity().writeTo(...)` (e.g. spooling a response to disk). The
   override now also uses `IOUtils.copy` (commons-io) instead of a hand-rolled buffered loop.
+* `ClientBuilder` default `defaultMaxPoolSizePerRoute` lowered from `128` to `32`. `maxPoolSize`
+  is unchanged at `128`. Previously `perRoute == total` let a single hot host saturate the entire
+  pool, leaving parallel requests to other hosts blocked on `connectionRequestTimeout`. The new
+  `total / 4` ratio matches industry conventions (Apache HC, AWS SDK, Spring) and preserves
+  multi-host fairness. Single-upstream workloads that want the old behavior should call
+  `setDefaultMaxPoolSizePerRoute(128)` explicitly — see `MIGRATION.md`.

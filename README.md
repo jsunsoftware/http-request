@@ -377,8 +377,12 @@ CloseableHttpClient httpClient = ClientBuilder.create()
         .build();
 ```
 
-By default, Apache HttpClient uses small pool limits (for example, 2 per route). When you use `ClientBuilder`, the
-defaults are set to 128 for max total and max per route. Override them based on your traffic patterns.
+By default, raw Apache HttpClient uses small pool limits (for example, 2 per route). `ClientBuilder` raises
+these to **128 total / 32 per route** — sized for typical microservice workloads that talk to a handful of
+upstream hosts. The `total / perRoute` ratio of roughly 4× preserves multi-host fairness: a hot route can't
+saturate the entire pool and starve traffic to other hosts. Override either knob based on your traffic
+pattern (a high-throughput aggregator hitting many hosts at once will want a higher total; a service that
+talks to a single upstream may want to raise per-route to match).
 
 You can also configure a proxy:
 
