@@ -20,6 +20,8 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.net.URIBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Type;
 
@@ -27,6 +29,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 class HttpRequestUtils {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpRequestUtils.class);
 
     private HttpRequestUtils() {
         throw new AssertionError("No com.jsunsoft.http.HttpRequestUtils instances for you!");
@@ -102,6 +105,21 @@ class HttpRequestUtils {
             return null;
         }
         String contentType = httpEntity.getContentType();
-        return contentType == null ? null : ContentType.parse(contentType);
+        if (contentType == null) {
+            return null;
+        }
+        try {
+            return ContentType.parse(contentType);
+        } catch (IllegalArgumentException e) {
+            // Most commonly UnsupportedCharsetException from headers like
+            //   Content-Type: text/plain; charset=<not-installed-in-this-JVM>
+            // (UnsupportedCharsetException extends IllegalArgumentException). Treating this as
+            // "no parseable content-type" lets the reader chain fall through to
+            // ResponseBodyReaderNotFoundException — a well-defined library error — instead of
+            // letting an unchecked exception escape from a getter that's invoked from
+            // isReadable() predicates and the public Response#getContentType() API.
+            LOGGER.warn("Ignoring malformed Content-Type header value '{}': {}", contentType, e.getMessage());
+            return null;
+        }
     }
 }

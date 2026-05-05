@@ -94,3 +94,10 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   `ByteArrayEntity`, `FileEntity`, and Jackson-produced bodies). Non-repeatable entities
   (`InputStreamEntity` and similar streaming sources) still cannot be replayed and now fail with
   an actionable error pointing at the fix.
+* `Response#getContentType()` no longer leaks `UnsupportedCharsetException` (or any other
+  `IllegalArgumentException` from `ContentType.parse`) when a server returns a header like
+  `Content-Type: text/plain; charset=<charset-not-installed-in-this-JVM>`. The malformed value
+  is logged at WARN level and the helper returns `null` — the same as "no Content-Type header."
+  Reader chains (`isReadable()` predicates) now fall through cleanly to
+  `ResponseBodyReaderNotFoundException` instead of letting an unchecked exception escape from a
+  getter.

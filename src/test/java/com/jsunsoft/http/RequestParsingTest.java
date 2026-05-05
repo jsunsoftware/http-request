@@ -7,7 +7,6 @@ import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
@@ -57,12 +56,12 @@ class RequestParsingTest {
             }
 
             @Override
-            public InputStream getContent() throws IOException {
+            public InputStream getContent() {
                 throw new UnsupportedOperationException("not needed");
             }
 
             @Override
-            public void writeTo(java.io.OutputStream outStream) throws IOException {
+            public void writeTo(java.io.OutputStream outStream) {
                 throw new UnsupportedOperationException("not needed");
             }
 
@@ -77,7 +76,7 @@ class RequestParsingTest {
             }
 
             @Override
-            public void close() throws IOException {
+            public void close() {
                 // no-op
             }
         };
@@ -86,6 +85,84 @@ class RequestParsingTest {
         ContentType parsed = HttpRequestUtils.getContentTypeFromHttpEntity(entity);
         assertNotNull(parsed);
         assertEquals("this is not a valid content-type", parsed.getMimeType());
+    }
+
+    @Test
+    void getContentTypeFromHttpEntity_returnsNullWhenCharsetIsUnknown() {
+        // Real-world case: server returns Content-Type with a charset name the JVM doesn't know
+        // ("nope"). ContentType.parse throws UnsupportedCharsetException (extends
+        // IllegalArgumentException) — a getter that throws an unchecked exception is a footgun
+        // because Response#getContentType() and isReadable() predicates assume "safe" semantics.
+        // Expected behavior: log a WARN and return null, the same as "no Content-Type header."
+        HttpEntity entity = entityWithContentType("text/plain; charset=\"nope\"");
+
+        assertNull(HttpRequestUtils.getContentTypeFromHttpEntity(entity));
+    }
+
+    @Test
+    void getContentTypeFromHttpEntity_returnsNullForKnownInvalidCharsetName() {
+        // Same path as above but using the standard "this charset doesn't exist" string used in
+        // tests across the JVM ecosystem.
+        HttpEntity entity = entityWithContentType("application/json; charset=unknown-charset");
+
+        assertNull(HttpRequestUtils.getContentTypeFromHttpEntity(entity));
+    }
+
+    private static HttpEntity entityWithContentType(String contentType) {
+        return new HttpEntity() {
+            @Override
+            public boolean isRepeatable() {
+                return true;
+            }
+
+            @Override
+            public boolean isChunked() {
+                return false;
+            }
+
+            @Override
+            public long getContentLength() {
+                return 0;
+            }
+
+            @Override
+            public String getContentType() {
+                return contentType;
+            }
+
+            @Override
+            public String getContentEncoding() {
+                return null;
+            }
+
+            @Override
+            public Set<String> getTrailerNames() {
+                return Collections.emptySet();
+            }
+
+            @Override
+            public InputStream getContent() {
+                throw new UnsupportedOperationException("not needed");
+            }
+
+            @Override
+            public void writeTo(java.io.OutputStream o) {
+                throw new UnsupportedOperationException("not needed");
+            }
+
+            @Override
+            public boolean isStreaming() {
+                return false;
+            }
+
+            @Override
+            public Supplier<List<? extends Header>> getTrailers() {
+                return Collections::emptyList;
+            }
+
+            @Override
+            public void close() { /* no-op */ }
+        };
     }
 
     @Test
