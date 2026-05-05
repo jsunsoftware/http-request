@@ -256,19 +256,24 @@ class BasicWebTarget implements WebTarget {
 
             LOGGER.debug("Response code from uri: [{}] is {}", responseUri, statusCode);
 
-            boolean hasBody = HttpRequestUtils.hasBody(statusCode);
+            // RFC 9110: HEAD never has a body, and 1xx/204/205/304 forbid a body too. For every
+            // other (method, status) pair Apache HC5 sets a (possibly length-0) HttpEntity.
+            boolean mayHaveBody = HttpRequestUtils.responseMayHaveBody(method, statusCode);
 
             T content = null;
             Exception errorCause = null;
             String failedMessage = null;
 
-            if (hasBody && httpEntity == null) {
+            if (mayHaveBody && httpEntity == null) {
+                // The spec says this response could carry a body but Apache surfaced null —
+                // i.e. the server sent something genuinely malformed (closed mid-stream, etc.).
+                // Treat as a Bad Gateway since we can't satisfy the caller's deserialization.
                 failedMessage = "Response entity is null";
                 LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, responseUri, statusCode);
                 statusCode = SC_BAD_GATEWAY;
             } else {
                 try {
-                    if (!HttpRequestUtils.isVoidType(typeReference.getRawType()) && hasBody && HttpRequestUtils.isSuccess(statusCode)) {
+                    if (!HttpRequestUtils.isVoidType(typeReference.getRawType()) && mayHaveBody && HttpRequestUtils.isSuccess(statusCode)) {
 
                         content = response.readEntityChecked(typeReference);
 

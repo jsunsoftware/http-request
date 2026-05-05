@@ -144,6 +144,12 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   bare default is ISO-8859-1). Server-supplied `charset=...` always wins; the new setting only
   affects the no-charset path. See `MIGRATION.md` for restoring the ISO-8859-1 behavior on
   legacy servers.
+* Successful `HEAD` responses are no longer remapped to 502. Apache HC5 returns `null`
+  `HttpEntity` for `HEAD` responses (HTTP forbids a response body on `HEAD`), and the previous
+  code blindly treated `hasBody(statusCode) && entity == null` as a server error. The check now
+  excludes `HEAD`; for non-`HEAD` requests the existing safety net is kept (Apache HC5 always
+  sets a, possibly length-0, entity for `hasBody(...)` statuses on those methods, so this branch
+  effectively only fires on genuinely malformed responses).
 * Improved Javadocs across the public API:
   * `Response#readEntity` — documented the one-shot semantic (the body stream is non-repeatable;
     consecutive calls fail).

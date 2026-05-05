@@ -53,15 +53,31 @@ class HttpRequestUtils {
         return statusCode >= 300 && statusCode < 400;
     }
 
-    static boolean hasBody(int statusCode) {
+    /**
+     * Whether an HTTP response to {@code method} with the given {@code statusCode} is allowed to
+     * carry a body, per RFC 9110:
+     * <ul>
+     *   <li>{@code HEAD} responses MUST NOT include a body, regardless of status (§9.3.2).</li>
+     *   <li>1xx, 204 No Content, 205 Reset Content, and 304 Not Modified responses MUST NOT
+     *       include a body (§15.3.5, §15.3.6, §15.4.5, §6.4.1).</li>
+     *   <li>All other status codes on other methods MAY include a body (length 0 counts).</li>
+     * </ul>
+     * Callers use this to decide whether to attempt to read/deserialize the response body. A
+     * "false" return doesn't mean a body is necessarily absent — it means there shouldn't be one
+     * to read per spec.
+     */
+    static boolean responseMayHaveBody(HttpMethod method, int statusCode) {
+        if (method == HttpMethod.HEAD) {
+            return false;
+        }
         return statusCode >= HttpStatus.SC_OK
                 && statusCode != HttpStatus.SC_NO_CONTENT
                 && statusCode != HttpStatus.SC_NOT_MODIFIED
                 && statusCode != HttpStatus.SC_RESET_CONTENT;
     }
 
-    static boolean hasNotBody(int statusCode) {
-        return !hasBody(statusCode);
+    static boolean responseMustNotHaveBody(HttpMethod method, int statusCode) {
+        return !responseMayHaveBody(method, statusCode);
     }
 
     static boolean isVoidType(Type type) {
