@@ -28,30 +28,34 @@ import java.net.URI;
 public interface HttpRequest {
 
     /**
-     * Build a new web resource target.
+     * Build a new web resource target bound to the given URI.
      * <p>
-     * Note: the returned {@link WebTarget} is mutable and not thread-safe. If you need to share a target between
-     * threads or reuse it safely, prefer {@link #immutableTarget(URI)}.
+     * <b>Mutability and thread-safety.</b> The returned {@link WebTarget} is <em>mutable</em>:
+     * fluent calls such as {@link WebTarget#addHeader(String, String) addHeader}, {@link
+     * WebTarget#addParameter(String, String) addParameter}, {@link WebTarget#path(String) path},
+     * etc. mutate <em>this</em> instance and return {@code this}. The instance is therefore
+     * <em>not</em> safe to share across threads. The intended usage pattern is to build, configure,
+     * and fire the request from the same thread — typically all in one fluent expression:
+     * <pre>{@code
+     *   httpRequest.target(uri).addHeader("X-Foo", "bar").get(User.class);
+     * }</pre>
+     * Storing the returned target in a field that multiple threads write to leads to interleaved
+     * header / parameter mutations. If you need a target you can share across threads, use
+     * {@link #immutableTarget(URI)} — it allocates per fluent call but is safe.
      *
      * @param uri web resource URI. Must not be {@code null}.
-     *
      * @return web resource target bound to the provided URI.
-     *
      * @throws NullPointerException in case the supplied argument is {@code null}.
      */
     WebTarget target(URI uri);
 
     /**
-     * Build a new web resource target.
-     * <p>
-     * Note: the returned {@link WebTarget} is mutable and not thread-safe. If you need to share a target between
-     * threads or reuse it safely, prefer {@link #immutableTarget(String)}.
+     * Build a new web resource target. See {@link #target(URI)} for the same mutability and
+     * thread-safety contract.
      *
      * @param uri The string to be parsed into a URI
-     *
      * @return Target instance
-     *
-     * @throws NullPointerException     If {@code str} is {@code null}
+     * @throws NullPointerException     If {@code uri} is {@code null}
      * @throws IllegalArgumentException If the given string violates RFC&nbsp;2396
      */
     WebTarget target(String uri);
@@ -84,24 +88,29 @@ public interface HttpRequest {
     WebTarget retryableTarget(String uri, RetryContext retryContext);
 
     /**
-     * Build a new immutable web resource target.
+     * Build a new immutable web resource target bound to the given URI.
+     * <p>
+     * Each fluent call (e.g. {@link WebTarget#addHeader(String, String) addHeader},
+     * {@link WebTarget#path(String) path}) returns a <em>new</em> {@link WebTarget} instance with
+     * the change applied; the original is not mutated. This makes the target safe to share across
+     * threads and reuse for many requests at the cost of one allocation per fluent step.
+     * <p>
+     * Choose this variant when you want to configure a target once (e.g. with auth headers and a
+     * base path) and reuse it from multiple threads or call sites; choose {@link #target(URI)}
+     * when you build, configure, and fire the request all on a single thread.
      *
      * @param uri web resource URI. Must not be {@code null}.
-     *
-     * @return Immutable WebTarget instance. Can be shared between threads.
-     *
+     * @return Immutable WebTarget instance. Safe to share between threads.
      * @throws NullPointerException in case the supplied argument is {@code null}.
      */
     WebTarget immutableTarget(URI uri);
 
     /**
-     * Build a new immutable web resource target.
+     * Build a new immutable web resource target. See {@link #immutableTarget(URI)} for the contract.
      *
      * @param uri The string to be parsed into a URI
-     *
-     * @return Immutable WebTarget instance. Can be shared between threads.
-     *
-     * @throws NullPointerException     If {@code str} is {@code null}
+     * @return Immutable WebTarget instance. Safe to share between threads.
+     * @throws NullPointerException     If {@code uri} is {@code null}
      * @throws IllegalArgumentException If the given string violates RFC&nbsp;2396
      */
     WebTarget immutableTarget(String uri);

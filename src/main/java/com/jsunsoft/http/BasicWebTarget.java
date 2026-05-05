@@ -41,6 +41,19 @@ import static com.jsunsoft.http.BasicConnectionFailureType.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.hc.core5.http.HttpStatus.*;
 
+/**
+ * Mutable {@link WebTarget} implementation — the discoverable default returned by
+ * {@link HttpRequest#target(java.net.URI)} / {@link HttpRequest#target(String)}.
+ * <p>
+ * <b>Not thread-safe.</b> All fluent methods on this class — {@code path}, {@code setPath},
+ * {@code addHeader}, {@code updateHeader}, {@code removeHeader}, {@code addParameter},
+ * {@code setRequestConfig}, {@code setQueryCharset}, {@code setBodyCharset} — mutate
+ * <em>this</em> instance's underlying {@link HttpUriRequestBuilder} and return {@code this}.
+ * Concurrent mutation from multiple threads will interleave headers/parameters in ways that
+ * defeat the user's intent. Build, configure, and fire the request from the same thread —
+ * typically all in one fluent expression. For shared / cross-thread use cases, see
+ * {@link ImmutableWebTarget} (returned by {@link HttpRequest#immutableTarget(java.net.URI)}).
+ */
 class BasicWebTarget implements WebTarget {
     private static final Logger LOGGER = LoggerFactory.getLogger(BasicWebTarget.class);
 

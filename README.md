@@ -132,8 +132,14 @@ This library simplifies resource management to prevent connection leaks.
 ### Concurrency and Thread Safety
 
 - **HttpRequest**: immutable and thread-safe after building; reuse it across threads.
-- **WebTarget from `target(...)`**: mutable and **not** thread-safe; don't share between threads.
-- **WebTarget from `immutableTarget(...)`**: safe to share and reuse across threads.
+- **WebTarget from `target(...)`**: mutable and **not** thread-safe. Build it, configure it, and
+  fire its request from the *same* thread — typically all in one fluent expression. Do not store
+  a configured `target(...)` instance in a field that multiple threads write to.
+- **WebTarget from `immutableTarget(...)`**: safe to share and reuse across threads. Each
+  fluent call returns a *new* instance, so concurrent threads each see their own snapshot.
+
+The mutable `target(...)` is faster (no allocation per fluent step) but mutations on it leak
+across threads if the same instance is reused.
 
 ### 1. Using `ResponseHandler` (Recommended for most cases)
 

@@ -212,19 +212,32 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     }
 
     /**
-     * Strongly recommend call get method after check content is present.
-     * For example
-     * <pre>
-     *     if(responseHandler.hasContent()){
-     *         responseHandler.get()
-     *     }
-     * </pre>
+     * Returns the deserialized content. Throws {@link NoSuchContentException} when the content
+     * is {@code null} (no body, or body deserialization produced {@code null}).
+     * <p>
+     * <b>This method does NOT check the HTTP status code.</b> A {@code 500} response with a body
+     * returns the body silently; a {@code 200} response with an empty body throws
+     * {@link NoSuchContentException}, not {@link ResponseException}. The two failure modes
+     * surface as different exception types, which is rarely what callers expect.
+     * <p>
+     * Most callers want one of:
+     * <ul>
+     *   <li>{@link #requiredGet()} — strict: status must be 2xx <em>and</em> body must be present
+     *       (the typical "give me the deserialized response" path).</li>
+     *   <li>{@link #orElseThrow()} — status must be 2xx; body may be {@code null}.</li>
+     *   <li>{@link #orElse(Object)} / {@link #getAsOptional()} — status-agnostic accessors that
+     *       don't throw on missing body.</li>
+     * </ul>
+     * Reach for {@code get()} only when you have already validated the status yourself (e.g.
+     * via {@link #isSuccess()} / {@link #getCode()}) and want the content with a hard "must be
+     * present" assertion. See the matrix in {@link ResponseHandler}.
      *
-     * @return Deserialized content from response.
-     * @throws NoSuchContentException        If content is not present
+     * @return Deserialized content from response. Never {@code null}.
+     * @throws NoSuchContentException        If content is not present (regardless of status)
      * @throws UnsupportedOperationException if generic type is a Void
      * @see BasicResponseHandler#orElse(Object)
      * @see BasicResponseHandler#ifHasContent(Consumer)
+     * @see BasicResponseHandler#requiredGet()
      */
     @Override
     public T get() {
