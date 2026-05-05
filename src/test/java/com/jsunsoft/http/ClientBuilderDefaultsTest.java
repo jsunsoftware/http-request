@@ -66,6 +66,32 @@ class ClientBuilderDefaultsTest {
     }
 
     @Test
+    void http1HeaderLimitsAndTlsKnobsCompileAndDoNotBlowUp() throws IOException {
+        // §6.4 + §6.2 smoke test: setMaxHeaderCount / setMaxLineLength / setTlsVersions /
+        // setCipherSuites all flow through to the underlying Apache HC5 builders without
+        // throwing during build(). End-to-end behavior (a malicious server with 1000-headers
+        // is rejected at the wire) requires controlling the wire — out of scope for a unit
+        // test. This pin keeps the API call sites compiling.
+        try (CloseableHttpClient client = ClientBuilder.create()
+                .setMaxHeaderCount(64)
+                .setMaxLineLength(8192)
+                .setTlsVersions("TLSv1.3", "TLSv1.2")
+                .setCipherSuites("TLS_AES_256_GCM_SHA384", "TLS_AES_128_GCM_SHA256")
+                .build()) {
+            assertTrue(client != null);
+        }
+
+        // Negative values for header limits are accepted as "use Apache default" — pin that
+        // they don't blow up and don't override anything weird.
+        try (CloseableHttpClient client = ClientBuilder.create()
+                .setMaxHeaderCount(-1)
+                .setMaxLineLength(-1)
+                .build()) {
+            assertTrue(client != null);
+        }
+    }
+
+    @Test
     void poolDefaultsPreserveMultiHostFairness() throws IOException {
         try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create().buildWithResources()) {
             PoolingHttpClientConnectionManager pool = (PoolingHttpClientConnectionManager) resources.getConnectionManager();

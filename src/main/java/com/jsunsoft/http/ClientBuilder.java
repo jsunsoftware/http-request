@@ -23,6 +23,7 @@ import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.impl.routing.DefaultProxyRoutePlanner;
@@ -37,6 +38,7 @@ import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.config.Http1Config;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.hc.core5.util.TimeValue;
@@ -100,6 +102,8 @@ public class ClientBuilder {
     private ClientTlsStrategyBuilder clientTlsStrategyBuilder;
     private boolean cookieManagementEnabled;
     private boolean automaticRetriesEnabled;
+    private int maxResponseHeaderCount = -1;
+    private int maxResponseLineLength = -1;
 
     ClientBuilder() {
 
@@ -555,6 +559,85 @@ public class ClientBuilder {
     }
 
     /**
+     * Restricts the TLS protocol versions the client will negotiate.
+     * <p>
+     * Useful when you want to enforce TLS 1.2+ or TLS 1.3 only — for example to comply with a
+     * security baseline that forbids legacy protocols. Without calling this method, the JVM's
+     * configured TLS versions are used.
+     * <pre>{@code
+     *     ClientBuilder.create()
+     *             .setTlsVersions("TLSv1.3", "TLSv1.2")
+     *             .build();
+     * }</pre>
+     *
+     * @param tlsVersions one or more TLS protocol identifiers (e.g. {@code "TLSv1.3"},
+     *                    {@code "TLSv1.2"}); must not be {@code null}.
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder setTlsVersions(String... tlsVersions) {
+        ArgsCheck.notNull(tlsVersions, "tlsVersions");
+        initializeClientTlsStrategyBuilder();
+        clientTlsStrategyBuilder.setTlsVersions(tlsVersions);
+        return this;
+    }
+
+    /**
+     * Restricts the TLS cipher suites the client will offer / accept.
+     * <p>
+     * Use to opt out of weak / deprecated suites (legacy RC4, DES, 3DES, NULL ciphers) when
+     * talking to servers that still advertise them. Pass cipher suite names exactly as the JVM
+     * recognises them (see {@link javax.net.ssl.SSLContext#getDefaultSSLParameters()
+     * SSLParameters.getCipherSuites()}). Without calling this method, the JVM defaults are used.
+     *
+     * @param cipherSuites one or more cipher suite names; must not be {@code null}.
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder setCipherSuites(String... cipherSuites) {
+        ArgsCheck.notNull(cipherSuites, "cipherSuites");
+        initializeClientTlsStrategyBuilder();
+        clientTlsStrategyBuilder.setCiphers(cipherSuites);
+        return this;
+    }
+
+    /**
+     * Caps the number of HTTP/1.1 headers the client will accept in a single message. Bounds
+     * memory consumption when talking to a hostile or buggy server that emits an unbounded
+     * header list — {@link HttpRequestBuilder#setMaxResponseBodySizeBytes complementing the body-size cap} which
+     * only protects the body, not the head.
+     * <p>
+     * Default: Apache HC5's built-in default (currently {@code -1}, unlimited). Pass a
+     * non-negative value to enable; common production caps are {@code 64} or {@code 100}.
+     *
+     * @param maxHeaderCount maximum number of header fields per message; negative means unbounded
+     * @return ClientBuilder instance
+     * @see Http1Config.Builder#setMaxHeaderCount(int)
+     */
+    @Beta
+    public ClientBuilder setMaxHeaderCount(int maxHeaderCount) {
+        this.maxResponseHeaderCount = maxHeaderCount;
+        return this;
+    }
+
+    /**
+     * Caps the maximum length of a single HTTP/1.1 line — used as the upper bound for the status
+     * line and any individual header. Pairs with {@link #setMaxHeaderCount} to bound the worst
+     * case "malicious server fills RAM via headers" attack: total head size ≤
+     * {@code maxHeaderCount × maxLineLength}.
+     * <p>
+     * Default: Apache HC5's built-in default (currently {@code -1}, unlimited). Production caps
+     * around {@code 8192} (8 KiB) are typical; many reverse proxies default to {@code 4096}.
+     *
+     * @param maxLineLength maximum bytes per line; negative means unbounded
+     * @return ClientBuilder instance
+     * @see Http1Config.Builder#setMaxLineLength(int)
+     */
+    @Beta
+    public ClientBuilder setMaxLineLength(int maxLineLength) {
+        this.maxResponseLineLength = maxLineLength;
+        return this;
+    }
+
+    /**
      * By default, the {@link HttpClientBuilder#disableCookieManagement} called.
      * This method will prevent the call.
      *
@@ -668,6 +751,23 @@ public class ClientBuilder {
 
         if (clientTlsStrategyBuilder != null) {
             cmBuilder.setTlsSocketStrategy(clientTlsStrategyBuilder.buildClassic());
+        }
+
+        // Wire HTTP/1.1 head-size limits if either knob was set. Apache HC5 plumbs Http1Config
+        // through a ManagedHttpClientConnectionFactory (the connection manager itself doesn't
+        // accept Http1Config directly).
+        if (maxResponseHeaderCount >= 0 || maxResponseLineLength >= 0) {
+            Http1Config.Builder http1Builder = Http1Config.custom();
+            if (maxResponseHeaderCount >= 0) {
+                http1Builder.setMaxHeaderCount(maxResponseHeaderCount);
+            }
+            if (maxResponseLineLength >= 0) {
+                http1Builder.setMaxLineLength(maxResponseLineLength);
+            }
+            cmBuilder.setConnectionFactory(
+                    ManagedHttpClientConnectionFactory.builder()
+                            .http1Config(http1Builder.build())
+                            .build());
         }
 
         if (defaultConnectionManagerBuilderCustomizers != null) {

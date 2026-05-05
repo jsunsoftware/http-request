@@ -144,6 +144,27 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   bare default is ISO-8859-1). Server-supplied `charset=...` always wins; the new setting only
   affects the no-charset path. See `MIGRATION.md` for restoring the ISO-8859-1 behavior on
   legacy servers.
+* New opt-in SSRF guard `HttpRequestBuilder.disallowPrivateAndLoopbackHosts()`. When enabled,
+  every `target(...)` / `retryableTarget(...)` / `immutableTarget(...)` call resolves the URI
+  host and rejects loopback / unspecified / link-local / RFC 1918 / IPv6 unique-local addresses.
+  Specifically catches user-controlled URLs pointing at cloud-metadata endpoints
+  (e.g. `169.254.169.254`). Caveat: DNS lookup happens at `target(...)` time, so this does not
+  defend against DNS rebinding alone — combine with network-layer egress filtering for
+  defence-in-depth.
+* New TLS knobs on `ClientBuilder`: `setTlsVersions(String...)` enforces a TLS version allow-list
+  (e.g. `"TLSv1.3", "TLSv1.2"`); `setCipherSuites(String...)` opts out of weak / deprecated
+  ciphers. Both delegate to Apache HC5's `ClientTlsStrategyBuilder` and use JVM defaults when
+  not called.
+* New HTTP/1.1 head-size knobs on `ClientBuilder`: `setMaxHeaderCount(int)` caps the per-message
+  header count; `setMaxLineLength(int)` caps any single line (status line or header). Bounds
+  memory consumption when talking to a hostile / buggy server that emits an unbounded header
+  list — complements `setMaxResponseBodySizeBytes` (which only protects the body, not the head).
+  Negative values mean "use Apache HC5's built-in default."
+* New `HttpRequestBuilder.addPayloadRedactor(Function<String, String>)` for masking secrets in
+  request bodies before they are logged via `enableRequestPayloadLogging()`. Redactors compose
+  left-to-right; a buggy redactor that throws is caught and swapped for a `[redaction-failed]`
+  placeholder rather than killing the in-flight request. Redactors are only invoked when
+  payload logging is enabled.
 * Successful `HEAD` responses are no longer remapped to 502. Apache HC5 returns `null`
   `HttpEntity` for `HEAD` responses (HTTP forbids a response body on `HEAD`), and the previous
   code blindly treated `hasBody(statusCode) && entity == null` as a server error. The check now

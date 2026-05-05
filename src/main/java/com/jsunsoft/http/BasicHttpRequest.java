@@ -21,9 +21,9 @@ import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.net.URIBuilder;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.*;
 import java.util.*;
+import java.util.function.UnaryOperator;
 
 /**
  * Basic implementation of HttpRequest
@@ -36,6 +36,8 @@ class BasicHttpRequest implements HttpRequest {
     private final RequestBodySerializeConfig requestBodySerializeConfig;
     private final Set<String> allowedSchemes;
     private final boolean requestPayloadLogging;
+    private final boolean disallowPrivateAndLoopbackHosts;
+    private final UnaryOperator<String> payloadRedactor;
 
     BasicHttpRequest(CloseableHttpClient closeableHttpClient,
                      Collection<Header> defaultHeaders,
@@ -43,7 +45,9 @@ class BasicHttpRequest implements HttpRequest {
                      ResponseBodyReaderConfig responseBodyReaderConfig,
                      RequestBodySerializeConfig requestBodySerializeConfig,
                      Collection<String> allowedSchemes,
-                     boolean requestPayloadLogging) {
+                     boolean requestPayloadLogging,
+                     boolean disallowPrivateAndLoopbackHosts,
+                     UnaryOperator<String> payloadRedactor) {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
         this.defaultHeaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultHeaders, "defaultHeaders")));
         this.defaultRequestParameters = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters")));
@@ -51,13 +55,16 @@ class BasicHttpRequest implements HttpRequest {
         this.requestBodySerializeConfig = ArgsCheck.notNull(requestBodySerializeConfig, "requestBodySerializeConfig");
         this.allowedSchemes = Collections.unmodifiableSet(new LinkedHashSet<>(ArgsCheck.notNull(allowedSchemes, "allowedSchemes")));
         this.requestPayloadLogging = requestPayloadLogging;
+        this.disallowPrivateAndLoopbackHosts = disallowPrivateAndLoopbackHosts;
+        this.payloadRedactor = ArgsCheck.notNull(payloadRedactor, "payloadRedactor");
     }
 
     @Override
     public WebTarget target(URI uri) {
         ArgsCheck.notNull(uri, "uri");
         validateUriScheme(uri);
-        return new BasicWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+        validateUriHost(uri);
+        return new BasicWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
     }
 
     @Override
@@ -66,7 +73,8 @@ class BasicHttpRequest implements HttpRequest {
         try {
             URI parsed = new URIBuilder(uri).build();
             validateUriScheme(parsed);
-            return new BasicWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+            validateUriHost(parsed);
+            return new BasicWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
@@ -83,7 +91,8 @@ class BasicHttpRequest implements HttpRequest {
         ArgsCheck.notNull(uri, "uri");
         ArgsCheck.notNull(retryContext, "retryContext");
         validateUriScheme(uri);
-        return new RetryableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+        validateUriHost(uri);
+        return new RetryableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
     }
 
     /**
@@ -100,7 +109,8 @@ class BasicHttpRequest implements HttpRequest {
         try {
             URI parsed = new URIBuilder(uri).build();
             validateUriScheme(parsed);
-            return new RetryableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+            validateUriHost(parsed);
+            return new RetryableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
@@ -110,7 +120,8 @@ class BasicHttpRequest implements HttpRequest {
     public WebTarget immutableTarget(URI uri) {
         ArgsCheck.notNull(uri, "uri");
         validateUriScheme(uri);
-        return new ImmutableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+        validateUriHost(uri);
+        return new ImmutableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
     }
 
     @Override
@@ -119,7 +130,8 @@ class BasicHttpRequest implements HttpRequest {
         try {
             URI parsed = new URIBuilder(uri).build();
             validateUriScheme(parsed);
-            return new ImmutableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+            validateUriHost(parsed);
+            return new ImmutableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
@@ -133,5 +145,56 @@ class BasicHttpRequest implements HttpRequest {
         if (scheme == null || !allowedSchemes.contains(scheme.toLowerCase(Locale.ROOT))) {
             throw new IllegalArgumentException("Unsupported URI scheme: " + scheme + ". Allowed schemes: " + allowedSchemes);
         }
+    }
+
+    /**
+     * SSRF guard. When enabled via {@link HttpRequestBuilder#disallowPrivateAndLoopbackHosts()},
+     * resolves the URI host and rejects any address that is loopback ({@code 127.0.0.0/8},
+     * {@code ::1}), unspecified ({@code 0.0.0.0}, {@code ::}), link-local ({@code 169.254.0.0/16},
+     * {@code fe80::/10} — covers cloud-metadata endpoints like {@code 169.254.169.254}),
+     * IPv4 site-local / RFC 1918 ({@code 10/8}, {@code 172.16/12}, {@code 192.168/16}), or
+     * IPv6 unique-local ({@code fc00::/7}).
+     * <p>
+     * <b>Caveat: TOCTOU.</b> The DNS lookup happens at {@code target(...)} time. A malicious
+     * resolver could return a public IP here and a private IP at request time (DNS rebinding).
+     * This guard catches the most common attack vector — a user-controlled URL pointing
+     * directly at a private hostname or literal — but is not a complete defence. For
+     * defense-in-depth, also restrict outbound traffic at the network layer.
+     */
+    private void validateUriHost(URI uri) {
+        if (!disallowPrivateAndLoopbackHosts) {
+            return;
+        }
+        String host = uri.getHost();
+        if (host == null) {
+            return; // relative URI; let downstream surface a real error
+        }
+        InetAddress[] addresses;
+        try {
+            addresses = InetAddress.getAllByName(host);
+        } catch (UnknownHostException e) {
+            // Host doesn't resolve — not our problem; the connection will fail naturally.
+            return;
+        }
+        for (InetAddress addr : addresses) {
+            if (isPrivateLoopbackOrLocal(addr)) {
+                throw new IllegalArgumentException(
+                        "URI host '" + host + "' resolves to a private/loopback/link-local address (" +
+                                addr.getHostAddress() + "). Rejected by disallowPrivateAndLoopbackHosts().");
+            }
+        }
+    }
+
+    private static boolean isPrivateLoopbackOrLocal(InetAddress addr) {
+        if (addr.isLoopbackAddress()) return true;       // 127/8, ::1
+        if (addr.isAnyLocalAddress()) return true;       // 0.0.0.0, ::
+        if (addr.isLinkLocalAddress()) return true;      // 169.254/16, fe80::/10
+        if (addr.isSiteLocalAddress()) return true;      // RFC 1918 — IPv4 only on JDK
+        if (addr instanceof Inet6Address) {
+            // RFC 4193 unique-local: fc00::/7. Inet6Address has no convenience method for this.
+            byte[] b = addr.getAddress();
+            if ((b[0] & 0xfe) == 0xfc) return true;
+        }
+        return false;
     }
 }

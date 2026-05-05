@@ -44,6 +44,49 @@ class SecurityAndLimitsTest {
     }
 
     @Test
+    void disallowPrivateAndLoopbackHosts_blocksLoopbackAndPrivateAddresses() {
+        // §6.1: opt-in SSRF guard rejects URIs that resolve to loopback / private / link-local
+        // ranges. The cloud-metadata endpoint at 169.254.169.254 (link-local, AWS/GCP/Azure) is
+        // the canonical attack target; we exercise it explicitly.
+        HttpRequest httpRequest = HttpRequestBuilder.create(new ClientBuilder().build())
+                .disallowPrivateAndLoopbackHosts()
+                .build();
+
+        // Loopback (127/8, ::1)
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("http://127.0.0.1/"));
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("http://[::1]/"));
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("http://localhost/"));
+        // RFC 1918 / site-local
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("http://10.0.0.1/"));
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("http://192.168.1.1/"));
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("http://172.16.0.1/"));
+        // Link-local (cloud metadata)
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("http://169.254.169.254/"));
+        // Unspecified
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("http://0.0.0.0/"));
+        // IPv6 unique-local (fc00::/7)
+        assertThrows(IllegalArgumentException.class, () -> httpRequest.target("http://[fc00::1]/"));
+    }
+
+    @Test
+    void disallowPrivateAndLoopbackHosts_offByDefault() {
+        // The guard is opt-in — building a default HttpRequest must NOT block loopback
+        // (otherwise every test using WireMock would break).
+        HttpRequest httpRequest = HttpRequestBuilder.create(new ClientBuilder().build()).build();
+        httpRequest.target("http://127.0.0.1/foo"); // must not throw
+    }
+
+    @Test
+    void disallowPrivateAndLoopbackHosts_allowsPublicLiteralAddresses() {
+        // 8.8.8.8 (Google public DNS) is neither loopback, private, nor link-local — should pass
+        // even with the guard enabled.
+        HttpRequest httpRequest = HttpRequestBuilder.create(new ClientBuilder().build())
+                .disallowPrivateAndLoopbackHosts()
+                .build();
+        httpRequest.target("http://8.8.8.8/"); // must not throw
+    }
+
+    @Test
     void uriSchemeValidation_rejectsRelativeOrSchemeLessUris_whenAllowListIsActive() {
         // Relative URIs (no scheme) must not slip past the allow-list — URI.getScheme() returns
         // null and the validator's null-check is the only thing standing between this and a
