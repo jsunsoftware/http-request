@@ -110,7 +110,7 @@ class ObjectMapperInitializer {
 
         installDatePatterns(objectMapper, dateDeserializeContext.getDateTypeToPattern());
 
-        objectMapper.setSerializationInclusion(NON_NULL)
+        objectMapper.setDefaultPropertyInclusion(NON_NULL)
                 .disable(FAIL_ON_EMPTY_BEANS)
                 .disable(FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
