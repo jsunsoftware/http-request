@@ -459,9 +459,14 @@ public interface WebTarget {
     WebTarget setRequestConfig(final RequestConfig requestConfig);
 
     /**
-     * Added parameter into request
+     * Adds a query-string parameter to the request URI.
+     * <p>
+     * The {@code name} and {@code value} are <b>raw</b> — the library percent-encodes them when
+     * the URI is materialised, using the charset configured via {@link #setQueryCharset(Charset)}
+     * (UTF-8 by default). Pass plain text such as {@code "你好"} or {@code "a=b"} and the
+     * library will produce a correctly-encoded query.
      *
-     * @param nameValuePair nameValuePair
+     * @param nameValuePair nameValuePair carrying the raw (un-encoded) name and value.
      * @return WebTarget instance
      */
     WebTarget addParameter(final NameValuePair nameValuePair);
@@ -495,16 +500,24 @@ public interface WebTarget {
     }
 
     /**
-     * Add parameters from queryString.
+     * Add parameters by parsing an <b>already percent-encoded</b> query string.
      * <p>
-     * For example: queryString = {@code "param1=param1&param2=param2" is the same as call}
+     * Unlike {@link #addParameter(String, String)}, this overload assumes the input is in wire
+     * form: values like {@code "a=b%20c&d=%E4%BD%A0%E5%A5%BD"} are decoded with the given
+     * {@code charset} and then re-added as raw name/value pairs. Passing a string with raw,
+     * un-encoded special characters (e.g. {@code "q=a b"}) will produce surprising results
+     * because {@code WWWFormCodec.parse} treats the input as percent-encoded form data.
      * <pre>{@code
-     *     addParameter(param1, param1).addParameter(param2, param2);
+     *     // Equivalent calls:
+     *     addParameter("param1", "param1").addParameter("param2", "param2");
+     *     addParameters("param1=param1&param2=param2");                       // shorthand for the above
+     *     addParameters("q=%E4%BD%A0%E5%A5%BD");                              // adds q="你好"
      * }</pre>
-     * Default charset is "UTF-8".
+     * If you have raw key/value pairs, prefer {@link #addParameter(String, String)} or
+     * {@link #addParameters(Map)} — those handle the encoding for you.
      *
-     * @param queryString queryString
-     * @param charset     charset
+     * @param queryString already percent-encoded query string (e.g. {@code "a=b&c=d%20e"})
+     * @param charset     charset used to decode the percent-encoded octets
      * @return WebTarget instance
      */
     default WebTarget addParameters(final String queryString, final Charset charset) {
@@ -515,15 +528,11 @@ public interface WebTarget {
     }
 
     /**
-     * Add parameters from queryString.
-     * <p>
-     * For example: queryString = {@code "param1=param1&param2=param2" is the same as call}
-     * <pre>{@code
-     *     addParameter(param1, param1).addParameter(param2, param2);
-     * }</pre>
-     * Default charset is "UTF-8".
+     * Convenience wrapper for {@link #addParameters(String, Charset)} using {@link
+     * java.nio.charset.StandardCharsets#UTF_8 UTF-8}. Same caveat: {@code queryString} must
+     * already be percent-encoded.
      *
-     * @param queryString queryString
+     * @param queryString already percent-encoded query string (e.g. {@code "a=b&c=d%20e"})
      * @return WebTarget instance
      */
     default WebTarget addParameters(final String queryString) {
@@ -594,10 +603,12 @@ public interface WebTarget {
     }
 
     /**
-     * Add parameter into request name as request parameter name value as request parameter value
+     * Add a query-string parameter to the request. Both {@code name} and {@code value} are raw —
+     * the library percent-encodes them when the URI is materialised, using the charset configured
+     * via {@link #setQueryCharset(Charset)}.
      *
-     * @param name  request parameter name
-     * @param value request parameter value
+     * @param name  raw (un-encoded) parameter name
+     * @param value raw (un-encoded) parameter value
      * @return WebTarget instance
      */
     default WebTarget addParameter(final String name, final String value) {

@@ -139,3 +139,19 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   state-dependent customizers (e.g. ones that re-register an interceptor or react to current
   builder state) would compound across calls. Each `build()` now snapshots the configured state
   and applies customizers to a fresh `Builder` per call.
+* New `setDefaultResponseCharset(Charset)` on `HttpRequestBuilder`. The library now defaults to
+  **UTF-8** for response bodies whose `Content-Type` lacks a `charset` parameter (Apache HC5's
+  bare default is ISO-8859-1). Server-supplied `charset=...` always wins; the new setting only
+  affects the no-charset path. See `MIGRATION.md` for restoring the ISO-8859-1 behavior on
+  legacy servers.
+* Improved Javadocs across the public API:
+  * `Response#readEntity` — documented the one-shot semantic (the body stream is non-repeatable;
+    consecutive calls fail).
+  * `WebTarget#addParameter(NameValuePair)` / `addParameter(String, String)` — clarified that
+    name and value are raw and the library percent-encodes per `setQueryCharset`.
+  * `WebTarget#addParameters(String, Charset)` / `addParameters(String)` — documented that the
+    queryString must be already percent-encoded (it is decoded via `WWWFormCodec.parse`).
+  * `HttpRequestBuilder#basicAuth(String, String)` and `basicAuth(String, char[])` — documented
+    in-memory exposure (`String` overload retains a `String` credential; `char[]` overload zeros
+    the source but the encoded header is still a `String`). Pointed at Apache HC5's
+    `BasicCredentialsProvider` for production rotation.

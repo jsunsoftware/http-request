@@ -348,12 +348,23 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Adds basic authentication to the request with basic validation.
+     * Adds preemptive HTTP Basic authentication to every request built from this {@code HttpRequest}.
      * <p>
-     * Note: Basic authentication is not encryption. Prefer HTTPS to protect credentials in transit.
+     * <b>Use HTTPS.</b> HTTP Basic transmits credentials with only Base64 encoding, not encryption.
+     * <p>
+     * <b>In-memory exposure.</b> The {@code password} {@link String} is the worst form of secret
+     * holder on the JVM — string literals are interned in the constant pool and even non-literal
+     * {@code String}s cannot be zeroed. Once this method runs, an {@code "Basic &lt;base64&gt;"}
+     * header value is also retained as a {@link String} in this builder's default-header list for
+     * the lifetime of the resulting {@code HttpRequest}. This overload exists because it is the
+     * shortest way to plug in a non-rotating credential, but for production code that rotates
+     * secrets or wants any chance of zeroing, prefer {@link #basicAuth(String, char[])} (which
+     * accepts a mutable buffer and zeros the source array). For full per-request rotation,
+     * configure Apache HC5's {@code BasicCredentialsProvider} on a custom {@link
+     * org.apache.hc.core5.http.protocol.HttpContext} instead of using this method.
      *
      * @param username the username (must not contain ':')
-     * @param password the password
+     * @param password the password (kept as a {@code String}; cannot be zeroed)
      * @return the current instance of HttpRequestBuilder
      * @throws IllegalArgumentException if username contains ':'
      */
@@ -373,11 +384,23 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Adds basic authentication to the request using {@code char[]} for password.
-     * The password array will be cleared after use.
+     * Adds preemptive HTTP Basic authentication using a {@code char[]} for the password.
+     * <p>
+     * The supplied {@code password} array is zeroed before this method returns; the intermediate
+     * encoding buffers are also zeroed. The <em>final</em> {@code "Basic <base64>"} header value
+     * is, however, still stored as a {@link String} in this builder's default-header list for
+     * the lifetime of the resulting {@code HttpRequest} — a {@link String} cannot be zeroed in
+     * the JVM. So this overload reduces, but does not eliminate, the period during which the
+     * cleartext credential is recoverable from a heap dump.
+     * <p>
+     * For production rotation / vault-backed secrets, configure Apache HC5's
+     * {@code BasicCredentialsProvider} on a custom {@link
+     * org.apache.hc.core5.http.protocol.HttpContext} instead.
+     * <p>
+     * <b>Use HTTPS.</b> HTTP Basic is Base64, not encryption.
      *
      * @param username the username (must not contain ':')
-     * @param password the password (will be cleared after use)
+     * @param password the password (will be zeroed after use)
      * @return the current instance of HttpRequestBuilder
      */
     @Beta
@@ -420,16 +443,37 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Sets a maximum allowed response body size in bytes.
+     * Sets a cap on the number of bytes the library will read from a response body before
+     * throwing {@link InvalidContentLengthException}.
      * <p>
-     * Default is unlimited ({@code 0}).
+     * Pass a strictly-positive value (e.g. {@code 1024}) to enable the cap. Pass {@code 0} or any
+     * negative value to disable it — that is also the default state of a fresh builder, so a
+     * caller who simply does not want a cap should not call this method at all.
      *
-     * @param maxResponseBodySizeBytes max bytes to read from response bodies; {@code <= 0} disables the limit.
+     * @param maxResponseBodySizeBytes positive byte cap, or {@code <= 0} to disable.
      * @return the current instance of HttpRequestBuilder
      */
     @Beta
     public HttpRequestBuilder setMaxResponseBodySizeBytes(long maxResponseBodySizeBytes) {
         responseBodyReaderConfigBuilder.setMaxResponseBodySizeBytes(maxResponseBodySizeBytes);
+        return this;
+    }
+
+    /**
+     * Sets the charset used to decode response bodies into {@code String} when the response's
+     * {@code Content-Type} header carries no {@code charset} parameter. Defaults to
+     * {@link java.nio.charset.StandardCharsets#UTF_8 UTF-8} — the right choice in 2026 and a
+     * stricter default than Apache HC5's bare ISO-8859-1 fallback.
+     * <p>
+     * When the server <em>does</em> include a {@code charset=...} on the response, that value
+     * always takes precedence; this setting only affects the no-charset-header path.
+     *
+     * @param defaultResponseCharset the charset to use for charset-less responses; must not be
+     *                               {@code null}.
+     * @return the current instance of HttpRequestBuilder
+     */
+    public HttpRequestBuilder setDefaultResponseCharset(java.nio.charset.Charset defaultResponseCharset) {
+        responseBodyReaderConfigBuilder.setDefaultResponseCharset(defaultResponseCharset);
         return this;
     }
 

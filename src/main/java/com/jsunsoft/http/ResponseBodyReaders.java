@@ -101,7 +101,12 @@ class ResponseBodyReaders {
                 // an additional `maxLen` here would only truncate the resulting String at a
                 // CHARACTER boundary while letting the byte cap pass silently for the read
                 // pattern EntityUtils.toString uses.
-                result = EntityUtils.toString(bodyReaderContext.getHttpEntity());
+                //
+                // The default charset is taken from the readable-context (UTF-8 by default,
+                // configurable via HttpRequestBuilder#setDefaultResponseCharset). It is used
+                // only when the response's Content-Type header carries no explicit charset
+                // parameter — Apache HC5 would otherwise silently fall back to ISO-8859-1.
+                result = EntityUtils.toString(bodyReaderContext.getHttpEntity(), bodyReaderContext.getDefaultResponseCharset());
             } catch (ParseException e) {
                 throw new ResponseBodyReaderException(e);
             }

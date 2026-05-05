@@ -328,7 +328,10 @@ class BasicResponse implements Response {
      */
     @SuppressWarnings("unchecked")
     private <T> T readEntityChecked(Class<T> type, Type genericType) throws IOException {
-        ResponseBodyReaderContext<T> responseBodyReaderContext = new BasicResponseBodyReaderContext<>(this, type, genericType, getURI(), responseBodyReaderConfig.getMaxResponseBodySizeBytes());
+        ResponseBodyReaderContext<T> responseBodyReaderContext = new BasicResponseBodyReaderContext<>(
+                this, type, genericType, getURI(),
+                responseBodyReaderConfig.getMaxResponseBodySizeBytes(),
+                responseBodyReaderConfig.getDefaultResponseCharset());
 
         for (ResponseBodyReader<?> reader : responseBodyReaderConfig.getResponseBodyReaders()) {
             if (reader.isReadable(responseBodyReaderContext)) {

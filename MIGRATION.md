@@ -158,6 +158,27 @@ points at the fix:
 A `RetryContext#withEntityFactory(Supplier<HttpEntity>)` hook for streaming bodies may be added in
 a later release on demand.
 
+### Default response-charset fallback is now UTF-8
+
+When a server returns a response without a `charset` parameter on the `Content-Type` header,
+Apache HC5's default behavior is to decode the body as ISO-8859-1. The library now defaults that
+fallback to UTF-8 — the right choice in 2026 and consistent with how every modern HTTP client
+behaves. If the server's `Content-Type` does carry a `charset=...`, that always wins regardless
+of this setting.
+
+If you talk to a legacy server that emits ISO-8859-1 bytes without an explicit charset header,
+restore the old behavior with:
+
+```java
+HttpRequestBuilder.create(httpClient)
+        .
+
+setDefaultResponseCharset(StandardCharsets.ISO_8859_1)
+        .
+
+build();
+```
+
 ### Connection pool default (`defaultMaxPoolSizePerRoute`)
 
 The default per-route cap on `ClientBuilder` was lowered from `128` to `32`. The total pool cap is

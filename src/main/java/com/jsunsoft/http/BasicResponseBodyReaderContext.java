@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderContext<T> {
     private final ClassicHttpResponse httpResponse;
@@ -31,13 +33,26 @@ final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderConte
     private final Type genericType;
     private final URI uri;
     private final long maxResponseBodySizeBytes;
+    private final Charset defaultResponseCharset;
 
-    BasicResponseBodyReaderContext(ClassicHttpResponse httpResponse, Class<T> type, Type genericType, URI uri, long maxResponseBodySizeBytes) {
+    BasicResponseBodyReaderContext(ClassicHttpResponse httpResponse, Class<T> type, Type genericType, URI uri,
+                                   long maxResponseBodySizeBytes, Charset defaultResponseCharset) {
         this.httpResponse = ArgsCheck.notNull(httpResponse, "httpResponse");
         this.type = ArgsCheck.notNull(type, "type");
         this.genericType = ArgsCheck.notNull(genericType, "genericType");
         this.uri = ArgsCheck.notNull(uri, "uri");
         this.maxResponseBodySizeBytes = maxResponseBodySizeBytes;
+        this.defaultResponseCharset = defaultResponseCharset != null ? defaultResponseCharset : StandardCharsets.UTF_8;
+    }
+
+    /**
+     * Backward-compatible constructor used by existing callers / tests that don't pass a default
+     * response charset. Defaults to UTF-8 — the right choice in 2026 and a stricter default than
+     * Apache HC5's ISO-8859-1 fallback.
+     */
+    BasicResponseBodyReaderContext(ClassicHttpResponse httpResponse, Class<T> type, Type genericType, URI uri,
+                                   long maxResponseBodySizeBytes) {
+        this(httpResponse, type, genericType, uri, maxResponseBodySizeBytes, StandardCharsets.UTF_8);
     }
 
     @Override
@@ -92,5 +107,8 @@ final class BasicResponseBodyReaderContext<T> implements ResponseBodyReaderConte
         return maxResponseBodySizeBytes;
     }
 
-
+    @Override
+    public Charset getDefaultResponseCharset() {
+        return defaultResponseCharset;
+    }
 }

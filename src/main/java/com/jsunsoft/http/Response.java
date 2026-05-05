@@ -32,7 +32,15 @@ public interface Response extends ClassicHttpResponse {
     /**
      * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
      * <p>
-     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     * <b>One-shot semantic.</b> The underlying response body is a streaming, non-repeatable
+     * {@code InputStream}. Calling {@code readEntity} more than once on the same {@code Response}
+     * is unsupported — the second call sees an exhausted stream and will typically surface a
+     * {@link ResponseBodyProcessingException} (or, for a few reader / type combinations, return
+     * {@code null} or an empty value). If you need both a typed and a string view of the body,
+     * read the body once into a buffer (e.g. {@code String}) and re-parse from there.
+     * <p>
+     * Note: this method will surface any unchecked exception thrown by the resolved
+     * {@link ResponseBodyReader}.
      *
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
@@ -44,7 +52,8 @@ public interface Response extends ClassicHttpResponse {
     /**
      * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
      * <p>
-     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     * See {@link #readEntity(Class)} for the one-shot semantic — the body stream is
+     * non-repeatable and may only be consumed once per {@code Response} instance.
      *
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
