@@ -67,6 +67,17 @@ import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
  * HttpClients are heavy-weight objects that manage the client-side communication infrastructure.
  * Initialization as well as disposal of a {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient} instance may be a rather expensive operation.
  * It is therefore advised to construct only a small number of {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient} instances in the application.
+ *
+ * <h2>Reuse contract</h2>
+ *
+ * This builder is mutable and not thread-safe. Mutating setters (timeouts, default headers,
+ * customizers, …) <em>accumulate</em> state across calls; setters such as
+ * {@link #addDefaultHeader(String, String)} append, while value-style setters such as
+ * {@link #setConnectTimeout(int)} overwrite. {@link #build()} is idempotent — calling it more
+ * than once produces independent {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient}
+ * instances and the user-supplied customizers are applied to a fresh per-call {@code Builder}, so
+ * stateful customizers don't compound across builds. The typical pattern is still
+ * build-once-discard.
  */
 public class ClientBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientBuilder.class);

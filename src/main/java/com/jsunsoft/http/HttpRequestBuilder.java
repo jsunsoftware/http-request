@@ -37,7 +37,26 @@ import static org.apache.hc.core5.http.HttpHeaders.AUTHORIZATION;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 
 /**
- * Http request builder
+ * Builder for {@link HttpRequest}. Configure the builder fluently and call {@link #build()} to
+ * produce an immutable, thread-safe {@link HttpRequest}.
+ *
+ * <h2>Reuse contract</h2>
+ *
+ * This builder is mutable and not thread-safe. Mutating setters such as
+ * {@link #addDefaultHeader(String, String)} and
+ * {@link #addDefaultRequestParameter(String, String) addDefaultRequestParameter}
+ * <em>accumulate</em> state across calls — calling {@code addDefaultHeader} twice on the same
+ * builder adds two headers; subsequent {@link #build()} calls each snapshot the current
+ * accumulated state. The typical pattern is build-once-discard:
+ *
+ * <pre>{@code
+ *     HttpRequest req = HttpRequestBuilder.create(client)
+ *             .addDefaultHeader("Authorization", "Bearer ...")
+ *             .build();
+ * }</pre>
+ *
+ * Reuse for a second {@link #build()} is supported (each call produces an independent
+ * {@code HttpRequest}); just remember that prior mutations are <em>not</em> reset between calls.
  *
  * @see HttpRequest
  */
