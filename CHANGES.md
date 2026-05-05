@@ -144,13 +144,15 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   bare default is ISO-8859-1). Server-supplied `charset=...` always wins; the new setting only
   affects the no-charset path. See `MIGRATION.md` for restoring the ISO-8859-1 behavior on
   legacy servers.
-* New opt-in SSRF guard `HttpRequestBuilder.disallowPrivateAndLoopbackHosts()`. When enabled,
-  every `target(...)` / `retryableTarget(...)` / `immutableTarget(...)` call resolves the URI
-  host and rejects loopback / unspecified / link-local / RFC 1918 / IPv6 unique-local addresses.
-  Specifically catches user-controlled URLs pointing at cloud-metadata endpoints
-  (e.g. `169.254.169.254`). Caveat: DNS lookup happens at `target(...)` time, so this does not
-  defend against DNS rebinding alone — combine with network-layer egress filtering for
-  defence-in-depth.
+* New opt-in SSRF guard `ClientBuilder.disallowPrivateAndLoopbackHosts()`. When enabled, the
+  client's DNS resolver rejects any host that resolves to loopback / unspecified / link-local /
+  RFC 1918 / IPv6 unique-local addresses. The check is plumbed through Apache HC5's
+  `DnsResolver`, so it fires for every host the client touches — including hosts reached via
+  3xx redirects, not only the URL the caller passed to `target(...)`. The same DNS lookup that
+  produces the connection IP is the one being filtered, closing the time-of-check / time-of-use
+  gap a URL-only check would have. Specifically catches user-controlled URLs pointing at
+  cloud-metadata endpoints (e.g. `169.254.169.254`). Combine with network-layer egress filtering
+  for full defence-in-depth.
 * New TLS knobs on `ClientBuilder`: `setTlsVersions(String...)` enforces a TLS version allow-list
   (e.g. `"TLSv1.3", "TLSv1.2"`); `setCipherSuites(String...)` opts out of weak / deprecated
   ciphers. Both delegate to Apache HC5's `ClientTlsStrategyBuilder` and use JVM defaults when

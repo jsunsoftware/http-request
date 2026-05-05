@@ -17,7 +17,9 @@
 package com.jsunsoft.http;
 
 import com.jsunsoft.http.annotations.Beta;
+import org.apache.hc.client5.http.DnsResolver;
 import org.apache.hc.client5.http.HttpRoute;
+import org.apache.hc.client5.http.SystemDefaultDnsResolver;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
@@ -49,8 +51,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
-import java.net.ProxySelector;
-import java.net.URI;
+import java.net.*;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -104,6 +105,7 @@ public class ClientBuilder {
     private boolean automaticRetriesEnabled;
     private int maxResponseHeaderCount = -1;
     private int maxResponseLineLength = -1;
+    private boolean disallowPrivateAndLoopbackHosts;
 
     ClientBuilder() {
 
@@ -638,6 +640,30 @@ public class ClientBuilder {
     }
 
     /**
+     * Opt-in SSRF guard. When enabled, the client's DNS resolver rejects any host that resolves
+     * to a loopback ({@code 127.0.0.0/8}, {@code ::1}), unspecified ({@code 0.0.0.0}, {@code ::}),
+     * link-local ({@code 169.254.0.0/16} — covers AWS / GCP / Azure metadata endpoints —
+     * {@code fe80::/10}), IPv4 site-local / RFC 1918 ({@code 10/8}, {@code 172.16/12},
+     * {@code 192.168/16}), or IPv6 unique-local ({@code fc00::/7}) address.
+     * <p>
+     * The check is plumbed through Apache HC5's {@link DnsResolver}, so it fires for every host
+     * the client touches — including hosts reached via 3xx redirects, not only the original
+     * URL the caller passed to {@code target(...)}. This closes the time-of-check / time-of-use
+     * gap that a URL-only check would have: the same DNS lookup that produces the connection IP
+     * is the one being filtered.
+     * <p>
+     * Use this for any application that constructs request URIs from user-supplied input.
+     * Combine with network-layer egress filtering for full defence-in-depth.
+     *
+     * @return ClientBuilder instance
+     */
+    @Beta
+    public ClientBuilder disallowPrivateAndLoopbackHosts() {
+        this.disallowPrivateAndLoopbackHosts = true;
+        return this;
+    }
+
+    /**
      * By default, the {@link HttpClientBuilder#disableCookieManagement} called.
      * This method will prevent the call.
      *
@@ -753,6 +779,10 @@ public class ClientBuilder {
             cmBuilder.setTlsSocketStrategy(clientTlsStrategyBuilder.buildClassic());
         }
 
+        if (disallowPrivateAndLoopbackHosts) {
+            cmBuilder.setDnsResolver(createSsrfGuardedDnsResolver());
+        }
+
         // Wire HTTP/1.1 head-size limits if either knob was set. Apache HC5 plumbs Http1Config
         // through a ManagedHttpClientConnectionFactory (the connection manager itself doesn't
         // accept Http1Config directly).
@@ -836,6 +866,50 @@ public class ClientBuilder {
         if (clientTlsStrategyBuilder == null) {
             clientTlsStrategyBuilder = ClientTlsStrategyBuilder.create();
         }
+    }
+
+    /**
+     * Builds the SSRF-guarded {@link DnsResolver} installed on the connection manager when
+     * {@link #disallowPrivateAndLoopbackHosts()} is enabled. Forward lookups go through
+     * {@link SystemDefaultDnsResolver} and are filtered for loopback / unspecified / link-local /
+     * RFC 1918 / IPv6-unique-local addresses; matching results trigger
+     * {@link UnknownHostException}, which Apache HC5 surfaces as an IOException at the request
+     * boundary (then wrapped into a {@link ResponseException} by {@code BasicWebTarget}).
+     * Reverse lookups (resolveCanonicalHostname) are unaffected by the policy and just delegate.
+     */
+    private DnsResolver createSsrfGuardedDnsResolver() {
+        return new DnsResolver() {
+            @Override
+            public InetAddress[] resolve(String host) throws UnknownHostException {
+                InetAddress[] addresses = SystemDefaultDnsResolver.INSTANCE.resolve(host);
+                for (InetAddress addr : addresses) {
+                    if (isPrivateLoopbackOrLocal(addr)) {
+                        throw new UnknownHostException(
+                                "Blocked private/loopback/link-local address (" + addr.getHostAddress() +
+                                        ") for host '" + host + "' — disallowPrivateAndLoopbackHosts is enabled");
+                    }
+                }
+                return addresses;
+            }
+
+            @Override
+            public String resolveCanonicalHostname(String host) throws UnknownHostException {
+                return SystemDefaultDnsResolver.INSTANCE.resolveCanonicalHostname(host);
+            }
+
+            private boolean isPrivateLoopbackOrLocal(InetAddress addr) {
+                if (addr.isLoopbackAddress()) return true;       // 127/8, ::1
+                if (addr.isAnyLocalAddress()) return true;       // 0.0.0.0, ::
+                if (addr.isLinkLocalAddress()) return true;      // 169.254/16, fe80::/10
+                if (addr.isSiteLocalAddress()) return true;      // RFC 1918 — IPv4 only on JDK
+                if (addr instanceof Inet6Address) {
+                    // RFC 4193 unique-local: fc00::/7. Inet6Address has no convenience method for this.
+                    byte[] b = addr.getAddress();
+                    return (b[0] & 0xfe) == 0xfc;
+                }
+                return false;
+            }
+        };
     }
 
     @Beta

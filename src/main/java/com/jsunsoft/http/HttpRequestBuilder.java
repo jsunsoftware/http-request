@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.UnaryOperator;
@@ -71,7 +72,6 @@ public class HttpRequestBuilder {
     private final RequestBodySerializeConfig.Builder requestBodySerializeConfigBuilder = RequestBodySerializeConfig.create();
     private Set<String> allowedSchemes;
     private boolean requestPayloadLogging;
-    private boolean disallowPrivateAndLoopbackHosts;
     private UnaryOperator<String> payloadRedactor;
 
     private HttpRequestBuilder(CloseableHttpClient closeableHttpClient) {
@@ -510,7 +510,7 @@ public class HttpRequestBuilder {
      *                               {@code null}.
      * @return the current instance of HttpRequestBuilder
      */
-    public HttpRequestBuilder setDefaultResponseCharset(java.nio.charset.Charset defaultResponseCharset) {
+    public HttpRequestBuilder setDefaultResponseCharset(Charset defaultResponseCharset) {
         responseBodyReaderConfigBuilder.setDefaultResponseCharset(defaultResponseCharset);
         return this;
     }
@@ -593,29 +593,6 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Opt-in SSRF guard. When enabled, every {@code target(...)} / {@code retryableTarget(...)} /
-     * {@code immutableTarget(...)} call resolves the URI host and rejects any URI whose host
-     * resolves to a loopback ({@code 127.0.0.0/8}, {@code ::1}), unspecified ({@code 0.0.0.0},
-     * {@code ::}), link-local ({@code 169.254.0.0/16} — covers AWS / GCP / Azure metadata
-     * endpoints — and {@code fe80::/10}), IPv4 site-local / RFC 1918 ({@code 10/8},
-     * {@code 172.16/12}, {@code 192.168/16}), or IPv6 unique-local ({@code fc00::/7}) address.
-     * <p>
-     * Use this for any application that constructs request URIs from user-supplied input.
-     * <p>
-     * <b>Limitation:</b> the DNS lookup happens at {@code target(...)} time, not at connection
-     * time, so this does not defend against DNS rebinding (a resolver returning a public IP at
-     * lookup and a private IP at connect). For defence in depth, combine with network-layer
-     * egress filtering.
-     *
-     * @return the current instance of HttpRequestBuilder
-     */
-    @Beta
-    public HttpRequestBuilder disallowPrivateAndLoopbackHosts() {
-        this.disallowPrivateAndLoopbackHosts = true;
-        return this;
-    }
-
-    /**
      * Builds the HttpRequest instance.
      *
      * @return the HttpRequest instance
@@ -637,6 +614,6 @@ public class HttpRequestBuilder {
                 ? payloadRedactor
                 : UnaryOperator.identity();
 
-        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build(), requestBodySerializeConfigBuilder.build(), allowedSchemes, requestPayloadLogging, disallowPrivateAndLoopbackHosts, effectiveRedactor);
+        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build(), requestBodySerializeConfigBuilder.build(), allowedSchemes, requestPayloadLogging, effectiveRedactor);
     }
 }
