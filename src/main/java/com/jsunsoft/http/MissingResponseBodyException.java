@@ -26,18 +26,46 @@ public class MissingResponseBodyException extends UnexpectedResponseException {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Creates an exception with the given status code and message.
+     *
+     * @param statusCode response status code
+     * @param message error detail message
+     * @param uri request URI
+     */
     public MissingResponseBodyException(int statusCode, String message, URI uri) {
         super(statusCode, message, uri);
     }
 
+    /**
+     * Creates an exception with status and original status codes.
+     *
+     * @param statusCode response status code
+     * @param originalStatusCode original status code
+     * @param message error detail message
+     * @param uri request URI
+     */
     public MissingResponseBodyException(int statusCode, int originalStatusCode, String message, URI uri) {
         super(statusCode, originalStatusCode, message, uri);
     }
 
+    /**
+     * Creates an exception with a default message.
+     *
+     * @param statusCode response status code
+     * @param uri request URI
+     */
     public MissingResponseBodyException(int statusCode, URI uri) {
         this(statusCode, "Response body is missing.", uri);
     }
 
+    /**
+     * Creates an exception with a default message and original status code.
+     *
+     * @param statusCode response status code
+     * @param originalStatusCode original status code
+     * @param uri request URI
+     */
     public MissingResponseBodyException(int statusCode, int originalStatusCode, URI uri) {
         this(statusCode, originalStatusCode, "Response body is missing.", uri);
     }

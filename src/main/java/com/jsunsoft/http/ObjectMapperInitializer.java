@@ -36,22 +36,65 @@ class ObjectMapperInitializer {
     private ObjectMapperInitializer() {
     }
 
+    /**
+     * Returns a JSON mapper ready to use. When {@code objectMapper} is {@code null}, a fresh
+     * {@link ObjectMapper} is constructed with the library defaults. Otherwise the supplied mapper
+     * is taken to be an owned instance (see {@link HttpRequestBuilder#setDefaultJsonMapper(ObjectMapper)},
+     * which takes a defensive copy) and the given date patterns are installed on it in place.
+     */
     static ObjectMapper initJsonMapperIfNull(ObjectMapper objectMapper, Map<Class<?>, String> dateTypeToPattern) {
-        return objectMapper != null ? objectMapper : defaultInit(new ObjectMapper(), dateTypeToPattern);
+        if (objectMapper == null) {
+            return defaultInit(new ObjectMapper(), dateTypeToPattern);
+        }
+        installDatePatterns(objectMapper, dateTypeToPattern);
+        return objectMapper;
     }
 
     static ObjectMapper initJsonMapperIfNull(ObjectMapper objectMapper, DateDeserializeContext dateDeserializeContext) {
-        return objectMapper != null ? objectMapper : defaultInit(new ObjectMapper(), dateDeserializeContext);
+        return initJsonMapperIfNull(objectMapper, dateDeserializeContext == null ? null : dateDeserializeContext.getDateTypeToPattern());
     }
 
+    /**
+     * XML counterpart of {@link #initJsonMapperIfNull(ObjectMapper, Map)}.
+     */
     static ObjectMapper initXmlMapperIfNull(ObjectMapper objectMapper, Map<Class<?>, String> dateTypeToPattern) {
-        return objectMapper != null ? objectMapper : defaultInit(new XmlMapper(), dateTypeToPattern);
+        if (objectMapper == null) {
+            return defaultInit(new XmlMapper(), dateTypeToPattern);
+        }
+        installDatePatterns(objectMapper, dateTypeToPattern);
+        return objectMapper;
     }
 
     static ObjectMapper initXmlMapperIfNull(ObjectMapper objectMapper, DateDeserializeContext dateDeserializeContext) {
-        return objectMapper != null ? objectMapper : defaultInit(new XmlMapper(), dateDeserializeContext);
+        return initXmlMapperIfNull(objectMapper, dateDeserializeContext == null ? null : dateDeserializeContext.getDateTypeToPattern());
     }
 
+    /**
+     * Installs the given date-type → pattern map as Jackson {@code configOverride}s on {@code target}.
+     * Mutates {@code target} in place; no-op when the map is {@code null} or empty.
+     */
+    private static void installDatePatterns(ObjectMapper target, Map<Class<?>, String> dateTypeToPattern) {
+        if (dateTypeToPattern == null || dateTypeToPattern.isEmpty()) {
+            return;
+        }
+        dateTypeToPattern.forEach((type, pattern) ->
+                target.configOverride(type).setFormat(JsonFormat.Value.forPattern(pattern))
+        );
+    }
+
+    /**
+     * Applies the library's default configuration (date patterns, inclusion, feature toggles, and
+     * standard Jackson modules) to the given mapper <em>in place</em> and returns it.
+     * <p>
+     * This helper mutates its argument — callers must pass a fresh/owned instance (e.g. a
+     * {@code new ObjectMapper()} / {@code new XmlMapper()} constructed by the caller, or an
+     * already-defensively-copied snapshot). Never pass a user-supplied mapper here directly;
+     * defensive copying at public API boundaries is the responsibility of
+     * {@link HttpRequestBuilder#setDefaultJsonMapper(ObjectMapper)} /
+     * {@link HttpRequestBuilder#setDefaultXmlMapper(ObjectMapper)}.
+     *
+     * @return the same instance, now configured.
+     */
     static ObjectMapper defaultInit(ObjectMapper objectMapper, Map<Class<?>, String> dateTypeToPattern) {
 
         DateDeserializeContext dateDeserializeContext = dateTypeToPattern == null || dateTypeToPattern.isEmpty() ?
@@ -60,17 +103,14 @@ class ObjectMapperInitializer {
         return defaultInit(objectMapper, dateDeserializeContext);
     }
 
+    /**
+     * See {@link #defaultInit(ObjectMapper, Map)}. Mutates the argument in place.
+     */
     static ObjectMapper defaultInit(ObjectMapper objectMapper, DateDeserializeContext dateDeserializeContext) {
 
-        dateDeserializeContext.getDateTypeToPattern()
-                .forEach((type, pattern) ->
-                        objectMapper.configOverride(type)
-                                .setFormat(
-                                        JsonFormat.Value.forPattern(pattern)
-                                )
-                );
+        installDatePatterns(objectMapper, dateDeserializeContext.getDateTypeToPattern());
 
-        objectMapper.setSerializationInclusion(NON_NULL)
+        objectMapper.setDefaultPropertyInclusion(NON_NULL)
                 .disable(FAIL_ON_EMPTY_BEANS)
                 .disable(FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)

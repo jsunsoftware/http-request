@@ -29,9 +29,56 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * ResponseHandler objects are immutable they can be shared.
+ * Holds the result of an eagerly-processed HTTP response: the deserialized content (when
+ * present), the status code, headers, content type, request duration, and an error description
+ * if the request failed. {@code ResponseHandler} instances are immutable and thread-safe — keep
+ * a reference and inspect it as long as you like.
+ *
+ * <h2>Choosing a content accessor</h2>
  * <p>
- * The instance which contains converted response content and provide a lot of methods to manipulation and checking.
+ * The accessors below differ along two axes:
+ * <ol>
+ *   <li><b>Status check</b> — does the method itself fail when the HTTP status is non-success
+ *       (i.e. outside 2xx)?</li>
+ *   <li><b>Empty-body handling</b> — does the method fail when the request succeeded but the
+ *       response body was empty / null?</li>
+ * </ol>
+ *
+ * <table border="1" cellpadding="4" summary="Accessor matrix">
+ *   <tr><th>Method</th><th>Non-success status</th><th>Empty body on success</th><th>Use when</th></tr>
+ *   <tr><td>{@link #requiredGet()}</td>
+ *       <td>throws {@link ResponseException}</td>
+ *       <td>throws {@link MissingResponseBodyException}</td>
+ *       <td><b>Default choice.</b> You expect a 2xx response with a body and want a clear failure
+ *           otherwise.</td></tr>
+ *   <tr><td>{@link #orElseThrow()}</td>
+ *       <td>throws {@link ResponseException}</td>
+ *       <td>returns {@code null}</td>
+ *       <td>You expect a 2xx response and the body is optional (e.g. 204-style operations).</td></tr>
+ *   <tr><td>{@link #orElseThrow(Object)}</td>
+ *       <td>throws {@link ResponseException}</td>
+ *       <td>returns the supplied default</td>
+ *       <td>Same as above, with a non-null fallback.</td></tr>
+ *   <tr><td>{@link #orElse(Object)}</td>
+ *       <td>ignored — returns the supplied default</td>
+ *       <td>returns the supplied default</td>
+ *       <td>You want a value regardless of status (e.g. content + fallback in a UI).</td></tr>
+ *   <tr><td>{@link #getAsOptional()}</td>
+ *       <td>ignored</td>
+ *       <td>returns empty {@link Optional}</td>
+ *       <td>You want to chain with {@code Optional} APIs and handle status separately.</td></tr>
+ *   <tr><td>{@link #get()}</td>
+ *       <td><b>ignored</b></td>
+ *       <td>throws {@link NoSuchContentException}</td>
+ *       <td><b>Rare.</b> You have already validated the status (via {@link #isSuccess()} or
+ *           {@link #getCode()}) and want the content directly. See the warning on {@link #get()}.</td></tr>
+ * </table>
+ *
+ * <h2>Status helpers</h2>
+ * <p>
+ * Use {@link #isSuccess()} / {@link #getCode()} / {@link #ifSuccess(Consumer)} /
+ * {@link OtherwiseSupport#otherwise(Consumer)} to inspect or branch on the response status without touching the
+ * content accessors.
  *
  * @param <T> Type of converted content from response
  */
@@ -101,7 +148,7 @@ public interface ResponseHandler<T> {
      *
      * @param defaultValue value to return if status code is success and hasn't body
      * @return Deserialized Content from response. If hasn't body returns defaultValue.
-     * @throws ResponseException If status code is not success
+     * @throws ResponseException             If status code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T orElseThrow(T defaultValue);
@@ -155,7 +202,7 @@ public interface ResponseHandler<T> {
      * Gets the deserialized content from the response or throws an exception if the status code is not successful.
      *
      * @return Content from response. Returns null if hasn't body
-     * @throws ResponseException If response code is not success
+     * @throws ResponseException             If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T orElseThrow();
@@ -185,7 +232,7 @@ public interface ResponseHandler<T> {
      *
      * @return Deserialized Content from response.
      * @throws MissingResponseBodyException  If content isn't present
-     * @throws ResponseException If response code is not success
+     * @throws ResponseException             If response code is not success
      * @throws UnsupportedOperationException if generic type is a Void
      */
     T requiredGet();
@@ -203,7 +250,7 @@ public interface ResponseHandler<T> {
      *
      * @return Deserialized Content from response as {@link Optional}. If content isn't present returns empty {@link Optional}.
      * @throws UnsupportedOperationException if generic type is a Void
-     * @throws ResponseException If response code is not success
+     * @throws ResponseException             If response code is not success
      */
     Optional<T> getAsOptionalOrThrow();
 

@@ -26,6 +26,7 @@ A powerful, fluent Java wrapper built on top of Apache HTTP Client 5 that simpli
   - [Custom Response Body Readers](#custom-response-body-readers)
   - [Limiting Response Body Size](#limiting-response-body-size)
   - [Character Encoding](#character-encoding)
+  - [Security &amp; Hardening](#security--hardening)
   - [Debugging](#debugging)
 - [Why use http-request?](#why-use-http-request)
 - [API Documentation](#api-documentation)
@@ -69,6 +70,14 @@ responses, managing connections, and processing data, building on top of the rob
   - Jackson (for JSON/XML processing)
   - SLF4J (for logging)
 
+### Transport: HTTP/1.1 only
+
+The library is built on Apache HC5's classic synchronous `CloseableHttpClient`, which speaks
+HTTP/1.1. HTTP/2 / HTTP/3 are not supported through this library — those require Apache HC5's
+async client (`CloseableHttpAsyncClient`), which is not yet wired in. If your service needs
+HTTP/2 multiplexing or h2-only upstreams, choose a different client. Sync HTTP/1.1 is the
+right answer for the vast majority of REST APIs.
+
 ## Installation
 
 ### Maven
@@ -80,7 +89,7 @@ Add this dependency to your `pom.xml`:
 <dependency>
   <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>3.5.0-rc2</version>
+  <version>3.5.0-rc3</version>
 </dependency>
 ```
 
@@ -89,7 +98,7 @@ Add this dependency to your `pom.xml`:
 Add this dependency to your `build.gradle`:
 
 ```groovy
-implementation 'com.jsunsoft.http:http-request:3.5.0-rc2'
+implementation 'com.jsunsoft.http:http-request:3.5.0-rc3'
 ```
 
 ## Quick Start
@@ -132,8 +141,43 @@ This library simplifies resource management to prevent connection leaks.
 ### Concurrency and Thread Safety
 
 - **HttpRequest**: immutable and thread-safe after building; reuse it across threads.
-- **WebTarget from `target(...)`**: mutable and **not** thread-safe; don't share between threads.
-- **WebTarget from `immutableTarget(...)`**: safe to share and reuse across threads.
+- **WebTarget from `target(...)`**: mutable and **not** thread-safe. Build it, configure it, and
+  fire its request from the *same* thread — typically all in one fluent expression. Do not store
+  a configured `target(...)` instance in a field that multiple threads write to.
+- **WebTarget from `immutableTarget(...)`**: safe to share and reuse across threads. Each
+  fluent call returns a *new* instance, so concurrent threads each see their own snapshot.
+
+The mutable `target(...)` is faster (no allocation per fluent step) but mutations on it leak
+across threads if the same instance is reused.
+
+#### Choosing between `target()` and `immutableTarget()`
+
+A simple rule covers ~99% of cases:
+
+| Use case                                                                | Pick                   |
+|-------------------------------------------------------------------------|------------------------|
+| One-shot request from a single thread (`build → fire → discard`)        | `target(uri)`          |
+| Configured once, fired from many threads (e.g. a service-bean field)    | `immutableTarget(uri)` |
+| Forking variants of the same configuration (auth + tenant + then split) | `immutableTarget(uri)` |
+| Tight loops where allocation of a per-call wrapper matters              | `target(uri)`          |
+
+```java
+// Request-scoped: each call builds and discards.
+ResponseHandler<User> rh = httpRequest.target("https://api.example.com/users/1")
+                .addHeader("X-Tenant", currentTenantId())
+                .get(User.class);
+
+// Shared / multi-threaded: every fluent call returns a *new* WebTarget,
+// so two threads adding different headers don't trample each other.
+private final WebTarget userApi = httpRequest.immutableTarget("https://api.example.com/users");
+
+User loadUser(String id, String tenant) {
+  return userApi.path(id).addHeader("X-Tenant", tenant).get(User.class).orElseThrow();
+}
+```
+
+If you're not sure, default to `immutableTarget(...)` — the per-call allocation cost is
+negligible compared to the network round-trip, and the thread-safety footgun is gone.
 
 ### 1. Using `ResponseHandler` (Recommended for most cases)
 
@@ -350,6 +394,39 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .build();
 ```
 
+Date patterns also compose cleanly with a user-supplied `ObjectMapper`:
+
+```java
+// Your shared application ObjectMapper (e.g. a Spring bean) is used as-is…
+ObjectMapper appMapper = /* injected from your app */;
+
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .setDefaultJsonMapper(appMapper)
+        // …and the date patterns are installed on a defensive copy of it; `appMapper` itself is not mutated.
+        .addResponseDefaultDateDeserializationPattern(LocalDate.class, "yyyy-MM-dd")
+        .build();
+```
+
+#### Strict vs. lenient deserialization
+
+When you don't supply an `ObjectMapper` of your own, the library default disables Jackson's
+`FAIL_ON_UNKNOWN_PROPERTIES` — unknown JSON fields are silently dropped. This favours
+forward-compatibility (the server can roll out new fields without breaking existing clients) but
+it also masks typos in field names and silent API drift while you're developing. To opt into
+the stricter Jackson default, supply your own `ObjectMapper`:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        // A bare new ObjectMapper() inherits Jackson's default — strict on unknowns.
+        .setDefaultJsonMapper(new ObjectMapper())
+        .build();
+```
+
+The library never mutates your supplied mapper, so its `FAIL_ON_UNKNOWN_PROPERTIES`,
+`FAIL_ON_NULL_FOR_PRIMITIVES`, registered modules, etc. all flow through unchanged.
+
+```
+
 ## Advanced Features
 
 ### Connection Pooling
@@ -364,8 +441,12 @@ CloseableHttpClient httpClient = ClientBuilder.create()
         .build();
 ```
 
-By default, Apache HttpClient uses small pool limits (for example, 2 per route). When you use `ClientBuilder`, the
-defaults are set to 128 for max total and max per route. Override them based on your traffic patterns.
+By default, raw Apache HttpClient uses small pool limits (for example, 2 per route). `ClientBuilder` raises
+these to **128 total / 32 per route** — sized for typical microservice workloads that talk to a handful of
+upstream hosts. The `total / perRoute` ratio of roughly 4× preserves multi-host fairness: a hot route can't
+saturate the entire pool and starve traffic to other hosts. Override either knob based on your traffic
+pattern (a high-throughput aggregator hitting many hosts at once will want a higher total; a service that
+talks to a single upstream may want to raise per-route to match).
 
 You can also configure a proxy:
 
@@ -426,6 +507,29 @@ CloseableHttpClient httpClient = ClientBuilder.create()
                 .build();
 ```
 
+#### TLS version and cipher pinning
+
+By default the JDK negotiates the best mutually supported TLS version. For hardened
+deployments (PCI-DSS, FedRAMP, internal compliance) you may need to enforce TLS 1.2+ and
+opt out of legacy cipher suites:
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        // Reject TLS 1.0 / 1.1 — server must speak 1.2 or 1.3.
+        .setTlsVersions("TLSv1.3", "TLSv1.2")
+        // Restrict to a hand-picked cipher allow-list (subset of the JDK's supported set).
+        .setCipherSuites(
+                "TLS_AES_256_GCM_SHA384",
+                "TLS_AES_128_GCM_SHA256",
+                "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
+        .build();
+```
+
+If neither setter is called, the JDK defaults apply (which already exclude TLS 1.0 / 1.1 on
+modern JVMs). The values are passed straight through to Apache HC5's `ClientTlsStrategyBuilder`
+— a name not supported by the JVM will surface as a TLS handshake failure at first request.
+
 ### Authentication
 
 The library supports basic authentication securely.
@@ -464,14 +568,58 @@ The library offers two ways to handle retries:
 
 #### 1. `RetryableWebTarget` (Recommended)
 
-This provides fine-grained control over retry logic.
+Use one of the bundled policies, or implement `RetryContext` for full control.
 
 ```java
-// Retry 3 times with a 2-second delay if the status is 503
-RetryContext retryContext = new RetryContext(3, 2000, response -> response.getCode() == 503);
+// Safe default: retry idempotent methods (GET/HEAD/OPTIONS/PUT/DELETE/TRACE) on any 5xx up to 3
+// times with a 2-second delay. Honors the Retry-After response header when present.
+RetryContext retryContext = RetryContext.onIdempotent5xx(3, Duration.ofSeconds(2));
 
 Response response = httpRequest.retryableTarget("https://api.example.com/status/503", retryContext)
         .get();
+```
+
+> **Why idempotent-only by default?** Retrying a `POST` on a 5xx response is unsafe in general —
+> the 5xx may have been returned by a proxy while the backend already committed the change, the
+> response may have been lost on the return path, or processing may have failed after a partial
+> write. Retrying blindly can create duplicate resources. The default policy refuses to retry
+> `POST` and `PATCH` for this reason.
+
+If your API is designed around idempotency keys (e.g. Stripe-style `Idempotency-Key` headers) and
+retrying `POST`/`PATCH` on 5xx is genuinely safe, opt in explicitly:
+
+```java
+RetryContext retryContext = RetryContext.onAnyMethod5xx(3, Duration.ofSeconds(2));
+```
+
+For fine-grained policies, implement `RetryContext` directly. The attempt passed to the predicate
+carries the response, the HTTP method, the URI, and a 1-based attempt number:
+
+```java
+RetryContext custom = new RetryContext() {
+    @Override public int getRetryCount() { return 3; }
+
+    @Override
+    public boolean mustBeRetried(RetryAttempt attempt) {
+        if (attempt.getResponse() == null) return false;
+        // Only retry GET on 5xx, and only up to attempt 3 total (1 original + 2 retries).
+        return attempt.getMethod() == HttpMethod.GET
+                && attempt.getResponse().getCode() >= 500
+                && attempt.getAttemptNumber() < 3;
+    }
+
+    @Override
+    public Duration getRetryDelay(RetryAttempt attempt) {
+        // Exponential backoff: 200ms, 400ms, 800ms, ...
+        return Duration.ofMillis(100L << attempt.getAttemptNumber());
+    }
+
+    @Override
+    public WebTarget beforeRetry(RetryAttempt attempt, WebTarget webTarget) {
+        // E.g. rotate auth token before the next attempt.
+        return webTarget.updateHeader(HttpHeaders.AUTHORIZATION, refreshToken());
+    }
+};
 ```
 
 #### 2. Apache HttpClient's Automatic Retries
@@ -571,15 +719,130 @@ try{
 
 ### Character Encoding
 
-Specify charsets for URI paths/queries and for request bodies.
+Specify charsets for query-string percent-encoding and for request bodies. URI path segments are
+always percent-encoded as UTF-8, per RFC 3986 — pre-encode them yourself if you need a different
+encoding.
 
 ```java
 httpRequest.target("https://api.example.com/search")
-    .setUriCharset(StandardCharsets.UTF_8) // For query params
+    .setQueryCharset(StandardCharsets.UTF_8) // For query-string parameter encoding
     .setBodyCharset(StandardCharsets.ISO_8859_1) // For request body
     .addParameter("q","你好")
     .post("some-body");
 ```
+
+#### Response decoding charset
+
+When a server returns a body without a `charset=...` parameter on its `Content-Type` header,
+this library decodes it as **UTF-8** by default — overriding Apache HC5's bare default of
+ISO-8859-1, which is rarely what modern APIs want. If you need to talk to a legacy upstream
+that relies on the ISO-8859-1 fallback, restore the old behaviour explicitly:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .setDefaultResponseCharset(StandardCharsets.ISO_8859_1)
+        .build();
+```
+
+A server-supplied `charset=...` parameter always wins; this setting only affects responses
+where no charset is declared.
+
+### Security &amp; Hardening
+
+The library ships a small set of opt-in hardening knobs — pick the ones that match your threat
+model. None are enabled by default; enabling them is one method call each.
+
+#### SSRF guard (Server-Side Request Forgery)
+
+If your service constructs request URIs from user-supplied input — even partially — an
+attacker can use that surface to scan internal networks, hit cloud-metadata endpoints
+(`169.254.169.254` on AWS / GCP / Azure exposes IAM credentials), or pivot into private
+subnets. Enable the SSRF guard to refuse every host that resolves to loopback,
+unspecified, link-local, RFC 1918 (private IPv4), or IPv6 unique-local addresses:
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .disallowPrivateAndLoopbackHosts()
+        .build();
+```
+
+The check is plumbed through Apache HC5's `DnsResolver`, which means it fires on every host
+the client touches — including hosts reached via 3xx redirects, not only the URL you passed
+to `target(...)`. The same DNS lookup that produces the connection IP is the one being
+filtered, closing the time-of-check / time-of-use gap a URL-only check would have.
+
+If you need to talk to a specific internal endpoint despite the guard (e.g. an internal
+config service on `10.0.7.42`), use the allow-list overload:
+
+```java
+InetAddress configService = InetAddress.getByName("10.0.7.42");
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .disallowPrivateAndLoopbackHosts(addr -> addr.equals(configService))
+        .build();
+```
+
+The predicate runs on every resolved address that would otherwise be blocked; returning
+`true` lets it through, `false` keeps the deny.
+
+#### URI scheme allow-list
+
+Lock the client to HTTP/HTTPS only — refuse `file://`, `jar://`, `data:` and other schemes
+that an attacker might smuggle in:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .allowHttpAndHttpsOnly()
+        .build();
+
+httpRequest.
+
+target("file:///etc/passwd"); // throws IllegalArgumentException
+```
+
+#### HTTP/1.1 head-size limits
+
+Bound memory consumption when talking to a hostile or buggy server that sends an unbounded
+header list:
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .setMaxHeaderCount(200)        // reject responses with > 200 headers
+        .setMaxLineLength(16 * 1024)   // reject any header line > 16 KiB
+        .build();
+```
+
+These pair with `setMaxResponseBodySizeBytes(...)` (described above) — the body limit
+protects you from oversized payloads, the head limits protect you from oversized header
+sets.
+
+#### Payload redaction for request logging
+
+When `enableRequestPayloadLogging()` is on, the library logs the outgoing request body at
+DEBUG. To prevent secrets (API keys, OAuth tokens, PII) from landing in those logs, register
+one or more redactors:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .enableRequestPayloadLogging()
+        // Mask the value of an "apiKey" JSON field.
+        .addPayloadRedactor(body -> body.replaceAll(
+                "\"apiKey\"\\s*:\\s*\"[^\"]+\"",
+                "\"apiKey\":\"***\""))
+        // Mask any "password" form field.
+        .addPayloadRedactor(body -> body.replaceAll(
+                "(password=)[^&]+",
+                "$1***"))
+        .build();
+```
+
+Redactors compose left-to-right (each one's output feeds the next). If a redactor throws,
+the library swaps in `[redaction-failed]` rather than killing the in-flight request — so a
+buggy redactor degrades to "no logged body" instead of "no request sent." Redactors are
+only invoked when payload logging is enabled.
+
+> **Important.** When payload logging is on but no redactor is registered, the library logs
+> the body verbatim. If your traffic ever carries credentials, register a redactor *or* turn
+> payload logging off in production.
 
 ### Debugging
 
@@ -590,6 +853,9 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .enableRequestPayloadLogging()
         .build();
 ```
+
+> Pair this with `addPayloadRedactor(...)` (see [Security &amp; Hardening](#security--hardening))
+> when the body might carry credentials.
 
 ## Why use http-request?
 
@@ -618,6 +884,19 @@ Additional documentation:
 
 - [Release Changes](CHANGES.md)
 - [Migration Guide](MIGRATION.md)
+
+### A note on `@Beta`
+
+Methods, types, and parameters annotated with `@com.jsunsoft.http.annotations.Beta` are
+explicitly **excluded** from the library's compatibility guarantees. Their signatures, default
+behavior, exception types, and even names may change between minor (3.x → 3.y) and patch
+(3.5.0 → 3.5.1) releases without a deprecation cycle. The annotation says nothing about quality
+or performance — only that the API is not yet "frozen."
+
+It's generally safe for *applications* to depend on `@Beta` APIs, at the cost of some extra work
+during upgrades. It's generally inadvisable for *libraries* (whose users' classpaths are outside
+the library developer's control) to do so — an application picking up the dependency
+transitively can break silently when the library upgrades.
 
 ## Contributing
 

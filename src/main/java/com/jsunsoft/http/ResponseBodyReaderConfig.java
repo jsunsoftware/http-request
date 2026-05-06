@@ -24,6 +24,8 @@ package com.jsunsoft.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 class ResponseBodyReaderConfig {
@@ -36,19 +38,26 @@ class ResponseBodyReaderConfig {
      * Maximum allowed response body size in bytes. {@code <= 0} means "unlimited".
      */
     private final long maxResponseBodySizeBytes;
+    /**
+     * Charset used to decode response bodies into {@code String} when the {@code Content-Type}
+     * header carries no {@code charset} parameter. Never {@code null}.
+     */
+    private final Charset defaultResponseCharset;
 
     private ResponseBodyReaderConfig(ObjectMapper defaultJsonMapper,
                                      ObjectMapper defaultXmlMapper,
                                      Collection<ResponseBodyReader<?>> responseBodyReaders,
                                      Collection<ResponseBodyReader<?>> defaultResponseBodyReaders,
                                      boolean useDefaultReader,
-                                     long maxResponseBodySizeBytes) {
+                                     long maxResponseBodySizeBytes,
+                                     Charset defaultResponseCharset) {
         this.defaultJsonMapper = defaultJsonMapper;
         this.defaultXmlMapper = defaultXmlMapper;
         this.responseBodyReaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(responseBodyReaders, "responseBodyReaders")));
         this.defaultResponseBodyReaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultResponseBodyReaders, "defaultResponseBodyReaders")));
         this.useDefaultReader = useDefaultReader;
         this.maxResponseBodySizeBytes = maxResponseBodySizeBytes;
+        this.defaultResponseCharset = ArgsCheck.notNull(defaultResponseCharset, "defaultResponseCharset");
     }
 
     static Builder create() {
@@ -79,6 +88,10 @@ class ResponseBodyReaderConfig {
         return maxResponseBodySizeBytes;
     }
 
+    Charset getDefaultResponseCharset() {
+        return defaultResponseCharset;
+    }
+
     static class Builder {
         private Collection<ResponseBodyReader<?>> responseBodyReaders;
         private boolean useDefaultReader = true;
@@ -88,12 +101,18 @@ class ResponseBodyReaderConfig {
 
         private Map<Class<?>, String> dateTypeToPattern;
         private long maxResponseBodySizeBytes;
+        private Charset defaultResponseCharset = StandardCharsets.UTF_8;
 
         private Builder() {
         }
 
         Builder setMaxResponseBodySizeBytes(long maxResponseBodySizeBytes) {
             this.maxResponseBodySizeBytes = maxResponseBodySizeBytes;
+            return this;
+        }
+
+        Builder setDefaultResponseCharset(Charset defaultResponseCharset) {
+            this.defaultResponseCharset = ArgsCheck.notNull(defaultResponseCharset, "defaultResponseCharset");
             return this;
         }
 
@@ -159,7 +178,7 @@ class ResponseBodyReaderConfig {
                 responseBodyReaders = Collections.emptyList();
             }
 
-            return new ResponseBodyReaderConfig(json, xml, responseBodyReaders, defaultResponseBodyReaders, useDefaultReader, maxResponseBodySizeBytes);
+            return new ResponseBodyReaderConfig(json, xml, responseBodyReaders, defaultResponseBodyReaders, useDefaultReader, maxResponseBodySizeBytes, defaultResponseCharset);
         }
     }
 }

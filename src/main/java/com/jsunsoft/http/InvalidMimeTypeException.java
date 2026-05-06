@@ -16,9 +16,13 @@
 
 package com.jsunsoft.http;
 
+/**
+ * Thrown when an invalid mime type is encountered during response processing.
+ */
 @SuppressWarnings("serial")
 public class InvalidMimeTypeException extends ResponseBodyProcessingException {
 
+    /** Offending mime type value. */
     private final String mimeType;
 
 

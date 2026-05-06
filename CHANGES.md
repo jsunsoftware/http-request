@@ -62,7 +62,123 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
 # 3.5.0
 
 * Charset handling was clarified and split:
-  * `WebTarget#setCharset(Charset)` now sets both URI charset and request body charset.
-  * Added `WebTarget#setUriCharset(Charset)` to control only URI encoding charset.
-  * Added `WebTarget#setBodyCharset(Charset)` to control only request body charset used by request body converters.
-* Default charset for both URI and body is `UTF-8`.
+  * `WebTarget#setCharset(Charset)` now sets both the query-string charset and the request body charset.
+  * Added `WebTarget#setQueryCharset(Charset)` to control only the URI query-string percent-encoding charset.
+  * Added `WebTarget#setBodyCharset(Charset)` to control only the request body charset used by request body converters.
+  * URI path segments are always percent-encoded as UTF-8 per RFC 3986; if you need non-UTF-8 path
+    encoding, percent-encode the path yourself before passing it to `target(...)`.
+* Default charset for both query-string and body is `UTF-8`.
+* `HttpRequestBuilder.setDefaultJsonMapper` / `setDefaultXmlMapper` now take a defensive copy of the
+  supplied mapper at the moment the setter is called; the caller's instance is never mutated by the
+  library. `addResponseDefaultDateDeserializationPattern` / `addRequestDefaultDateSerializationPattern`
+  now compose correctly with a user-supplied mapper — previously the patterns were silently dropped.
+* Retry API refresh (`@Beta` — breaking):
+  * New `RetryAttempt` type exposes `response`, `method`, `uri`, `attemptNumber`, and `error` to
+    retry predicates.
+  * `RetryContext` methods now take a `RetryAttempt`: `mustBeRetried(RetryAttempt)`,
+    `getRetryDelay(RetryAttempt)` (returns `Duration`), `beforeRetry(RetryAttempt, WebTarget)`.
+  * **Removed** the pre-3.5.0 response-only overloads (`mustBeRetried(Response)`,
+    `getRetryDelay(Response)`, `beforeRetry(WebTarget)`). 3.4.x custom `RetryContext`
+    implementations will no longer compile — see `MIGRATION.md` for the before/after template.
+  * The default `mustBeRetried(RetryAttempt)` is idempotency-gated: only retries
+    GET/HEAD/OPTIONS/PUT/DELETE/TRACE (RFC 9110 §9.2.2) on 503 by default. Retrying POST/PATCH
+    must be an explicit opt-in — see the new factory helper `RetryContext.onAnyMethod5xx(int,
+    Duration)`.
+  * New factory helper `RetryContext.onIdempotent5xx(int, Duration)` — safe default that retries
+    idempotent methods on any 5xx, honoring `Retry-After` when present.
+  * Added `HttpMethod.isIdempotent()` per RFC 9110.
+* Retries now work for requests with repeatable bodies. Previously, any retryable request whose
+  `HttpEntity` had been initialized failed on first retry with *"After initializing the httpEntity
+  builder can't be copied."* `HttpUriRequestBuilder` now shares the entity reference with the
+  copy when `entity.isRepeatable()` is `true` (covers all built-in body paths: `StringEntity`,
+  `ByteArrayEntity`, `FileEntity`, and Jackson-produced bodies). Non-repeatable entities
+  (`InputStreamEntity` and similar streaming sources) still cannot be replayed and now fail with
+  an actionable error pointing at the fix.
+* `Response#getContentType()` no longer leaks `UnsupportedCharsetException` (or any other
+  `IllegalArgumentException` from `ContentType.parse`) when a server returns a header like
+  `Content-Type: text/plain; charset=<charset-not-installed-in-this-JVM>`. The malformed value
+  is logged at WARN level and the helper returns `null` — the same as "no Content-Type header."
+  Reader chains (`isReadable()` predicates) now fall through cleanly to
+  `ResponseBodyReaderNotFoundException` instead of letting an unchecked exception escape from a
+  getter.
+* Replaced the custom `LimitedInputStream` with `commons-io`'s
+  `org.apache.commons.io.input.BoundedInputStream`. The response-body size cap is now enforced
+  by configuring `BoundedInputStream` with `setMaxCount(maxBytes + 1)` (so a body of exactly
+  `maxBytes` still drains cleanly to EOF) and an `setOnMaxCount` consumer that throws
+  `InvalidContentLengthException` the moment the cap is exceeded. The swap closes three latent
+  gaps in the previous custom class in one stroke: `skip()` and `read(b, off, len)` no longer
+  over-pull the underlying stream past the cap (commons-io clamps both via `toReadLen`),
+  `markSupported()` no longer falsely advertises mark support that would corrupt the byte
+  counter on `reset()`, and we drop ~70 lines of custom code in favor of a battle-tested upstream
+  implementation. `commons-io 2.22.0` is now a compile-scope dependency.
+* `StringReader` and `ByteReader` no longer pass `maxLen` to `EntityUtils.toString` /
+  `EntityUtils.toByteArray`. The cap is enforced at the byte level by the wrapped
+  `BoundedInputStream`; passing a `maxLen` (which is a *character* limit for `toString`) would
+  silently truncate the result at a char boundary instead of triggering the byte-cap throw.
+* `BoundedHttpEntity#writeTo` is now documented and regression-tested as a load-bearing override
+  for the size-cap guarantee: without it `HttpEntityWrapper#writeTo` would delegate straight to
+  the wrapped entity, bypassing `BoundedInputStream` and silently spooling oversize bodies through
+  callers that use `response.getEntity().writeTo(...)` (e.g. spooling a response to disk). The
+  override now also uses `IOUtils.copy` (commons-io) instead of a hand-rolled buffered loop.
+* `ClientBuilder` default `defaultMaxPoolSizePerRoute` lowered from `128` to `32`. `maxPoolSize`
+  is unchanged at `128`. Previously `perRoute == total` let a single hot host saturate the entire
+  pool, leaving parallel requests to other hosts blocked on `connectionRequestTimeout`. The new
+  `total / 4` ratio matches industry conventions (Apache HC, AWS SDK, Spring) and preserves
+  multi-host fairness. Single-upstream workloads that want the old behavior should call
+  `setDefaultMaxPoolSizePerRoute(128)` explicitly — see `MIGRATION.md`.
+* `ClientBuilder.proxy(URI)` now rejects URIs that include userinfo (e.g.
+  `http://user:pass@proxy.corp`) with `IllegalArgumentException` and a message pointing at Apache
+  HC5's `BasicCredentialsProvider`. Previously, the userinfo was silently discarded by the
+  `HttpHost` constructor — users who thought they were configuring proxy auth would see no
+  credentials sent.
+* `ClientBuilder.build()` is now idempotent across repeated calls. Previously, the
+  `defaultRequestConfigBuilder` and `defaultConnectionConfigBuilder` were stored as fields and
+  user-supplied customizers were applied to those persistent instances on every `build()` —
+  state-dependent customizers (e.g. ones that re-register an interceptor or react to current
+  builder state) would compound across calls. Each `build()` now snapshots the configured state
+  and applies customizers to a fresh `Builder` per call.
+* New `setDefaultResponseCharset(Charset)` on `HttpRequestBuilder`. The library now defaults to
+  **UTF-8** for response bodies whose `Content-Type` lacks a `charset` parameter (Apache HC5's
+  bare default is ISO-8859-1). Server-supplied `charset=...` always wins; the new setting only
+  affects the no-charset path. See `MIGRATION.md` for restoring the ISO-8859-1 behavior on
+  legacy servers.
+* New opt-in SSRF guard `ClientBuilder.disallowPrivateAndLoopbackHosts()`. When enabled, the
+  client's DNS resolver rejects any host that resolves to loopback / unspecified / link-local /
+  RFC 1918 / IPv6 unique-local addresses. The check is plumbed through Apache HC5's
+  `DnsResolver`, so it fires for every host the client touches — including hosts reached via
+  3xx redirects, not only the URL the caller passed to `target(...)`. The same DNS lookup that
+  produces the connection IP is the one being filtered, closing the time-of-check / time-of-use
+  gap a URL-only check would have. Specifically catches user-controlled URLs pointing at
+  cloud-metadata endpoints (e.g. `169.254.169.254`). Combine with network-layer egress filtering
+  for full defence-in-depth.
+* New TLS knobs on `ClientBuilder`: `setTlsVersions(String...)` enforces a TLS version allow-list
+  (e.g. `"TLSv1.3", "TLSv1.2"`); `setCipherSuites(String...)` opts out of weak / deprecated
+  ciphers. Both delegate to Apache HC5's `ClientTlsStrategyBuilder` and use JVM defaults when
+  not called.
+* New HTTP/1.1 head-size knobs on `ClientBuilder`: `setMaxHeaderCount(int)` caps the per-message
+  header count; `setMaxLineLength(int)` caps any single line (status line or header). Bounds
+  memory consumption when talking to a hostile / buggy server that emits an unbounded header
+  list — complements `setMaxResponseBodySizeBytes` (which only protects the body, not the head).
+  Negative values mean "use Apache HC5's built-in default."
+* New `HttpRequestBuilder.addPayloadRedactor(Function<String, String>)` for masking secrets in
+  request bodies before they are logged via `enableRequestPayloadLogging()`. Redactors compose
+  left-to-right; a buggy redactor that throws is caught and swapped for a `[redaction-failed]`
+  placeholder rather than killing the in-flight request. Redactors are only invoked when
+  payload logging is enabled.
+* Successful `HEAD` responses are no longer remapped to 502. Apache HC5 returns `null`
+  `HttpEntity` for `HEAD` responses (HTTP forbids a response body on `HEAD`), and the previous
+  code blindly treated `hasBody(statusCode) && entity == null` as a server error. The check now
+  excludes `HEAD`; for non-`HEAD` requests the existing safety net is kept (Apache HC5 always
+  sets a, possibly length-0, entity for `hasBody(...)` statuses on those methods, so this branch
+  effectively only fires on genuinely malformed responses).
+* New `RetryContext.withMaxHonoredRetryAfter(RetryContext, Duration)` opt-in clamp on
+  `Retry-After`. Wraps any `RetryContext` and caps the honoured retry delay, defending against
+  a misbehaving or hostile upstream returning `Retry-After: 99999` (~28 hours) and stalling the
+  calling thread. Default behaviour without the wrapper is unchanged — the library is
+  RFC-compliant and honours whatever the server says.
+* New `ClientBuilder.disallowPrivateAndLoopbackHosts(Predicate<InetAddress>)` overload for the
+  SSRF guard. The predicate is an allow-list escape hatch: it is invoked for each resolved
+  address that would otherwise be blocked, and a return of `true` permits the address through.
+  Useful when you need to block public-internet SSRF surface but still talk to a specific
+  internal endpoint (e.g. an internal config service on `10.0.7.42`). Passing `null` for the
+  predicate is equivalent to the no-arg overload.

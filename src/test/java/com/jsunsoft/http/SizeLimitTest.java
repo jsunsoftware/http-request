@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
@@ -72,6 +73,80 @@ class SizeLimitTest {
         assertNotNull(exception.getCause(), "Exception cause should not be null");
         assertTrue(exception.getCause() instanceof InvalidContentLengthException,
                 "Expected cause to be InvalidContentLengthException, but was: " + exception.getCause().getClass().getName());
+    }
+
+    @Test
+    void bodyExactlyAtTheLimitIsAccepted() {
+        // Boundary case: a body of EXACTLY maxBytes must succeed — the user explicitly said this
+        // size is acceptable. Regression guard for the `setMaxCount(maxBytes + 1)` offset in
+        // BoundedHttpEntity#getContent — without the +1, a body of size maxBytes would trip the
+        // BoundedInputStream cap on the next read after consuming the last byte and throw, even
+        // though it fits the contract.
+        String body = "x".repeat(1024); // exactly the configured limit
+        server.stubFor(get(urlEqualTo("/exact"))
+                .willReturn(aResponse().withStatus(200).withBody(body)));
+
+        String result = httpRequest.target(httpUri("/exact")).get(String.class).orElseThrow();
+        assertEquals(body, result);
+    }
+
+    @Test
+    void writeToOnTheBoundedEntityEnforcesTheCap() throws IOException {
+        // Pins the BoundedHttpEntity#writeTo override against accidental removal: a caller that
+        // bypasses getContent() and spools the body straight to an OutputStream (e.g. to disk)
+        // must still see InvalidContentLengthException for an oversize body. Without the override,
+        // HttpEntityWrapper#writeTo would delegate straight to the wrapped entity's writeTo and
+        // silently push the full payload through, bypassing the size cap.
+        String body = "x".repeat(2048); // 2× the 1024 limit
+        server.stubFor(get(urlEqualTo("/writeTo-overflow"))
+                .willReturn(aResponse().withStatus(200).withBody(body)));
+
+        try (Response response = httpRequest.target(httpUri("/writeTo-overflow")).get()) {
+            assertEquals(200, response.getCode());
+            ByteArrayOutputStream sink = new ByteArrayOutputStream();
+            assertThrows(InvalidContentLengthException.class,
+                    () -> response.getEntity().writeTo(sink));
+            // BoundedInputStream is configured with maxCount = maxSize + 1 (see BoundedHttpEntity
+            // Javadoc — the +1 keeps "exactly maxSize bytes" as a valid response and shifts the
+            // throw to the byte that exceeds the cap), so the sink legitimately contains up to
+            // maxSize + 1 bytes by the time we throw. What must hold: we did NOT spool the full
+            // oversize body before noticing.
+            assertTrue(sink.size() < body.length(),
+                    "writeTo must abort before spooling the full oversize body, got " + sink.size() + " of " + body.length() + " bytes");
+            assertTrue(sink.size() <= 1025,
+                    "writeTo must not exceed maxSize + 1 (BoundedInputStream's trigger threshold), got " + sink.size());
+        }
+    }
+
+    @Test
+    void writeToOnUnderLimitBodyCompletesCleanly() throws IOException {
+        // Counterpart to writeToOnTheBoundedEntityEnforcesTheCap: an under-limit body must round-trip
+        // cleanly through writeTo without false positives.
+        String body = "y".repeat(500);
+        server.stubFor(get(urlEqualTo("/writeTo-under"))
+                .willReturn(aResponse().withStatus(200).withBody(body)));
+
+        try (Response response = httpRequest.target(httpUri("/writeTo-under")).get()) {
+            ByteArrayOutputStream sink = new ByteArrayOutputStream();
+            response.getEntity().writeTo(sink);
+            assertEquals(body, sink.toString("UTF-8"));
+        }
+    }
+
+    @Test
+    void bodyOneOverLimitThrows() {
+        // Mirror of the above: maxBytes + 1 must trip the cap. Together these two tests pin the
+        // boundary semantics so the +1 offset can't drift in either direction.
+        String body = "x".repeat(1025); // one byte over the 1024 limit
+        server.stubFor(get(urlEqualTo("/over-by-one"))
+                .willReturn(aResponse().withStatus(200).withBody(body)));
+
+        ResponseException exception = assertThrows(ResponseException.class, () ->
+                httpRequest.target(httpUri("/over-by-one")).get(String.class).orElseThrow());
+
+        assertNotNull(exception.getCause());
+        assertTrue(exception.getCause() instanceof InvalidContentLengthException,
+                "Expected InvalidContentLengthException, got: " + exception.getCause().getClass().getName());
     }
 
     @Test

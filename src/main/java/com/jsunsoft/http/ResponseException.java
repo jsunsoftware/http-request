@@ -30,27 +30,70 @@ public class ResponseException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
+    /** Response status code. */
     private final int statusCode;
+    /** Original status code if mapped or transformed; otherwise {@code -1}. */
     private final int originalStatusCode;
+    /** Request URI associated with the failure. */
     private final URI uri;
+    /** Connection failure classification, if available. */
     private final ConnectionFailureType connectionFailureType;
 
+    /**
+     * Creates an exception with a status code and message.
+     *
+     * @param statusCode response status code
+     * @param message error message
+     * @param uri request URI
+     */
     public ResponseException(int statusCode, String message, URI uri) {
         this(statusCode, statusCode, message, uri, null);
     }
 
+    /**
+     * Creates an exception with a status code and cause.
+     *
+     * @param statusCode response status code
+     * @param uri request URI
+     * @param cause root cause
+     */
     public ResponseException(int statusCode, URI uri, Throwable cause) {
         this(statusCode, -1, null, uri, cause);
     }
 
+    /**
+     * Creates an exception with a status code, message, and cause.
+     *
+     * @param statusCode response status code
+     * @param msg error message
+     * @param uri request URI
+     * @param cause root cause
+     */
     public ResponseException(int statusCode, String msg, URI uri, Throwable cause) {
         this(statusCode, -1, msg, uri, cause);
     }
 
+    /**
+     * Creates an exception with status and original status codes.
+     *
+     * @param statusCode response status code
+     * @param originalStatusCode original status code
+     * @param msg error message
+     * @param uri request URI
+     */
     public ResponseException(int statusCode, int originalStatusCode, String msg, URI uri) {
         this(statusCode, originalStatusCode, msg, uri, null);
     }
 
+    /**
+     * Creates an exception with status codes, message, and cause.
+     *
+     * @param statusCode response status code
+     * @param originalStatusCode original status code
+     * @param msg error message
+     * @param uri request URI
+     * @param cause root cause
+     */
     public ResponseException(int statusCode, int originalStatusCode, String msg, URI uri, Throwable cause) {
         super(msg, cause);
         this.statusCode = statusCode;
@@ -71,15 +114,24 @@ public class ResponseException extends RuntimeException {
         this.connectionFailureType = connectionFailureType;
     }
 
+    /**
+     * @return response status code
+     */
     public int getStatusCode() {
         return statusCode;
     }
 
+    /**
+     * @return original status code if available
+     */
     @Beta
     public int getOriginalStatusCode() {
         return originalStatusCode;
     }
 
+    /**
+     * @return request URI
+     */
     public URI getURI() {
         return uri;
     }

@@ -36,11 +36,25 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Collection;
+import java.util.function.UnaryOperator;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.hc.core5.http.HttpStatus.*;
 
+/**
+ * Mutable {@link WebTarget} implementation — the discoverable default returned by
+ * {@link HttpRequest#target(java.net.URI)} / {@link HttpRequest#target(String)}.
+ * <p>
+ * <b>Not thread-safe.</b> All fluent methods on this class — {@code path}, {@code setPath},
+ * {@code addHeader}, {@code updateHeader}, {@code removeHeader}, {@code addParameter},
+ * {@code setRequestConfig}, {@code setQueryCharset}, {@code setBodyCharset} — mutate
+ * <em>this</em> instance's underlying {@link HttpUriRequestBuilder} and return {@code this}.
+ * Concurrent mutation from multiple threads will interleave headers/parameters in ways that
+ * defeat the user's intent. Build, configure, and fire the request from the same thread —
+ * typically all in one fluent expression. For shared / cross-thread use cases, see
+ * {@link ImmutableWebTarget} (returned by {@link HttpRequest#immutableTarget(java.net.URI)}).
+ */
 class BasicWebTarget implements WebTarget {
     private static final Logger LOGGER = LoggerFactory.getLogger(BasicWebTarget.class);
 
@@ -50,39 +64,42 @@ class BasicWebTarget implements WebTarget {
     private final ResponseBodyReaderConfig responseBodyReaderConfig;
     private final RequestBodySerializeConfig requestBodySerializeConfig;
     private final boolean requestPayloadLogging;
+    private final UnaryOperator<String> payloadRedactor;
     private Charset bodyCharset = UTF_8;
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) {
-        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) {
+        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
     }
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) throws URISyntaxException {
-        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) throws URISyntaxException {
+        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
     }
 
-    private BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) {
+    private BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) {
         this.closeableHttpClient = closeableHttpClient;
         this.uriBuilder = uriBuilder;
         this.responseBodyReaderConfig = responseBodyReaderConfig;
         this.requestBodySerializeConfig = requestBodySerializeConfig;
         this.requestPayloadLogging = requestPayloadLogging;
+        this.payloadRedactor = payloadRedactor != null ? payloadRedactor : UnaryOperator.identity();
         this.httpUriRequestBuilder = new HttpUriRequestBuilder();
 
         defaultHeaders.forEach(httpUriRequestBuilder::addHeader);
         defaultRequestParameters.forEach(httpUriRequestBuilder::addParameter);
     }
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) {
-        this(closeableHttpClient, uriBuilder, httpUriRequestBuilder, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, UTF_8);
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) {
+        this(closeableHttpClient, uriBuilder, httpUriRequestBuilder, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, UTF_8);
     }
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, Charset bodyCharset) {
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor, Charset bodyCharset) {
         this.closeableHttpClient = closeableHttpClient;
         this.uriBuilder = uriBuilder;
         this.httpUriRequestBuilder = httpUriRequestBuilder;
         this.responseBodyReaderConfig = responseBodyReaderConfig;
         this.requestBodySerializeConfig = requestBodySerializeConfig;
         this.requestPayloadLogging = requestPayloadLogging;
+        this.payloadRedactor = payloadRedactor != null ? payloadRedactor : UnaryOperator.identity();
         this.bodyCharset = bodyCharset != null ? bodyCharset : UTF_8;
     }
 
@@ -98,6 +115,7 @@ class BasicWebTarget implements WebTarget {
         this.requestBodySerializeConfig = source.getRequestBodySerializeConfig();
         this.httpUriRequestBuilder = source.getHttpUriRequestBuilder();
         this.requestPayloadLogging = source.isRequestPayloadLogging();
+        this.payloadRedactor = source.payloadRedactor;
         this.bodyCharset = source.getBodyCharset();
     }
 
@@ -162,7 +180,10 @@ class BasicWebTarget implements WebTarget {
 
         try {
             return new BasicResponse(response, responseBodyReaderConfig, uri);
-        } catch (ResponseException e) {
+        } catch (RuntimeException e) {
+            // Safety net: if wrapping the raw response fails (e.g. BoundedHttpEntity construction
+            // throws, or a downstream constructor blows up on malformed state), make sure we don't
+            // leak the underlying ClassicHttpResponse before bubbling the failure up.
             try {
                 response.close();
             } catch (IOException ioe) {
@@ -240,19 +261,24 @@ class BasicWebTarget implements WebTarget {
 
             LOGGER.debug("Response code from uri: [{}] is {}", responseUri, statusCode);
 
-            boolean hasBody = HttpRequestUtils.hasBody(statusCode);
+            // RFC 9110: HEAD never has a body, and 1xx/204/205/304 forbid a body too. For every
+            // other (method, status) pair Apache HC5 sets a (possibly length-0) HttpEntity.
+            boolean mayHaveBody = HttpRequestUtils.responseMayHaveBody(method, statusCode);
 
             T content = null;
             Exception errorCause = null;
             String failedMessage = null;
 
-            if (hasBody && httpEntity == null) {
+            if (mayHaveBody && httpEntity == null) {
+                // The spec says this response could carry a body but Apache surfaced null —
+                // i.e. the server sent something genuinely malformed (closed mid-stream, etc.).
+                // Treat as a Bad Gateway since we can't satisfy the caller's deserialization.
                 failedMessage = "Response entity is null";
                 LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, responseUri, statusCode);
                 statusCode = SC_BAD_GATEWAY;
             } else {
                 try {
-                    if (!HttpRequestUtils.isVoidType(typeReference.getRawType()) && hasBody && HttpRequestUtils.isSuccess(statusCode)) {
+                    if (!HttpRequestUtils.isVoidType(typeReference.getRawType()) && mayHaveBody && HttpRequestUtils.isSuccess(statusCode)) {
 
                         content = response.readEntityChecked(typeReference);
 
@@ -364,13 +390,13 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public WebTarget setCharset(Charset charset) {
-        setUriCharset(charset);
+        setQueryCharset(charset);
         setBodyCharset(charset);
         return this;
     }
 
     @Override
-    public WebTarget setUriCharset(Charset charset) {
+    public WebTarget setQueryCharset(Charset charset) {
         httpUriRequestBuilder.setCharset(charset != null ? charset : UTF_8);
         return this;
     }
@@ -470,6 +496,10 @@ class BasicWebTarget implements WebTarget {
         return requestPayloadLogging;
     }
 
+    UnaryOperator<String> getPayloadRedactor() {
+        return payloadRedactor;
+    }
+
     private HttpEntity parsePayloadBodyToHttpEntity(Object body) {
 
         ArgsCheck.notNull(body, "body");
@@ -504,12 +534,29 @@ class BasicWebTarget implements WebTarget {
     }
 
     private void logRequestBody(HttpMethod method, final String payload) {
-        if (isRequestPayloadLogging()) {
-            LOGGER.atDebug()
-                    .addArgument(this::getURIString)
-                    .addArgument(method)
-                    .addArgument(payload)
-                    .log("Requesting to: [{}] with HTTP method: [{}] and body: {}");
+        if (!isRequestPayloadLogging()) {
+            return;
         }
+        // Run the (composed) user-supplied redactor before handing the payload to the logging
+        // framework. Identity is the default — no allocation, no behavior change for callers
+        // who didn't register a redactor.
+        String redacted;
+        try {
+            redacted = payloadRedactor.apply(payload);
+            if (redacted == null) {
+                redacted = "[redactor returned null]";
+            }
+        } catch (RuntimeException e) {
+            // A buggy redactor must NOT take down the request. Swap the payload for a safe
+            // placeholder and log a WARN about the failure.
+            LOGGER.warn("Payload redactor threw {} — substituting [redaction-failed].", e.toString());
+            redacted = "[redaction-failed]";
+        }
+        final String finalRedacted = redacted;
+        LOGGER.atDebug()
+                .addArgument(this::getURIString)
+                .addArgument(method)
+                .addArgument(finalRedacted)
+                .log("Requesting to: [{}] with HTTP method: [{}] and body: {}");
     }
 }

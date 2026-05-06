@@ -43,17 +43,17 @@ class HttpRetryableRequestTest {
         }
 
         @Override
-        public int getRetryDelay(Response response) {
-            return 0;
+        public Duration getRetryDelay(RetryAttempt attempt) {
+            return Duration.ZERO;
         }
 
         @Override
-        public boolean mustBeRetried(Response response) {
-            return response.getCode() == 401;
+        public boolean mustBeRetried(RetryAttempt attempt) {
+            return attempt.getResponse() != null && attempt.getResponse().getCode() == 401;
         }
 
         @Override
-        public WebTarget beforeRetry(WebTarget webTarget) {
+        public WebTarget beforeRetry(RetryAttempt attempt, WebTarget webTarget) {
             return webTarget.updateHeader(HttpHeaders.AUTHORIZATION, "new header");
         }
     };
@@ -114,5 +114,109 @@ class HttpRetryableRequestTest {
 
         // initial call + 2 retries
         wireMockRule.verify(3, getRequestedFor(urlEqualTo("/always-401")));
+    }
+
+    @Test
+    void postIsNotRetriedByDefault_withOnIdempotent5xxPolicy() {
+        wireMockRule.stubFor(post(urlEqualTo("/orders"))
+                .willReturn(aResponse().withStatus(503)));
+
+        int code = httpRequest.retryableTarget(
+                        wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/orders",
+                        RetryContext.onIdempotent5xx(3, Duration.ofMillis(1)))
+                .rawRequest(HttpMethod.POST, "{}")
+                .getCode();
+
+        assertEquals(503, code);
+        // Only the original POST must have been sent — retries on non-idempotent methods are
+        // suppressed by the safe-default policy.
+        wireMockRule.verify(1, postRequestedFor(urlEqualTo("/orders")));
+    }
+
+    @Test
+    void getIsRetriedOn503_withOnIdempotent5xxPolicy() {
+        wireMockRule.stubFor(get(urlEqualTo("/read"))
+                .willReturn(aResponse().withStatus(503)));
+
+        int code = httpRequest.retryableTarget(
+                        wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/read",
+                        RetryContext.onIdempotent5xx(2, Duration.ofMillis(1)))
+                .rawGet()
+                .getCode();
+
+        assertEquals(503, code);
+        // initial GET + 2 retries
+        wireMockRule.verify(3, getRequestedFor(urlEqualTo("/read")));
+    }
+
+    @Test
+    void postWithRepeatableBodyIsRetried_whenOnAnyMethod5xxIsConfigured() {
+        // StringEntity (used by rawRequest(POST, "{}")) is repeatable, so the request copy path
+        // can safely replay it on each retry attempt.
+        wireMockRule.stubFor(post(urlEqualTo("/idempotent-post"))
+                .willReturn(aResponse().withStatus(503)));
+
+        int code = httpRequest.retryableTarget(
+                        wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/idempotent-post",
+                        RetryContext.onAnyMethod5xx(2, Duration.ofMillis(1)))
+                .rawRequest(HttpMethod.POST, "{}")
+                .getCode();
+
+        assertEquals(503, code);
+        // initial POST + 2 retries — caller explicitly opted into non-idempotent retries, and the
+        // body is repeatable so the transport path can replay it.
+        wireMockRule.verify(3, postRequestedFor(urlEqualTo("/idempotent-post")));
+    }
+
+    @Test
+    void nonRepeatableBodyFailsWithActionableErrorOnRetry() {
+        // InputStreamEntity is not repeatable — the request cannot be replayed. We expect an
+        // IllegalStateException that names the cause (non-repeatable entity) and points users
+        // at the fix (use a repeatable entity type).
+        wireMockRule.stubFor(post(urlEqualTo("/stream-post"))
+                .willReturn(aResponse().withStatus(503)));
+
+        org.apache.hc.core5.http.HttpEntity streaming = new org.apache.hc.core5.http.io.entity.InputStreamEntity(
+                new java.io.ByteArrayInputStream("{}".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                org.apache.hc.core5.http.ContentType.APPLICATION_JSON);
+
+        IllegalStateException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class,
+                () -> httpRequest.retryableTarget(
+                                wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/stream-post",
+                                RetryContext.onAnyMethod5xx(2, Duration.ofMillis(1)))
+                        .rawRequest(HttpMethod.POST, streaming));
+
+        org.junit.jupiter.api.Assertions.assertTrue(
+                thrown.getMessage().contains("non-repeatable"),
+                "Error message should name the cause: " + thrown.getMessage());
+    }
+
+    @Test
+    void defaultRetryContextDoesNotRetryPostOn503() {
+        // The default mustBeRetried(RetryAttempt) is idempotency-gated — a caller who supplies a
+        // RetryContext with only getRetryCount() overridden must not see POST retried on a 503.
+        wireMockRule.stubFor(post(urlEqualTo("/default-post"))
+                .willReturn(aResponse().withStatus(503)));
+
+        RetryContext minimal = new RetryContext() {
+            @Override
+            public int getRetryCount() {
+                return 2;
+            }
+
+            @Override
+            public Duration getRetryDelay(RetryAttempt attempt) {
+                return Duration.ZERO;
+            }
+        };
+
+        int code = httpRequest.retryableTarget(
+                        wireMockRule.getRuntimeInfo().getHttpBaseUrl() + "/default-post", minimal)
+                .rawRequest(HttpMethod.POST, "{}")
+                .getCode();
+
+        assertEquals(503, code);
+        wireMockRule.verify(1, postRequestedFor(urlEqualTo("/default-post")));
     }
 }

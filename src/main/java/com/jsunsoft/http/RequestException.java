@@ -16,21 +16,43 @@
 
 package com.jsunsoft.http;
 
+/**
+ * Runtime exception for request conversion/processing failures.
+ */
 public class RequestException extends RuntimeException {
     private static final long serialVersionUID = -5596590843227115865L;
 
+    /**
+     * Creates a new exception without a message.
+     */
     public RequestException() {
         super();
     }
 
+    /**
+     * Creates a new exception with a message.
+     *
+     * @param s error message
+     */
     public RequestException(final String s) {
         super(s);
     }
 
+    /**
+     * Creates a new exception with a cause.
+     *
+     * @param cause root cause
+     */
     public RequestException(final Throwable cause) {
         super(cause);
     }
 
+    /**
+     * Creates a new exception with a message and cause.
+     *
+     * @param message error message
+     * @param cause root cause
+     */
     public RequestException(final String message, final Throwable cause) {
         super(message, cause);
     }

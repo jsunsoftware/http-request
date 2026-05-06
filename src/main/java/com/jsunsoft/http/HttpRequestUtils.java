@@ -20,6 +20,8 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.net.URIBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Type;
 
@@ -27,6 +29,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 class HttpRequestUtils {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpRequestUtils.class);
 
     private HttpRequestUtils() {
         throw new AssertionError("No com.jsunsoft.http.HttpRequestUtils instances for you!");
@@ -50,15 +53,31 @@ class HttpRequestUtils {
         return statusCode >= 300 && statusCode < 400;
     }
 
-    static boolean hasBody(int statusCode) {
+    /**
+     * Whether an HTTP response to {@code method} with the given {@code statusCode} is allowed to
+     * carry a body, per RFC 9110:
+     * <ul>
+     *   <li>{@code HEAD} responses MUST NOT include a body, regardless of status (§9.3.2).</li>
+     *   <li>1xx, 204 No Content, 205 Reset Content, and 304 Not Modified responses MUST NOT
+     *       include a body (§15.3.5, §15.3.6, §15.4.5, §6.4.1).</li>
+     *   <li>All other status codes on other methods MAY include a body (length 0 counts).</li>
+     * </ul>
+     * Callers use this to decide whether to attempt to read/deserialize the response body. A
+     * "false" return doesn't mean a body is necessarily absent — it means there shouldn't be one
+     * to read per spec.
+     */
+    static boolean responseMayHaveBody(HttpMethod method, int statusCode) {
+        if (method == HttpMethod.HEAD) {
+            return false;
+        }
         return statusCode >= HttpStatus.SC_OK
                 && statusCode != HttpStatus.SC_NO_CONTENT
                 && statusCode != HttpStatus.SC_NOT_MODIFIED
                 && statusCode != HttpStatus.SC_RESET_CONTENT;
     }
 
-    static boolean hasNotBody(int statusCode) {
-        return !hasBody(statusCode);
+    static boolean responseMustNotHaveBody(HttpMethod method, int statusCode) {
+        return !responseMayHaveBody(method, statusCode);
     }
 
     static boolean isVoidType(Type type) {
@@ -102,6 +121,21 @@ class HttpRequestUtils {
             return null;
         }
         String contentType = httpEntity.getContentType();
-        return contentType == null ? null : ContentType.parse(contentType);
+        if (contentType == null) {
+            return null;
+        }
+        try {
+            return ContentType.parse(contentType);
+        } catch (IllegalArgumentException e) {
+            // Most commonly UnsupportedCharsetException from headers like
+            //   Content-Type: text/plain; charset=<not-installed-in-this-JVM>
+            // (UnsupportedCharsetException extends IllegalArgumentException). Treating this as
+            // "no parseable content-type" lets the reader chain fall through to
+            // ResponseBodyReaderNotFoundException — a well-defined library error — instead of
+            // letting an unchecked exception escape from a getter that's invoked from
+            // isReadable() predicates and the public Response#getContentType() API.
+            LOGGER.warn("Ignoring malformed Content-Type header value '{}': {}", contentType, e.getMessage());
+            return null;
+        }
     }
 }

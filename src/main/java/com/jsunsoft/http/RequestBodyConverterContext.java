@@ -29,12 +29,22 @@ public final class RequestBodyConverterContext {
     private final ContentType contentType;
     private final Charset charset;
 
+    /**
+     * Creates a new conversion context.
+     *
+     * @param body request body (non-null)
+     * @param contentType request content type, may be {@code null}
+     * @param charset request charset, defaults to UTF-8 if {@code null}
+     */
     public RequestBodyConverterContext(Object body, ContentType contentType, Charset charset) {
         this.body = ArgsCheck.notNull(body, "body");
         this.contentType = contentType;
         this.charset = charset != null ? charset : StandardCharsets.UTF_8;
     }
 
+    /**
+     * @return request body value
+     */
     public Object getBody() {
         return body;
     }
@@ -53,5 +63,4 @@ public final class RequestBodyConverterContext {
         return charset;
     }
 }
-
 

@@ -17,12 +17,15 @@
 package com.jsunsoft.http;
 
 import com.jsunsoft.http.annotations.Beta;
+import org.apache.hc.client5.http.DnsResolver;
 import org.apache.hc.client5.http.HttpRoute;
+import org.apache.hc.client5.http.SystemDefaultDnsResolver;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.impl.routing.DefaultProxyRoutePlanner;
@@ -37,6 +40,7 @@ import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.config.Http1Config;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.hc.core5.util.TimeValue;
@@ -47,8 +51,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
-import java.net.ProxySelector;
-import java.net.URI;
+import java.net.*;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -57,6 +60,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 
@@ -67,6 +71,17 @@ import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
  * HttpClients are heavy-weight objects that manage the client-side communication infrastructure.
  * Initialization as well as disposal of a {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient} instance may be a rather expensive operation.
  * It is therefore advised to construct only a small number of {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient} instances in the application.
+ *
+ * <h2>Reuse contract</h2>
+ *
+ * This builder is mutable and not thread-safe. Mutating setters (timeouts, default headers,
+ * customizers, …) <em>accumulate</em> state across calls; setters such as
+ * {@link #addDefaultHeader(String, String)} append, while value-style setters such as
+ * {@link #setConnectTimeout(int)} overwrite. {@link #build()} is idempotent — calling it more
+ * than once produces independent {@link org.apache.hc.client5.http.impl.classic.CloseableHttpClient}
+ * instances and the user-supplied customizers are applied to a fresh per-call {@code Builder}, so
+ * stateful customizers don't compound across builds. The typical pattern is still
+ * build-once-discard.
  */
 public class ClientBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientBuilder.class);
@@ -89,11 +104,20 @@ public class ClientBuilder {
     private ClientTlsStrategyBuilder clientTlsStrategyBuilder;
     private boolean cookieManagementEnabled;
     private boolean automaticRetriesEnabled;
+    private int maxResponseHeaderCount = -1;
+    private int maxResponseLineLength = -1;
+    private boolean disallowPrivateAndLoopbackHosts;
+    private Predicate<InetAddress> ssrfAllowExceptionWhen;
 
     ClientBuilder() {
 
     }
 
+    /**
+     * Creates a new {@link ClientBuilder} with default configuration.
+     *
+     * @return new builder instance
+     */
     public static ClientBuilder create() {
         return new ClientBuilder();
     }
@@ -460,6 +484,17 @@ public class ClientBuilder {
      * @return ClientBuilder instance
      */
     public ClientBuilder proxy(URI proxyUri) {
+        ArgsCheck.notNull(proxyUri, "proxyUri");
+        if (proxyUri.getUserInfo() != null) {
+            // userinfo in the URI (e.g. http://user:pass@proxy.corp) would silently be discarded by
+            // HttpHost — the user almost certainly means "authenticate to the proxy with these
+            // credentials," but Apache HC5's proxy auth path is HttpClientContext + a
+            // CredentialsProvider, not URI userinfo. Fail loudly instead of silently dropping it.
+            throw new IllegalArgumentException(
+                    "Proxy URI must not contain userinfo (username:password). For authenticated " +
+                            "proxies, supply credentials via Apache HC5's BasicCredentialsProvider on the " +
+                            "HttpClientContext. Got: '" + proxyUri.getRawUserInfo() + "@" + proxyUri.getHost() + "'");
+        }
         return proxy(
                 new HttpHost(
                         proxyUri.getScheme(),
@@ -528,6 +563,143 @@ public class ClientBuilder {
     }
 
     /**
+     * Restricts the TLS protocol versions the client will negotiate.
+     * <p>
+     * Useful when you want to enforce TLS 1.2+ or TLS 1.3 only — for example to comply with a
+     * security baseline that forbids legacy protocols. Without calling this method, the JVM's
+     * configured TLS versions are used.
+     * <pre>{@code
+     *     ClientBuilder.create()
+     *             .setTlsVersions("TLSv1.3", "TLSv1.2")
+     *             .build();
+     * }</pre>
+     *
+     * @param tlsVersions one or more TLS protocol identifiers (e.g. {@code "TLSv1.3"},
+     *                    {@code "TLSv1.2"}); must not be {@code null}.
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder setTlsVersions(String... tlsVersions) {
+        ArgsCheck.notNull(tlsVersions, "tlsVersions");
+        initializeClientTlsStrategyBuilder();
+        clientTlsStrategyBuilder.setTlsVersions(tlsVersions);
+        return this;
+    }
+
+    /**
+     * Restricts the TLS cipher suites the client will offer / accept.
+     * <p>
+     * Use to opt out of weak / deprecated suites (legacy RC4, DES, 3DES, NULL ciphers) when
+     * talking to servers that still advertise them. Pass cipher suite names exactly as the JVM
+     * recognises them (see {@link javax.net.ssl.SSLContext#getDefaultSSLParameters()
+     * SSLParameters.getCipherSuites()}). Without calling this method, the JVM defaults are used.
+     *
+     * @param cipherSuites one or more cipher suite names; must not be {@code null}.
+     * @return ClientBuilder instance
+     */
+    public ClientBuilder setCipherSuites(String... cipherSuites) {
+        ArgsCheck.notNull(cipherSuites, "cipherSuites");
+        initializeClientTlsStrategyBuilder();
+        clientTlsStrategyBuilder.setCiphers(cipherSuites);
+        return this;
+    }
+
+    /**
+     * Caps the number of HTTP/1.1 headers the client will accept in a single message. Bounds
+     * memory consumption when talking to a hostile or buggy server that emits an unbounded
+     * header list — {@link HttpRequestBuilder#setMaxResponseBodySizeBytes complementing the body-size cap} which
+     * only protects the body, not the head.
+     * <p>
+     * Default: Apache HC5's built-in default (currently {@code -1}, unlimited). Pass a
+     * non-negative value to enable; common production caps are {@code 64} or {@code 100}.
+     *
+     * @param maxHeaderCount maximum number of header fields per message; negative means unbounded
+     * @return ClientBuilder instance
+     * @see Http1Config.Builder#setMaxHeaderCount(int)
+     */
+    @Beta
+    public ClientBuilder setMaxHeaderCount(int maxHeaderCount) {
+        this.maxResponseHeaderCount = maxHeaderCount;
+        return this;
+    }
+
+    /**
+     * Caps the maximum length of a single HTTP/1.1 line — used as the upper bound for the status
+     * line and any individual header. Pairs with {@link #setMaxHeaderCount} to bound the worst
+     * case "malicious server fills RAM via headers" attack: total head size ≤
+     * {@code maxHeaderCount × maxLineLength}.
+     * <p>
+     * Default: Apache HC5's built-in default (currently {@code -1}, unlimited). Production caps
+     * around {@code 8192} (8 KiB) are typical; many reverse proxies default to {@code 4096}.
+     *
+     * @param maxLineLength maximum bytes per line; negative means unbounded
+     * @return ClientBuilder instance
+     * @see Http1Config.Builder#setMaxLineLength(int)
+     */
+    @Beta
+    public ClientBuilder setMaxLineLength(int maxLineLength) {
+        this.maxResponseLineLength = maxLineLength;
+        return this;
+    }
+
+    /**
+     * Opt-in SSRF guard. When enabled, the client's DNS resolver rejects any host that resolves
+     * to a loopback ({@code 127.0.0.0/8}, {@code ::1}), unspecified ({@code 0.0.0.0}, {@code ::}),
+     * link-local ({@code 169.254.0.0/16} — covers AWS / GCP / Azure metadata endpoints —
+     * {@code fe80::/10}), IPv4 site-local / RFC 1918 ({@code 10/8}, {@code 172.16/12},
+     * {@code 192.168/16}), or IPv6 unique-local ({@code fc00::/7}) address.
+     * <p>
+     * The check is plumbed through Apache HC5's {@link DnsResolver}, so it fires for every host
+     * the client touches — including hosts reached via 3xx redirects, not only the original
+     * URL the caller passed to {@code target(...)}. This closes the time-of-check / time-of-use
+     * gap that a URL-only check would have: the same DNS lookup that produces the connection IP
+     * is the one being filtered.
+     * <p>
+     * Use this for any application that constructs request URIs from user-supplied input.
+     * Combine with network-layer egress filtering for full defence-in-depth.
+     *
+     * @return ClientBuilder instance
+     */
+    @Beta
+    public ClientBuilder disallowPrivateAndLoopbackHosts() {
+        this.disallowPrivateAndLoopbackHosts = true;
+        return this;
+    }
+
+    /**
+     * Variant of {@link #disallowPrivateAndLoopbackHosts()} with an allow-list escape hatch:
+     * the guard rejects private / loopback / link-local addresses <em>except</em> for those the
+     * supplied predicate accepts. Use this when you need to block public-internet SSRF surface
+     * but still talk to specific internal endpoints (e.g. an internal config service on
+     * {@code 10.0.7.42} that the guard would otherwise block).
+     *
+     * <pre>{@code
+     * InetAddress configService = InetAddress.getByName("10.0.7.42");
+     * ClientBuilder.create()
+     *         .disallowPrivateAndLoopbackHosts(addr -> addr.equals(configService))
+     *         .build();
+     * }</pre>
+     *
+     * The predicate is evaluated for each resolved address that would otherwise be blocked. A
+     * predicate returning {@code true} for an address means "allow this private address through";
+     * {@code false} keeps the default deny. The predicate is invoked from the connection-manager
+     * DNS resolver, so it must be thread-safe and side-effect-free — slow predicates serialize
+     * connection establishment.
+     *
+     * <p>Pass {@code null} for {@code allowExceptionWhen} to opt back into "block everything
+     * private" — equivalent to calling {@link #disallowPrivateAndLoopbackHosts()}.
+     *
+     * @param allowExceptionWhen predicate that returns {@code true} for addresses that should be
+     *                           permitted despite the SSRF guard. May be {@code null}.
+     * @return ClientBuilder instance
+     * @since 3.5.0
+     */
+    @Beta
+    public ClientBuilder disallowPrivateAndLoopbackHosts(Predicate<InetAddress> allowExceptionWhen) {
+        this.ssrfAllowExceptionWhen = allowExceptionWhen;
+        return disallowPrivateAndLoopbackHosts();
+    }
+
+    /**
      * By default, the {@link HttpClientBuilder#disableCookieManagement} called.
      * This method will prevent the call.
      *
@@ -539,8 +711,14 @@ public class ClientBuilder {
     }
 
     /**
-     * By default, the {@link HttpClientBuilder#disableCookieManagement} called.
-     * This method will prevent the call.
+     * By default, the underlying {@link HttpClientBuilder#disableAutomaticRetries} is called and
+     * Apache HC5's built-in retry-on-IOException logic is suppressed. Calling this method opts
+     * back into Apache's default retry behavior.
+     * <p>
+     * Note: this is the underlying-client retry mechanism. For richer policy (status-code
+     * predicates, per-attempt header rewriting, exponential backoff, idempotency gating) prefer
+     * the higher-level {@link RetryContext} API exposed via
+     * {@link HttpRequest#retryableTarget(java.net.URI, RetryContext)}.
      *
      * @return ClientBuilder instance
      */
@@ -611,17 +789,22 @@ public class ClientBuilder {
      */
     @Beta
     HttpClientWithResourcesWrapper buildWithResources() {
+        // Snapshot the configured timeouts/setters and apply customizers to a FRESH builder per
+        // build(). Otherwise calling build() twice would re-apply the customizers to the same
+        // persistent Builder field, compounding any non-idempotent state changes (e.g. a
+        // customizer that does b.setMaxRedirects(b.getMaxRedirects() + 1) would increment
+        // unboundedly, and a customizer that re-registers an interceptor would duplicate it).
+        RequestConfig.Builder freshRequestConfigBuilder = RequestConfig.copy(defaultRequestConfigBuilder.build());
         if (defaultRequestConfigBuilderCustomizers != null) {
-            defaultRequestConfigBuilderCustomizers.forEach(customizer -> customizer.accept(defaultRequestConfigBuilder));
+            defaultRequestConfigBuilderCustomizers.forEach(customizer -> customizer.accept(freshRequestConfigBuilder));
         }
+        RequestConfig requestConfig = freshRequestConfigBuilder.build();
 
-        RequestConfig requestConfig = defaultRequestConfigBuilder.build();
-
+        ConnectionConfig.Builder freshConnectionConfigBuilder = ConnectionConfig.copy(defaultConnectionConfigBuilder.build());
         if (defaultConnectionConfigBuilderCustomizers != null) {
-            defaultConnectionConfigBuilderCustomizers.forEach(customizer -> customizer.accept(defaultConnectionConfigBuilder));
+            defaultConnectionConfigBuilderCustomizers.forEach(customizer -> customizer.accept(freshConnectionConfigBuilder));
         }
-
-        ConnectionConfig connectionConfig = defaultConnectionConfigBuilder.build();
+        ConnectionConfig connectionConfig = freshConnectionConfigBuilder.build();
 
         PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create()
                 .setMaxConnPerRoute(hostPoolConfig.getDefaultMaxPoolSizePerRoute())
@@ -630,6 +813,27 @@ public class ClientBuilder {
 
         if (clientTlsStrategyBuilder != null) {
             cmBuilder.setTlsSocketStrategy(clientTlsStrategyBuilder.buildClassic());
+        }
+
+        if (disallowPrivateAndLoopbackHosts) {
+            cmBuilder.setDnsResolver(createSsrfGuardedDnsResolver());
+        }
+
+        // Wire HTTP/1.1 head-size limits if either knob was set. Apache HC5 plumbs Http1Config
+        // through a ManagedHttpClientConnectionFactory (the connection manager itself doesn't
+        // accept Http1Config directly).
+        if (maxResponseHeaderCount >= 0 || maxResponseLineLength >= 0) {
+            Http1Config.Builder http1Builder = Http1Config.custom();
+            if (maxResponseHeaderCount >= 0) {
+                http1Builder.setMaxHeaderCount(maxResponseHeaderCount);
+            }
+            if (maxResponseLineLength >= 0) {
+                http1Builder.setMaxLineLength(maxResponseLineLength);
+            }
+            cmBuilder.setConnectionFactory(
+                    ManagedHttpClientConnectionFactory.builder()
+                            .http1Config(http1Builder.build())
+                            .build());
         }
 
         if (defaultConnectionManagerBuilderCustomizers != null) {
@@ -698,6 +902,57 @@ public class ClientBuilder {
         if (clientTlsStrategyBuilder == null) {
             clientTlsStrategyBuilder = ClientTlsStrategyBuilder.create();
         }
+    }
+
+    /**
+     * Builds the SSRF-guarded {@link DnsResolver} installed on the connection manager when
+     * {@link #disallowPrivateAndLoopbackHosts()} is enabled. Forward lookups go through
+     * {@link SystemDefaultDnsResolver} and are filtered for loopback / unspecified / link-local /
+     * RFC 1918 / IPv6-unique-local addresses; matching results trigger
+     * {@link UnknownHostException}, which Apache HC5 surfaces as an IOException at the request
+     * boundary (then wrapped into a {@link ResponseException} by {@code BasicWebTarget}).
+     * Reverse lookups (resolveCanonicalHostname) are unaffected by the policy and just delegate.
+     */
+    private DnsResolver createSsrfGuardedDnsResolver() {
+        // Capture the allow-list predicate at build time so the resolver doesn't observe later
+        // mutations of the builder (the builder is documented as build-once-discard).
+        final Predicate<InetAddress> allowException = ssrfAllowExceptionWhen;
+        return new DnsResolver() {
+            @Override
+            public InetAddress[] resolve(String host) throws UnknownHostException {
+                InetAddress[] addresses = SystemDefaultDnsResolver.INSTANCE.resolve(host);
+                for (InetAddress addr : addresses) {
+                    if (isPrivateLoopbackOrLocal(addr) && !isAllowedException(addr)) {
+                        throw new UnknownHostException(
+                                "Blocked private/loopback/link-local address (" + addr.getHostAddress() +
+                                        ") for host '" + host + "' — disallowPrivateAndLoopbackHosts is enabled");
+                    }
+                }
+                return addresses;
+            }
+
+            @Override
+            public String resolveCanonicalHostname(String host) throws UnknownHostException {
+                return SystemDefaultDnsResolver.INSTANCE.resolveCanonicalHostname(host);
+            }
+
+            private boolean isAllowedException(InetAddress addr) {
+                return allowException != null && allowException.test(addr);
+            }
+
+            private boolean isPrivateLoopbackOrLocal(InetAddress addr) {
+                if (addr.isLoopbackAddress()) return true;       // 127/8, ::1
+                if (addr.isAnyLocalAddress()) return true;       // 0.0.0.0, ::
+                if (addr.isLinkLocalAddress()) return true;      // 169.254/16, fe80::/10
+                if (addr.isSiteLocalAddress()) return true;      // RFC 1918 — IPv4 only on JDK
+                if (addr instanceof Inet6Address) {
+                    // RFC 4193 unique-local: fc00::/7. Inet6Address has no convenience method for this.
+                    byte[] b = addr.getAddress();
+                    return (b[0] & 0xfe) == 0xfc;
+                }
+                return false;
+            }
+        };
     }
 
     @Beta

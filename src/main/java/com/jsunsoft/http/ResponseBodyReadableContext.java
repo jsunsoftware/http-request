@@ -20,7 +20,12 @@ import org.apache.hc.core5.http.ContentType;
 
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
+/**
+ * Read-only context describing a response body to be deserialized.
+ */
 public interface ResponseBodyReadableContext {
 
     /**
@@ -83,6 +88,18 @@ public interface ResponseBodyReadableContext {
      */
     default long getMaxResponseBodySizeBytes() {
         return 0;
+    }
+
+    /**
+     * Charset used to decode the response body when the {@code Content-Type} header carries no
+     * {@code charset} parameter. Configured via
+     * {@link HttpRequestBuilder#setDefaultResponseCharset(Charset)}; defaults to
+     * {@link StandardCharsets#UTF_8 UTF-8}.
+     *
+     * @return the configured default charset; never {@code null}.
+     */
+    default Charset getDefaultResponseCharset() {
+        return StandardCharsets.UTF_8;
     }
 
     /**

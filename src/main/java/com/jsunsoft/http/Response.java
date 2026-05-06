@@ -24,12 +24,58 @@ import org.apache.hc.core5.http.ContentType;
 import java.io.IOException;
 import java.net.URI;
 
+/**
+ * Live, closable HTTP response handle returned by the lazy {@code WebTarget.request(...)} family
+ * (those that return {@code Response} rather than {@code ResponseHandler}).
+ * <p>
+ * A {@code Response} owns the underlying {@link ClassicHttpResponse} and the streaming body. The
+ * caller is responsible for closing it — always wrap in try-with-resources:
+ * <pre>{@code
+ *     try (Response response = httpRequest.target(uri).get()) {
+ *         int code = response.getCode();
+ *         User user = response.readEntity(User.class);
+ *     } // close() drains and releases the connection
+ * }</pre>
+ *
+ * <h2>Lifecycle</h2>
+ * <ul>
+ *   <li>{@link #readEntity(Class)} / {@link #readEntity(TypeReference)} — one-shot deserialization;
+ *       the underlying body stream is non-repeatable, so a second call sees an exhausted stream
+ *       and surfaces a {@link ResponseBodyProcessingException}. Read into a buffer first if you
+ *       need both typed and raw views.</li>
+ *   <li>{@link #close()} — drains any unread body content (bounded by
+ *       {@code setMaxResponseBodySizeBytes} when configured) so the connection is eligible for
+ *       pool reuse, then closes the underlying response. Always called via try-with-resources.</li>
+ * </ul>
+ *
+ * <h2>Thread safety</h2>
+ *
+ * {@code Response} is <b>not</b> thread-safe. The body stream is shared with the underlying
+ * Apache HC5 connection and concurrent reads will interleave bytes. Read it on one thread, close
+ * it on the same (or after that thread is done).
+ *
+ * <h2>Heads-up: extends {@link ClassicHttpResponse}</h2>
+ *
+ * For backward compatibility this interface inherits from Apache HC5's {@code ClassicHttpResponse},
+ * which exposes ~30 methods (header iteration, version setters, locale, status mutators, etc.).
+ * In day-to-day usage you'll only need {@link #getCode()}, {@link #getHeaders()},
+ * {@link #readEntity(Class) readEntity}, {@link #close() close}, and {@link #getURI()}; the
+ * inherited methods are listed for compatibility but not part of the library's stable API.
+ */
 public interface Response extends ClassicHttpResponse {
 
     /**
      * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
      * <p>
-     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     * <b>One-shot semantic.</b> The underlying response body is a streaming, non-repeatable
+     * {@code InputStream}. Calling {@code readEntity} more than once on the same {@code Response}
+     * is unsupported — the second call sees an exhausted stream and will typically surface a
+     * {@link ResponseBodyProcessingException} (or, for a few reader / type combinations, return
+     * {@code null} or an empty value). If you need both a typed and a string view of the body,
+     * read the body once into a buffer (e.g. {@code String}) and re-parse from there.
+     * <p>
+     * Note: this method will surface any unchecked exception thrown by the resolved
+     * {@link ResponseBodyReader}.
      *
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
@@ -41,7 +87,8 @@ public interface Response extends ClassicHttpResponse {
     /**
      * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
      * <p>
-     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     * See {@link #readEntity(Class)} for the one-shot semantic — the body stream is
+     * non-repeatable and may only be consumed once per {@code Response} instance.
      *
      * @param responseType Java type the response entity will be converted to.
      * @param <T>          response entity type.
@@ -84,6 +131,9 @@ public interface Response extends ClassicHttpResponse {
      */
     URI getURI();
 
+    /**
+     * @return {@code true} if the response has a non-null entity
+     */
     default boolean hasEntity() {
         return getEntity() != null;
     }

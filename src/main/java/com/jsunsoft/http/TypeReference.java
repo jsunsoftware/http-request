@@ -22,34 +22,34 @@ import java.util.Arrays;
 import java.util.Deque;
 
 /**
- * This generic abstract class is used for obtaining full generics type information
- * Class is based on ideas from
- * <a href="http://gafter.blogspot.com/2006/12/super-type-tokens.html"
- * >http://gafter.blogspot.com/2006/12/super-type-tokens.html</a>,
- * Additional idea (from a suggestion made in comments of the article)
- * is to require bogus implementation of <code>Comparable</code>
- * (any such generic interface would do, as long as it forces a method
- * with generic type to be implemented).
- * to ensure that a Type argument is indeed given.
+ * Generic abstract class used for obtaining full generics type information at runtime
+ * (a "super type token"). Based on
+ * <a href="http://gafter.blogspot.com/2006/12/super-type-tokens.html">Neal Gafter's super-type-token pattern</a>.
+ * The bogus {@link Comparable} implementation forces an anonymous subclass to supply a concrete
+ * type argument at construction time.
  * <p>
- * Usage is by sub-classing: here is one way to instantiate reference
- * to generic type <code>List&lt;Integer&gt;</code>:
+ * Usage is by sub-classing — here is how to obtain a reference to {@code List<Integer>}:
  * <pre>
  *  TypeReference ref = new TypeReference&lt;List&lt;Integer&gt;&gt;() { };
- *  </pre>
+ * </pre>
+ *
+ * <h2>Why a custom type — why not Jackson's {@code com.fasterxml.jackson.core.type.TypeReference}?</h2>
+ *
+ * Library-internal {@code TypeReference} is intentional: keeping our own type lets the library
+ * stay neutral on the deserialization backend. Today the bundled body readers are Jackson-based,
+ * but pluggable {@link ResponseBodyReader} implementations can wire up Gson, JSON-B, kotlinx.serialization,
+ * or any other engine without forcing a Jackson type onto callers. Switching the public API to
+ * Jackson's {@code TypeReference} would couple every consumer to Jackson — a backward step for
+ * a library that already supports custom readers.
+ *
+ * <h2>Note on {@link Comparable}</h2>
+ *
+ * The {@link Comparable} implementation exists solely to require a method with a generic type to
+ * be implemented in any anonymous subclass; without that constraint, raw-type instantiations
+ * could compile silently. The natural ordering is intentionally trivial ({@code compareTo}
+ * returns {@code 0}) and should not be used for sorting or in sorted collections.
  */
 
-/**
- * Note: {@link Comparable} is implemented only to enforce supplying a generic type argument
- * when constructing anonymous subclasses like:
- *
- * <pre>
- *     List&lt;SomeType&gt; result = webTarget.get(new TypeReference&lt;List&lt;SomeType&gt;&gt;() {});
- * </pre>
- * <p>
- * The natural ordering of {@code TypeReference} instances is intentionally undefined and should not be used
- * for sorting or in sorted collections.
- */
 @SuppressWarnings({"rawtypes"})
 public class TypeReference<T> implements Comparable<TypeReference<T>> {
 

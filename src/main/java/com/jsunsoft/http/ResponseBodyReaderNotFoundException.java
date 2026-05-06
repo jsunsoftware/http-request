@@ -16,16 +16,35 @@
 
 package com.jsunsoft.http;
 
+/**
+ * Thrown when no {@link ResponseBodyReader} can handle the response body.
+ */
 @SuppressWarnings("serial")
 public class ResponseBodyReaderNotFoundException extends ResponseBodyReaderException {
+    /**
+     * Creates a new exception with a message and cause.
+     *
+     * @param message error message
+     * @param cause root cause
+     */
     public ResponseBodyReaderNotFoundException(String message, Throwable cause) {
         super(message, cause);
     }
 
+    /**
+     * Creates a new exception with a cause.
+     *
+     * @param cause root cause
+     */
     public ResponseBodyReaderNotFoundException(Throwable cause) {
         super(cause);
     }
 
+    /**
+     * Creates a new exception with a message.
+     *
+     * @param message error message
+     */
     public ResponseBodyReaderNotFoundException(String message) {
         super(message);
     }

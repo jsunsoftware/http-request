@@ -21,6 +21,11 @@ import org.apache.hc.core5.http.HttpEntity;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Context passed to {@link ResponseBodyReader} implementations.
+ *
+ * @param <T> target type produced by the reader
+ */
 public interface ResponseBodyReaderContext<T> extends ResponseBodyReadableContext {
     /**
      * @return content stream of the entity.

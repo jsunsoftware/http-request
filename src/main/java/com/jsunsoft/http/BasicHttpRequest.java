@@ -24,6 +24,7 @@ import org.apache.hc.core5.net.URIBuilder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.function.UnaryOperator;
 
 /**
  * Basic implementation of HttpRequest
@@ -36,6 +37,7 @@ class BasicHttpRequest implements HttpRequest {
     private final RequestBodySerializeConfig requestBodySerializeConfig;
     private final Set<String> allowedSchemes;
     private final boolean requestPayloadLogging;
+    private final UnaryOperator<String> payloadRedactor;
 
     BasicHttpRequest(CloseableHttpClient closeableHttpClient,
                      Collection<Header> defaultHeaders,
@@ -43,7 +45,8 @@ class BasicHttpRequest implements HttpRequest {
                      ResponseBodyReaderConfig responseBodyReaderConfig,
                      RequestBodySerializeConfig requestBodySerializeConfig,
                      Collection<String> allowedSchemes,
-                     boolean requestPayloadLogging) {
+                     boolean requestPayloadLogging,
+                     UnaryOperator<String> payloadRedactor) {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
         this.defaultHeaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultHeaders, "defaultHeaders")));
         this.defaultRequestParameters = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters")));
@@ -51,13 +54,14 @@ class BasicHttpRequest implements HttpRequest {
         this.requestBodySerializeConfig = ArgsCheck.notNull(requestBodySerializeConfig, "requestBodySerializeConfig");
         this.allowedSchemes = Collections.unmodifiableSet(new LinkedHashSet<>(ArgsCheck.notNull(allowedSchemes, "allowedSchemes")));
         this.requestPayloadLogging = requestPayloadLogging;
+        this.payloadRedactor = ArgsCheck.notNull(payloadRedactor, "payloadRedactor");
     }
 
     @Override
     public WebTarget target(URI uri) {
         ArgsCheck.notNull(uri, "uri");
         validateUriScheme(uri);
-        return new BasicWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+        return new BasicWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
     }
 
     @Override
@@ -66,7 +70,7 @@ class BasicHttpRequest implements HttpRequest {
         try {
             URI parsed = new URIBuilder(uri).build();
             validateUriScheme(parsed);
-            return new BasicWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+            return new BasicWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
@@ -83,7 +87,7 @@ class BasicHttpRequest implements HttpRequest {
         ArgsCheck.notNull(uri, "uri");
         ArgsCheck.notNull(retryContext, "retryContext");
         validateUriScheme(uri);
-        return new RetryableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+        return new RetryableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
     }
 
     /**
@@ -100,7 +104,7 @@ class BasicHttpRequest implements HttpRequest {
         try {
             URI parsed = new URIBuilder(uri).build();
             validateUriScheme(parsed);
-            return new RetryableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+            return new RetryableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
@@ -110,7 +114,7 @@ class BasicHttpRequest implements HttpRequest {
     public WebTarget immutableTarget(URI uri) {
         ArgsCheck.notNull(uri, "uri");
         validateUriScheme(uri);
-        return new ImmutableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+        return new ImmutableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
     }
 
     @Override
@@ -119,7 +123,7 @@ class BasicHttpRequest implements HttpRequest {
         try {
             URI parsed = new URIBuilder(uri).build();
             validateUriScheme(parsed);
-            return new ImmutableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+            return new ImmutableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
@@ -134,4 +138,5 @@ class BasicHttpRequest implements HttpRequest {
             throw new IllegalArgumentException("Unsupported URI scheme: " + scheme + ". Allowed schemes: " + allowedSchemes);
         }
     }
+
 }

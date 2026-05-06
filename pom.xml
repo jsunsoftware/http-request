@@ -22,7 +22,7 @@
 
     <groupId>com.jsunsoft.http</groupId>
     <artifactId>http-request</artifactId>
-    <version>3.5.0-rc2</version>
+    <version>3.5.0-rc3</version>
     <packaging>jar</packaging>
 
     <name>http-request</name>
@@ -51,7 +51,8 @@
     <properties>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jackson.version>2.19.4</jackson.version>
+        <jackson.version>2.21.3</jackson.version>
+        <jackson-annotation.version>2.21</jackson-annotation.version>
         <junit.version>6.0.3</junit.version>
         <httpclient.version>5.5.2</httpclient.version>
         <wiremock.version>3.13.2</wiremock.version>
@@ -215,6 +216,13 @@
         </dependency>
 
         <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.22.0</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
@@ -223,7 +231,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
+            <version>${jackson-annotation.version}</version>
         </dependency>
 
         <dependency>

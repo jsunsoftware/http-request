@@ -21,14 +21,30 @@ package com.jsunsoft.http;
  */
 @SuppressWarnings("serial")
 public class ResponseBodyProcessingException extends RuntimeException {
+    /**
+     * Creates a new exception with a message.
+     *
+     * @param message error message
+     */
     public ResponseBodyProcessingException(String message) {
         super(message);
     }
 
+    /**
+     * Creates a new exception with a message and cause.
+     *
+     * @param message error message
+     * @param cause root cause
+     */
     public ResponseBodyProcessingException(String message, Throwable cause) {
         super(message, cause);
     }
 
+    /**
+     * Creates a new exception with a cause.
+     *
+     * @param cause root cause
+     */
     public ResponseBodyProcessingException(Throwable cause) {
         super(cause);
     }

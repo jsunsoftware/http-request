@@ -20,18 +20,27 @@ package com.jsunsoft.http.annotations;
 import java.lang.annotation.*;
 
 /**
- * Signifies that a public API (public class, method or field) is subject to incompatible changes,
- * or even removal, in a future release. An API bearing this annotation is exempt from any
- * compatibility guarantees made by its containing library. Note that the presence of this
- * annotation implies nothing about the quality or performance of the API in question, only the fact
- * that it is not "API-frozen."
+ * Signifies that a public API (public class, method, or field) is subject to incompatible
+ * changes, or even removal, in a future release. An API bearing this annotation is exempt from
+ * the compatibility guarantees of its containing library — concretely, the signature, default
+ * behavior, exception types, and method names of {@code @Beta} APIs may change between minor
+ * (3.x → 3.y) and patch (3.5.0 → 3.5.1) releases without a deprecation cycle.
+ * <p>
+ * The annotation says nothing about the quality or performance of the API; only that it is not
+ * "API-frozen."
+ * <p>
+ * It is generally safe for <i>applications</i> to depend on beta APIs, at the cost of some
+ * extra work during upgrades. It is generally inadvisable for <i>libraries</i> — whose users'
+ * classpaths are outside the library developer's control — to depend on someone else's beta
+ * API; an application picking up the dependency transitively can be broken silently when the
+ * provider library upgrades.
  *
- * <p>It is generally safe for <i>applications</i> to depend on beta APIs, at the cost of some extra
- * work during upgrades. However it is generally inadvisable for <i>libraries</i> (which get
- * included on users' CLASSPATHs, outside the library developers' control) to do so.
+ * <h2>Retention</h2>
+ *
+ * Retained at runtime so static-analysis tools (ErrorProne, IDE inspections, dependency-check
+ * plugins) can flag usage of {@code @Beta} APIs in downstream code.
  */
-
-@Retention(RetentionPolicy.CLASS)
+@Retention(RetentionPolicy.RUNTIME)
 @Target({
         ElementType.ANNOTATION_TYPE,
         ElementType.CONSTRUCTOR,

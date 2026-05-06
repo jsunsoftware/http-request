@@ -30,14 +30,35 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.UnaryOperator;
 
 import static org.apache.hc.core5.http.HttpHeaders.AUTHORIZATION;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 
 /**
- * Http request builder
+ * Builder for {@link HttpRequest}. Configure the builder fluently and call {@link #build()} to
+ * produce an immutable, thread-safe {@link HttpRequest}.
+ *
+ * <h2>Reuse contract</h2>
+ *
+ * This builder is mutable and not thread-safe. Mutating setters such as
+ * {@link #addDefaultHeader(String, String)} and
+ * {@link #addDefaultRequestParameter(String, String) addDefaultRequestParameter}
+ * <em>accumulate</em> state across calls — calling {@code addDefaultHeader} twice on the same
+ * builder adds two headers; subsequent {@link #build()} calls each snapshot the current
+ * accumulated state. The typical pattern is build-once-discard:
+ *
+ * <pre>{@code
+ *     HttpRequest req = HttpRequestBuilder.create(client)
+ *             .addDefaultHeader("Authorization", "Bearer ...")
+ *             .build();
+ * }</pre>
+ *
+ * Reuse for a second {@link #build()} is supported (each call produces an independent
+ * {@code HttpRequest}); just remember that prior mutations are <em>not</em> reset between calls.
  *
  * @see HttpRequest
  */
@@ -51,6 +72,7 @@ public class HttpRequestBuilder {
     private final RequestBodySerializeConfig.Builder requestBodySerializeConfigBuilder = RequestBodySerializeConfig.create();
     private Set<String> allowedSchemes;
     private boolean requestPayloadLogging;
+    private UnaryOperator<String> payloadRedactor;
 
     private HttpRequestBuilder(CloseableHttpClient closeableHttpClient) {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
@@ -59,8 +81,44 @@ public class HttpRequestBuilder {
     /**
      * Creates a new instance of HttpRequestBuilder.
      *
-     * @param closeableHttpClient the HTTP client to use
+     * <h3>Lifecycle ownership</h3>
+     *
+     * The supplied {@code closeableHttpClient} is <b>not</b> closed by this builder or by the
+     * resulting {@link HttpRequest} — the caller retains full ownership. The library never
+     * calls {@link CloseableHttpClient#close()} on the supplied client, because the same client
+     * is typically shared across multiple {@code HttpRequest} instances and may be needed
+     * past the lifetime of any individual one.
+     *
+     * <p>To release the underlying connection pool at shutdown, the caller must close the
+     * client explicitly. Three idiomatic patterns:
+     *
+     * <ul>
+     *   <li><b>Try-with-resources</b> (single-use scripts and short-lived tools):
+     * <pre>{@code
+     * try (CloseableHttpClient client = ClientBuilder.create().build()) {
+     *     HttpRequest req = HttpRequestBuilder.create(client).build();
+     *     // use req...
+     * } // pool released here
+     * }</pre></li>
+     *   <li><b>Spring-managed bean</b> (long-running services):
+     * <pre>{@code
+     * @Bean(destroyMethod = "close")
+     * CloseableHttpClient httpClient() { return ClientBuilder.create().build(); }
+     * }</pre></li>
+     *   <li><b>Application shutdown hook</b> (non-Spring servers):
+     * <pre>{@code
+     * CloseableHttpClient client = ClientBuilder.create().build();
+     * Runtime.getRuntime().addShutdownHook(new Thread(() -> client.close()));
+     * }</pre></li>
+     * </ul>
+     *
+     * Forgetting to close the client leaks the connection pool — sockets remain open until the
+     * JVM exits, which can exhaust the file-descriptor limit on long-running processes.
+     *
+     * @param closeableHttpClient the HTTP client to use; must not be {@code null}. The caller
+     *                            owns this client and is responsible for closing it.
      * @return a new instance of HttpRequestBuilder
+     * @throws NullPointerException if {@code closeableHttpClient} is {@code null}
      */
     public static HttpRequestBuilder create(CloseableHttpClient closeableHttpClient) {
         return new HttpRequestBuilder(closeableHttpClient);
@@ -276,7 +334,11 @@ public class HttpRequestBuilder {
     /**
      * Adds a date deserialization pattern for the default response deserializer.
      * <p>
-     * Note: This method will be ignored if {@link #setDefaultJsonMapper} is called.
+     * When a custom {@link ObjectMapper} is supplied via {@link #setDefaultJsonMapper(ObjectMapper)}
+     * or {@link #setDefaultXmlMapper(ObjectMapper)}, the pattern is applied on a {@link ObjectMapper#copy() copy}
+     * of the provided mapper — the caller's instance is left unmodified — and is registered as a
+     * Jackson {@code configOverride} for the given type. A {@code configOverride} already set by the
+     * caller for the same type will be replaced on the copy.
      *
      * @param dateType the date type
      * @param pattern  the pattern to use for deserialization
@@ -288,12 +350,16 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Adds a date deserialization pattern for the request body serialization.
+     * Adds a date serialization pattern for the request body serialization.
      * <p>
-     * Note: This method will be ignored if {@link #setDefaultJsonMapper} is called.
+     * When a custom {@link ObjectMapper} is supplied via {@link #setDefaultJsonMapper(ObjectMapper)}
+     * or {@link #setDefaultXmlMapper(ObjectMapper)}, the pattern is applied on a {@link ObjectMapper#copy() copy}
+     * of the provided mapper — the caller's instance is left unmodified — and is registered as a
+     * Jackson {@code configOverride} for the given type. A {@code configOverride} already set by the
+     * caller for the same type will be replaced on the copy.
      *
      * @param dateType the date type
-     * @param pattern  the pattern to use for sserialization
+     * @param pattern  the pattern to use for serialization
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addRequestDefaultDateSerializationPattern(Class<?> dateType, String pattern) {
@@ -302,36 +368,77 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Sets the default JSON mapper for response body deserialization.
+     * Sets the default JSON mapper used for request body serialization and response body deserialization.
+     * <p>
+     * A defensive {@link ObjectMapper#copy() copy} of the supplied mapper is taken at the moment this
+     * method is called. The caller's instance is never mutated by the library, and any later changes
+     * to it are ignored — the builder uses the snapshot captured here. Pass {@code null} to fall back
+     * to the library default mapper.
+     * <p>
+     * <b>Strict vs. lenient deserialization.</b> When no mapper is supplied, the library default
+     * disables {@code FAIL_ON_UNKNOWN_PROPERTIES} — unrecognized JSON fields are silently dropped.
+     * That trade-off favours forward-compatibility (the server can add new fields without
+     * breaking existing clients), but masks typos in field names and silent API drift in
+     * development. To opt into Jackson's stricter default (throw on unknown properties), pass an
+     * {@code ObjectMapper} you've configured yourself — your choice is preserved on the snapshot
+     * since the library never re-applies its own defaults to a user-supplied mapper:
+     * <pre>{@code
+     *   HttpRequestBuilder.create(client)
+     *           .setDefaultJsonMapper(new ObjectMapper())  // Jackson default = strict
+     *           .build();
+     * }</pre>
      *
-     * @param defaultJsonMapper the JSON mapper to set
+     * @param defaultJsonMapper the JSON mapper to snapshot, or {@code null} to restore the default
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder setDefaultJsonMapper(ObjectMapper defaultJsonMapper) {
-        requestBodySerializeConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
-        responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
+        // Eager defensive copy: one independent snapshot per downstream config. Protects the caller's
+        // instance from library-side mutation and keeps each config's date-pattern overrides from
+        // leaking into the other. Runs twice at builder-build time; not on the per-request hot path.
+        requestBodySerializeConfigBuilder.setDefaultJsonMapper(defaultJsonMapper == null ? null : defaultJsonMapper.copy());
+        responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper == null ? null : defaultJsonMapper.copy());
         return this;
     }
 
     /**
-     * Sets the default XML mapper for response body deserialization.
+     * Sets the default XML mapper used for request body serialization and response body deserialization.
+     * <p>
+     * A defensive {@link ObjectMapper#copy() copy} of the supplied mapper is taken at the moment this
+     * method is called. The caller's instance is never mutated by the library, and any later changes
+     * to it are ignored — the builder uses the snapshot captured here. Pass {@code null} to fall back
+     * to the library default mapper.
+     * <p>
+     * Strict / lenient deserialization works the same as for the JSON mapper — see
+     * {@link #setDefaultJsonMapper(ObjectMapper)} for the discussion.
      *
-     * @param defaultXmlMapper the XML mapper to set
+     * @param defaultXmlMapper the XML mapper to snapshot, or {@code null} to restore the default
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder setDefaultXmlMapper(ObjectMapper defaultXmlMapper) {
-        requestBodySerializeConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
-        responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
+        // See setDefaultJsonMapper — eager per-config defensive copy.
+        requestBodySerializeConfigBuilder.setDefaultXmlMapper(defaultXmlMapper == null ? null : defaultXmlMapper.copy());
+        responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper == null ? null : defaultXmlMapper.copy());
         return this;
     }
 
     /**
-     * Adds basic authentication to the request with basic validation.
+     * Adds preemptive HTTP Basic authentication to every request built from this {@code HttpRequest}.
      * <p>
-     * Note: Basic authentication is not encryption. Prefer HTTPS to protect credentials in transit.
+     * <b>Use HTTPS.</b> HTTP Basic transmits credentials with only Base64 encoding, not encryption.
+     * <p>
+     * <b>In-memory exposure.</b> The {@code password} {@link String} is the worst form of secret
+     * holder on the JVM — string literals are interned in the constant pool and even non-literal
+     * {@code String}s cannot be zeroed. Once this method runs, an {@code "Basic &lt;base64&gt;"}
+     * header value is also retained as a {@link String} in this builder's default-header list for
+     * the lifetime of the resulting {@code HttpRequest}. This overload exists because it is the
+     * shortest way to plug in a non-rotating credential, but for production code that rotates
+     * secrets or wants any chance of zeroing, prefer {@link #basicAuth(String, char[])} (which
+     * accepts a mutable buffer and zeros the source array). For full per-request rotation,
+     * configure Apache HC5's {@code BasicCredentialsProvider} on a custom {@link
+     * org.apache.hc.core5.http.protocol.HttpContext} instead of using this method.
      *
      * @param username the username (must not contain ':')
-     * @param password the password
+     * @param password the password (kept as a {@code String}; cannot be zeroed)
      * @return the current instance of HttpRequestBuilder
      * @throws IllegalArgumentException if username contains ':'
      */
@@ -351,11 +458,23 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Adds basic authentication to the request using {@code char[]} for password.
-     * The password array will be cleared after use.
+     * Adds preemptive HTTP Basic authentication using a {@code char[]} for the password.
+     * <p>
+     * The supplied {@code password} array is zeroed before this method returns; the intermediate
+     * encoding buffers are also zeroed. The <em>final</em> {@code "Basic <base64>"} header value
+     * is, however, still stored as a {@link String} in this builder's default-header list for
+     * the lifetime of the resulting {@code HttpRequest} — a {@link String} cannot be zeroed in
+     * the JVM. So this overload reduces, but does not eliminate, the period during which the
+     * cleartext credential is recoverable from a heap dump.
+     * <p>
+     * For production rotation / vault-backed secrets, configure Apache HC5's
+     * {@code BasicCredentialsProvider} on a custom {@link
+     * org.apache.hc.core5.http.protocol.HttpContext} instead.
+     * <p>
+     * <b>Use HTTPS.</b> HTTP Basic is Base64, not encryption.
      *
      * @param username the username (must not contain ':')
-     * @param password the password (will be cleared after use)
+     * @param password the password (will be zeroed after use)
      * @return the current instance of HttpRequestBuilder
      */
     @Beta
@@ -398,16 +517,37 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Sets a maximum allowed response body size in bytes.
+     * Sets a cap on the number of bytes the library will read from a response body before
+     * throwing {@link InvalidContentLengthException}.
      * <p>
-     * Default is unlimited ({@code 0}).
+     * Pass a strictly-positive value (e.g. {@code 1024}) to enable the cap. Pass {@code 0} or any
+     * negative value to disable it — that is also the default state of a fresh builder, so a
+     * caller who simply does not want a cap should not call this method at all.
      *
-     * @param maxResponseBodySizeBytes max bytes to read from response bodies; {@code <= 0} disables the limit.
+     * @param maxResponseBodySizeBytes positive byte cap, or {@code <= 0} to disable.
      * @return the current instance of HttpRequestBuilder
      */
     @Beta
     public HttpRequestBuilder setMaxResponseBodySizeBytes(long maxResponseBodySizeBytes) {
         responseBodyReaderConfigBuilder.setMaxResponseBodySizeBytes(maxResponseBodySizeBytes);
+        return this;
+    }
+
+    /**
+     * Sets the charset used to decode response bodies into {@code String} when the response's
+     * {@code Content-Type} header carries no {@code charset} parameter. Defaults to
+     * {@link java.nio.charset.StandardCharsets#UTF_8 UTF-8} — the right choice in 2026 and a
+     * stricter default than Apache HC5's bare ISO-8859-1 fallback.
+     * <p>
+     * When the server <em>does</em> include a {@code charset=...} on the response, that value
+     * always takes precedence; this setting only affects the no-charset-header path.
+     *
+     * @param defaultResponseCharset the charset to use for charset-less responses; must not be
+     *                               {@code null}.
+     * @return the current instance of HttpRequestBuilder
+     */
+    public HttpRequestBuilder setDefaultResponseCharset(Charset defaultResponseCharset) {
+        responseBodyReaderConfigBuilder.setDefaultResponseCharset(defaultResponseCharset);
         return this;
     }
 
@@ -458,6 +598,37 @@ public class HttpRequestBuilder {
     }
 
     /**
+     * Registers a redactor that runs over the request payload before it is logged via
+     * {@link #enableRequestPayloadLogging()}. Multiple redactors compose left-to-right (the
+     * output of one feeds the next).
+     * <p>
+     * Common use cases:
+     * <ul>
+     *   <li>Mask {@code "password"} field values in JSON bodies before logging.</li>
+     *   <li>Strip {@code Authorization} header values that get serialised into the body.</li>
+     *   <li>Truncate large payloads to a fixed prefix so logs don't balloon.</li>
+     * </ul>
+     * Redactors are only invoked when payload logging is on; if logging is disabled, registering
+     * a redactor is a no-op (it's not called). Registering a redactor does <em>not</em> turn
+     * logging on by itself — call {@link #enableRequestPayloadLogging()} explicitly.
+     *
+     * @param redactor function applied to the payload string before logging; must not be {@code null}
+     *                 and must not return {@code null}.
+     * @return the current instance of HttpRequestBuilder
+     */
+    @Beta
+    public HttpRequestBuilder addPayloadRedactor(UnaryOperator<String> redactor) {
+        ArgsCheck.notNull(redactor, "redactor");
+
+        UnaryOperator<String> previous = this.payloadRedactor;
+
+        this.payloadRedactor = previous == null
+                ? redactor
+                : value -> redactor.apply(previous.apply(value));
+        return this;
+    }
+
+    /**
      * Builds the HttpRequest instance.
      *
      * @return the HttpRequest instance
@@ -475,6 +646,10 @@ public class HttpRequestBuilder {
             allowedSchemes = Collections.emptySet();
         }
 
-        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build(), requestBodySerializeConfigBuilder.build(), allowedSchemes, requestPayloadLogging);
+        UnaryOperator<String> effectiveRedactor = payloadRedactor != null
+                ? payloadRedactor
+                : UnaryOperator.identity();
+
+        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build(), requestBodySerializeConfigBuilder.build(), allowedSchemes, requestPayloadLogging, effectiveRedactor);
     }
 }

@@ -27,8 +27,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.Collection;
-import java.util.concurrent.TimeUnit;
+import java.util.function.UnaryOperator;
 
 @Beta
 class RetryableWebTarget extends BasicWebTarget {
@@ -36,13 +37,13 @@ class RetryableWebTarget extends BasicWebTarget {
 
     private final RetryContext retryContext;
 
-    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+    RetryableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
         this.retryContext = retryContext;
     }
 
-    RetryableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging) throws URISyntaxException {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging);
+    RetryableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, RetryContext retryContext, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) throws URISyntaxException {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
         this.retryContext = retryContext;
     }
 
@@ -50,17 +51,28 @@ class RetryableWebTarget extends BasicWebTarget {
     public Response request(HttpMethod method, HttpContext context) {
         Response response = super.request(method, context);
 
-        int retryCount = retryContext.getRetryCount();
+        final int maxRetries = retryContext.getRetryCount();
+        int remaining = maxRetries;
+        int attemptNumber = 1;
 
         try {
-            while (retryCount > 0 && retryContext.mustBeRetried(response)) {
-                LOGGER.debug("Request to URI: [{}] has been retried. Response code: [{}]", response.getURI(), response.getCode());
+            while (remaining > 0) {
+                RetryAttempt attempt = new BasicRetryAttempt(response, method, response.getURI(), attemptNumber, null);
+                if (!retryContext.mustBeRetried(attempt)) {
+                    break;
+                }
 
-                TimeUnit.SECONDS.sleep(retryContext.getRetryDelay(response));
+                LOGGER.debug("Request to URI: [{}] will be retried (attempt {} of {}). Response code: [{}]",
+                        response.getURI(), attemptNumber + 1, maxRetries + 1, response.getCode());
+
+                Duration delay = retryContext.getRetryDelay(attempt);
+                if (delay != null && !delay.isZero() && !delay.isNegative()) {
+                    Thread.sleep(delay.toMillis());
+                }
 
                 closeResponse(response);
 
-                WebTarget retryTarget = retryContext.beforeRetry(this);
+                WebTarget retryTarget = retryContext.beforeRetry(attempt, this);
                 if (retryTarget instanceof RetryableWebTarget) {
                     // Avoid recursion (and retryCount reset) when beforeRetry returns the same retryable instance.
                     // Execute a single request attempt using a non-retryable target copy.
@@ -68,7 +80,8 @@ class RetryableWebTarget extends BasicWebTarget {
                 } else {
                     response = retryTarget.request(method, context);
                 }
-                retryCount--;
+                attemptNumber++;
+                remaining--;
             }
         } catch (InterruptedException e) {
             closeResponse(response);

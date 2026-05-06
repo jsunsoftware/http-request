@@ -18,6 +18,11 @@ package com.jsunsoft.http;
 
 import java.util.function.Consumer;
 
+/**
+ * Represents an optional {@code otherwise} branch after filter evaluation.
+ *
+ * @param <T> response body type
+ */
 public class OtherwiseSupport<T> {
 
     private final ResponseHandler<T> responseHandler;

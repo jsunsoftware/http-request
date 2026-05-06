@@ -67,6 +67,25 @@ class HttpRequestSimpleTest {
     }
 
     @Test
+    void headRequest_successfulResponseKeepsItsStatusEvenWhenEntityIsNull() {
+        // Regression guard: Apache HC5 always returns null HttpEntity for HEAD responses (HTTP
+        // forbids a body on HEAD), but hasBody(200) returns true. The previous code remapped
+        // any "hasBody && entity == null" combination to 502, turning a successful HEAD into a
+        // Bad Gateway report on the ResponseHandler. The fix excludes HEAD from that remap so
+        // the original status flows through.
+        wireMockRule.stubFor(head(urlEqualTo("/probe"))
+                .willReturn(aResponse().withStatus(200).withHeader(CONTENT_LENGTH, "42")));
+
+        ResponseHandler<?> rh = basicHttpRequest
+                .target(wireMockRule.getRuntimeInfo().getHttpBaseUrl())
+                .path("probe")
+                .rawRequest(HttpMethod.HEAD);
+
+        assertEquals(200, rh.getCode(), "HEAD 200 must keep its 200 status, not be remapped to 502");
+        assertTrue(rh.isSuccess());
+    }
+
+    @Test
     void userAgentTest() {
         wireMockRule.stubFor(get(urlEqualTo("/userAgent"))
                 .withHeader("User-Agent", equalTo(userAgent))
