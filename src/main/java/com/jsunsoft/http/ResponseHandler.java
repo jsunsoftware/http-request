@@ -44,7 +44,8 @@ import java.util.function.Supplier;
  *       response body was empty / null?</li>
  * </ol>
  *
- * <table border="1" cellpadding="4" summary="Accessor matrix">
+ * <table border="1">
+ *   <caption>Accessor matrix</caption>
  *   <tr><th>Method</th><th>Non-success status</th><th>Empty body on success</th><th>Use when</th></tr>
  *   <tr><td>{@link #requiredGet()}</td>
  *       <td>throws {@link ResponseException}</td>
