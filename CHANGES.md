@@ -131,8 +131,6 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   HC5's `BasicCredentialsProvider`. Previously, the userinfo was silently discarded by the
   `HttpHost` constructor — users who thought they were configuring proxy auth would see no
   credentials sent.
-* `ClientBuilder.enableAutomaticRetries()` Javadoc rewritten — the previous text was a copy-paste
-  of `enableCookieManagement()` and described the wrong feature.
 * `ClientBuilder.build()` is now idempotent across repeated calls. Previously, the
   `defaultRequestConfigBuilder` and `defaultConnectionConfigBuilder` were stored as fields and
   user-supplied customizers were applied to those persistent instances on every `build()` —
@@ -173,14 +171,14 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   excludes `HEAD`; for non-`HEAD` requests the existing safety net is kept (Apache HC5 always
   sets a, possibly length-0, entity for `hasBody(...)` statuses on those methods, so this branch
   effectively only fires on genuinely malformed responses).
-* Improved Javadocs across the public API:
-  * `Response#readEntity` — documented the one-shot semantic (the body stream is non-repeatable;
-    consecutive calls fail).
-  * `WebTarget#addParameter(NameValuePair)` / `addParameter(String, String)` — clarified that
-    name and value are raw and the library percent-encodes per `setQueryCharset`.
-  * `WebTarget#addParameters(String, Charset)` / `addParameters(String)` — documented that the
-    queryString must be already percent-encoded (it is decoded via `WWWFormCodec.parse`).
-  * `HttpRequestBuilder#basicAuth(String, String)` and `basicAuth(String, char[])` — documented
-    in-memory exposure (`String` overload retains a `String` credential; `char[]` overload zeros
-    the source but the encoded header is still a `String`). Pointed at Apache HC5's
-    `BasicCredentialsProvider` for production rotation.
+* New `RetryContext.withMaxHonoredRetryAfter(RetryContext, Duration)` opt-in clamp on
+  `Retry-After`. Wraps any `RetryContext` and caps the honoured retry delay, defending against
+  a misbehaving or hostile upstream returning `Retry-After: 99999` (~28 hours) and stalling the
+  calling thread. Default behaviour without the wrapper is unchanged — the library is
+  RFC-compliant and honours whatever the server says.
+* New `ClientBuilder.disallowPrivateAndLoopbackHosts(Predicate<InetAddress>)` overload for the
+  SSRF guard. The predicate is an allow-list escape hatch: it is invoked for each resolved
+  address that would otherwise be blocked, and a return of `true` permits the address through.
+  Useful when you need to block public-internet SSRF surface but still talk to a specific
+  internal endpoint (e.g. an internal config service on `10.0.7.42`). Passing `null` for the
+  predicate is equivalent to the no-arg overload.

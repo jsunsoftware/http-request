@@ -60,6 +60,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 
@@ -106,6 +107,7 @@ public class ClientBuilder {
     private int maxResponseHeaderCount = -1;
     private int maxResponseLineLength = -1;
     private boolean disallowPrivateAndLoopbackHosts;
+    private Predicate<InetAddress> ssrfAllowExceptionWhen;
 
     ClientBuilder() {
 
@@ -664,6 +666,40 @@ public class ClientBuilder {
     }
 
     /**
+     * Variant of {@link #disallowPrivateAndLoopbackHosts()} with an allow-list escape hatch:
+     * the guard rejects private / loopback / link-local addresses <em>except</em> for those the
+     * supplied predicate accepts. Use this when you need to block public-internet SSRF surface
+     * but still talk to specific internal endpoints (e.g. an internal config service on
+     * {@code 10.0.7.42} that the guard would otherwise block).
+     *
+     * <pre>{@code
+     * InetAddress configService = InetAddress.getByName("10.0.7.42");
+     * ClientBuilder.create()
+     *         .disallowPrivateAndLoopbackHosts(addr -> addr.equals(configService))
+     *         .build();
+     * }</pre>
+     *
+     * The predicate is evaluated for each resolved address that would otherwise be blocked. A
+     * predicate returning {@code true} for an address means "allow this private address through";
+     * {@code false} keeps the default deny. The predicate is invoked from the connection-manager
+     * DNS resolver, so it must be thread-safe and side-effect-free — slow predicates serialize
+     * connection establishment.
+     *
+     * <p>Pass {@code null} for {@code allowExceptionWhen} to opt back into "block everything
+     * private" — equivalent to calling {@link #disallowPrivateAndLoopbackHosts()}.
+     *
+     * @param allowExceptionWhen predicate that returns {@code true} for addresses that should be
+     *                           permitted despite the SSRF guard. May be {@code null}.
+     * @return ClientBuilder instance
+     * @since 3.5.0
+     */
+    @Beta
+    public ClientBuilder disallowPrivateAndLoopbackHosts(Predicate<InetAddress> allowExceptionWhen) {
+        this.ssrfAllowExceptionWhen = allowExceptionWhen;
+        return disallowPrivateAndLoopbackHosts();
+    }
+
+    /**
      * By default, the {@link HttpClientBuilder#disableCookieManagement} called.
      * This method will prevent the call.
      *
@@ -878,12 +914,15 @@ public class ClientBuilder {
      * Reverse lookups (resolveCanonicalHostname) are unaffected by the policy and just delegate.
      */
     private DnsResolver createSsrfGuardedDnsResolver() {
+        // Capture the allow-list predicate at build time so the resolver doesn't observe later
+        // mutations of the builder (the builder is documented as build-once-discard).
+        final Predicate<InetAddress> allowException = ssrfAllowExceptionWhen;
         return new DnsResolver() {
             @Override
             public InetAddress[] resolve(String host) throws UnknownHostException {
                 InetAddress[] addresses = SystemDefaultDnsResolver.INSTANCE.resolve(host);
                 for (InetAddress addr : addresses) {
-                    if (isPrivateLoopbackOrLocal(addr)) {
+                    if (isPrivateLoopbackOrLocal(addr) && !isAllowedException(addr)) {
                         throw new UnknownHostException(
                                 "Blocked private/loopback/link-local address (" + addr.getHostAddress() +
                                         ") for host '" + host + "' — disallowPrivateAndLoopbackHosts is enabled");
@@ -895,6 +934,10 @@ public class ClientBuilder {
             @Override
             public String resolveCanonicalHostname(String host) throws UnknownHostException {
                 return SystemDefaultDnsResolver.INSTANCE.resolveCanonicalHostname(host);
+            }
+
+            private boolean isAllowedException(InetAddress addr) {
+                return allowException != null && allowException.test(addr);
             }
 
             private boolean isPrivateLoopbackOrLocal(InetAddress addr) {

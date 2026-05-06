@@ -44,12 +44,7 @@ class RetryContextTest {
     @Test
     void defaultMustBeRetriedRetriesIdempotent503Only() {
         // A minimal RetryContext that relies on the interface default everywhere except retryCount.
-        RetryContext plain = new RetryContext() {
-            @Override
-            public int getRetryCount() {
-                return 1;
-            }
-        };
+        RetryContext plain = () -> 1;
 
         assertTrue(plain.mustBeRetried(attemptWithStatus(HttpMethod.GET, 503)),
                 "GET + 503 must be retried by the default policy (idempotent)");
@@ -68,12 +63,7 @@ class RetryContextTest {
 
     @Test
     void defaultGetRetryDelayHonorsRetryAfter() {
-        RetryContext plain = new RetryContext() {
-            @Override
-            public int getRetryCount() {
-                return 1;
-            }
-        };
+        RetryContext plain = () -> 1;
 
         BasicClassicHttpResponse raw = new BasicClassicHttpResponse(503);
         raw.setHeader(new BasicHeader(HttpHeaders.RETRY_AFTER, "7"));
@@ -85,12 +75,7 @@ class RetryContextTest {
 
     @Test
     void defaultGetRetryDelayFallsBackTo5SecondsWhenNoHeader() {
-        RetryContext plain = new RetryContext() {
-            @Override
-            public int getRetryCount() {
-                return 1;
-            }
-        };
+        RetryContext plain = () -> 1;
 
         BasicClassicHttpResponse raw = new BasicClassicHttpResponse(503);
         Response response = new BasicResponse(raw, ResponseBodyReaderConfig.create().build(), URI.create("http://x/"));
@@ -164,6 +149,68 @@ class RetryContextTest {
         assertThrows(IllegalArgumentException.class, () -> RetryContext.onIdempotent5xx(1, Duration.ofSeconds(-1)));
         assertThrows(NullPointerException.class, () -> RetryContext.onIdempotent5xx(1, null));
         assertThrows(IllegalArgumentException.class, () -> RetryContext.onAnyMethod5xx(-1, Duration.ofSeconds(1)));
+    }
+
+    @Test
+    void withMaxHonoredRetryAfter_clampsHostileRetryAfter() {
+        // Server says Retry-After: 99999 (~28 hours). The wrapper must clamp it to the configured
+        // 60s — without the wrapper the policy would honour the full 99999s.
+        RetryContext base = RetryContext.onIdempotent5xx(3, Duration.ofSeconds(2));
+        RetryContext capped = RetryContext.withMaxHonoredRetryAfter(base, Duration.ofSeconds(60));
+
+        BasicClassicHttpResponse raw = new BasicClassicHttpResponse(503);
+        raw.setHeader(new BasicHeader(HttpHeaders.RETRY_AFTER, "99999"));
+        Response response = new BasicResponse(raw, ResponseBodyReaderConfig.create().build(), URI.create("http://x/"));
+        RetryAttempt attempt = new BasicRetryAttempt(response, HttpMethod.GET, URI.create("http://x/"), 1, null);
+
+        // Sanity: the unwrapped policy returns the honest server value.
+        assertEquals(Duration.ofSeconds(99999), base.getRetryDelay(attempt));
+        // Wrapper clamps at the configured cap.
+        assertEquals(Duration.ofSeconds(60), capped.getRetryDelay(attempt));
+    }
+
+    @Test
+    void withMaxHonoredRetryAfter_passesThroughDelaysBelowCap() {
+        // Reasonable Retry-After (2s) under the 60s cap → unchanged.
+        RetryContext capped = RetryContext.withMaxHonoredRetryAfter(
+                RetryContext.onIdempotent5xx(1, Duration.ofMillis(50)),
+                Duration.ofSeconds(60));
+
+        BasicClassicHttpResponse raw = new BasicClassicHttpResponse(503);
+        raw.setHeader(new BasicHeader(HttpHeaders.RETRY_AFTER, "2"));
+        Response response = new BasicResponse(raw, ResponseBodyReaderConfig.create().build(), URI.create("http://x/"));
+        RetryAttempt attempt = new BasicRetryAttempt(response, HttpMethod.GET, URI.create("http://x/"), 1, null);
+
+        assertEquals(Duration.ofSeconds(2), capped.getRetryDelay(attempt));
+    }
+
+    @Test
+    void withMaxHonoredRetryAfter_delegatesNonDelayMethodsVerbatim() {
+        // Pin that the wrapper only modifies getRetryDelay; getRetryCount / mustBeRetried /
+        // beforeRetry are passed through untouched.
+        RetryContext base = RetryContext.onIdempotent5xx(7, Duration.ofMillis(1));
+        RetryContext capped = RetryContext.withMaxHonoredRetryAfter(base, Duration.ofSeconds(30));
+
+        assertEquals(7, capped.getRetryCount());
+        assertTrue(capped.mustBeRetried(attemptWithStatus(HttpMethod.GET, 500)),
+                "wrapped policy still retries idempotent 5xx");
+        assertFalse(capped.mustBeRetried(attemptWithStatus(HttpMethod.POST, 503)),
+                "wrapped policy still gates non-idempotent");
+    }
+
+    @Test
+    void withMaxHonoredRetryAfter_rejectsBadArguments() {
+        RetryContext base = RetryContext.onIdempotent5xx(1, Duration.ofSeconds(1));
+
+        assertThrows(NullPointerException.class,
+                () -> RetryContext.withMaxHonoredRetryAfter(null, Duration.ofSeconds(60)),
+                "null delegate rejected");
+        assertThrows(NullPointerException.class,
+                () -> RetryContext.withMaxHonoredRetryAfter(base, null),
+                "null cap rejected");
+        assertThrows(IllegalArgumentException.class,
+                () -> RetryContext.withMaxHonoredRetryAfter(base, Duration.ofSeconds(-1)),
+                "negative cap rejected");
     }
 
     @Test

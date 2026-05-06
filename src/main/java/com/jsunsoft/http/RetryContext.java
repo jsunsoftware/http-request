@@ -168,4 +168,66 @@ public interface RetryContext {
     static RetryContext onAnyMethod5xx(int maxRetries, Duration delay) {
         return BasicRetryContext.fixedDelay(maxRetries, delay, false);
     }
+
+    /**
+     * Wraps {@code delegate} and clamps any retry delay (whether parsed from a
+     * {@code Retry-After} response header or returned by the delegate's own logic) to at most
+     * {@code maxRetryAfter}. Useful as a defence against a misbehaving or hostile upstream
+     * returning {@code Retry-After: 99999}, which would otherwise sleep ~1.5 days per retry —
+     * multiplied by {@code maxRetries} that becomes a denial-of-service against the calling
+     * thread.
+     *
+     * <p>Only the upper bound is enforced. The delegate's
+     * {@link #getRetryCount()}, {@link #mustBeRetried(RetryAttempt)}, and
+     * {@link #beforeRetry(RetryAttempt, WebTarget)} are passed through verbatim.
+     *
+     * <p>Without this wrapper the library is RFC-compliant — it honours whatever the server
+     * says. Use this wrapper when the upstream is untrusted or when you want a predictable
+     * upper bound on retry latency.
+     *
+     * <pre>{@code
+     * RetryContext safe = RetryContext.withMaxHonoredRetryAfter(
+     *         RetryContext.onIdempotent5xx(3, Duration.ofSeconds(2)),
+     *         Duration.ofSeconds(60));
+     * }</pre>
+     *
+     * @param delegate      the retry context to wrap. Must not be {@code null}.
+     * @param maxRetryAfter the maximum honoured retry delay. Must not be {@code null}, must be
+     *                      non-negative.
+     * @return a new {@link RetryContext} that delegates every decision but caps
+     * {@link #getRetryDelay(RetryAttempt)} at {@code maxRetryAfter}.
+     * @since 3.5.0
+     */
+    static RetryContext withMaxHonoredRetryAfter(RetryContext delegate, Duration maxRetryAfter) {
+        ArgsCheck.notNull(delegate, "delegate");
+        ArgsCheck.notNull(maxRetryAfter, "maxRetryAfter");
+        if (maxRetryAfter.isNegative()) {
+            throw new IllegalArgumentException("maxRetryAfter must be >= 0, got " + maxRetryAfter);
+        }
+        return new RetryContext() {
+            @Override
+            public int getRetryCount() {
+                return delegate.getRetryCount();
+            }
+
+            @Override
+            public boolean mustBeRetried(RetryAttempt attempt) {
+                return delegate.mustBeRetried(attempt);
+            }
+
+            @Override
+            public Duration getRetryDelay(RetryAttempt attempt) {
+                Duration d = delegate.getRetryDelay(attempt);
+                if (d == null || d.isNegative()) {
+                    return d;
+                }
+                return d.compareTo(maxRetryAfter) > 0 ? maxRetryAfter : d;
+            }
+
+            @Override
+            public WebTarget beforeRetry(RetryAttempt attempt, WebTarget webTarget) {
+                return delegate.beforeRetry(attempt, webTarget);
+            }
+        };
+    }
 }

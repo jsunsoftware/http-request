@@ -26,6 +26,7 @@ A powerful, fluent Java wrapper built on top of Apache HTTP Client 5 that simpli
   - [Custom Response Body Readers](#custom-response-body-readers)
   - [Limiting Response Body Size](#limiting-response-body-size)
   - [Character Encoding](#character-encoding)
+  - [Security &amp; Hardening](#security--hardening)
   - [Debugging](#debugging)
 - [Why use http-request?](#why-use-http-request)
 - [API Documentation](#api-documentation)
@@ -68,6 +69,14 @@ responses, managing connections, and processing data, building on top of the rob
   - Apache HttpClient 5.x
   - Jackson (for JSON/XML processing)
   - SLF4J (for logging)
+
+### Transport: HTTP/1.1 only
+
+The library is built on Apache HC5's classic synchronous `CloseableHttpClient`, which speaks
+HTTP/1.1. HTTP/2 / HTTP/3 are not supported through this library — those require Apache HC5's
+async client (`CloseableHttpAsyncClient`), which is not yet wired in. If your service needs
+HTTP/2 multiplexing or h2-only upstreams, choose a different client. Sync HTTP/1.1 is the
+right answer for the vast majority of REST APIs.
 
 ## Installation
 
@@ -140,6 +149,35 @@ This library simplifies resource management to prevent connection leaks.
 
 The mutable `target(...)` is faster (no allocation per fluent step) but mutations on it leak
 across threads if the same instance is reused.
+
+#### Choosing between `target()` and `immutableTarget()`
+
+A simple rule covers ~99% of cases:
+
+| Use case                                                                | Pick                   |
+|-------------------------------------------------------------------------|------------------------|
+| One-shot request from a single thread (`build → fire → discard`)        | `target(uri)`          |
+| Configured once, fired from many threads (e.g. a service-bean field)    | `immutableTarget(uri)` |
+| Forking variants of the same configuration (auth + tenant + then split) | `immutableTarget(uri)` |
+| Tight loops where allocation of a per-call wrapper matters              | `target(uri)`          |
+
+```java
+// Request-scoped: each call builds and discards.
+ResponseHandler<User> rh = httpRequest.target("https://api.example.com/users/1")
+                .addHeader("X-Tenant", currentTenantId())
+                .get(User.class);
+
+// Shared / multi-threaded: every fluent call returns a *new* WebTarget,
+// so two threads adding different headers don't trample each other.
+private final WebTarget userApi = httpRequest.immutableTarget("https://api.example.com/users");
+
+User loadUser(String id, String tenant) {
+  return userApi.path(id).addHeader("X-Tenant", tenant).get(User.class).orElseThrow();
+}
+```
+
+If you're not sure, default to `immutableTarget(...)` — the per-call allocation cost is
+negligible compared to the network round-trip, and the thread-safety footgun is gone.
 
 ### 1. Using `ResponseHandler` (Recommended for most cases)
 
@@ -469,6 +507,29 @@ CloseableHttpClient httpClient = ClientBuilder.create()
                 .build();
 ```
 
+#### TLS version and cipher pinning
+
+By default the JDK negotiates the best mutually supported TLS version. For hardened
+deployments (PCI-DSS, FedRAMP, internal compliance) you may need to enforce TLS 1.2+ and
+opt out of legacy cipher suites:
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        // Reject TLS 1.0 / 1.1 — server must speak 1.2 or 1.3.
+        .setTlsVersions("TLSv1.3", "TLSv1.2")
+        // Restrict to a hand-picked cipher allow-list (subset of the JDK's supported set).
+        .setCipherSuites(
+                "TLS_AES_256_GCM_SHA384",
+                "TLS_AES_128_GCM_SHA256",
+                "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
+        .build();
+```
+
+If neither setter is called, the JDK defaults apply (which already exclude TLS 1.0 / 1.1 on
+modern JVMs). The values are passed straight through to Apache HC5's `ClientTlsStrategyBuilder`
+— a name not supported by the JVM will surface as a TLS handshake failure at first request.
+
 ### Authentication
 
 The library supports basic authentication securely.
@@ -670,6 +731,119 @@ httpRequest.target("https://api.example.com/search")
     .post("some-body");
 ```
 
+#### Response decoding charset
+
+When a server returns a body without a `charset=...` parameter on its `Content-Type` header,
+this library decodes it as **UTF-8** by default — overriding Apache HC5's bare default of
+ISO-8859-1, which is rarely what modern APIs want. If you need to talk to a legacy upstream
+that relies on the ISO-8859-1 fallback, restore the old behaviour explicitly:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .setDefaultResponseCharset(StandardCharsets.ISO_8859_1)
+        .build();
+```
+
+A server-supplied `charset=...` parameter always wins; this setting only affects responses
+where no charset is declared.
+
+### Security &amp; Hardening
+
+The library ships a small set of opt-in hardening knobs — pick the ones that match your threat
+model. None are enabled by default; enabling them is one method call each.
+
+#### SSRF guard (Server-Side Request Forgery)
+
+If your service constructs request URIs from user-supplied input — even partially — an
+attacker can use that surface to scan internal networks, hit cloud-metadata endpoints
+(`169.254.169.254` on AWS / GCP / Azure exposes IAM credentials), or pivot into private
+subnets. Enable the SSRF guard to refuse every host that resolves to loopback,
+unspecified, link-local, RFC 1918 (private IPv4), or IPv6 unique-local addresses:
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .disallowPrivateAndLoopbackHosts()
+        .build();
+```
+
+The check is plumbed through Apache HC5's `DnsResolver`, which means it fires on every host
+the client touches — including hosts reached via 3xx redirects, not only the URL you passed
+to `target(...)`. The same DNS lookup that produces the connection IP is the one being
+filtered, closing the time-of-check / time-of-use gap a URL-only check would have.
+
+If you need to talk to a specific internal endpoint despite the guard (e.g. an internal
+config service on `10.0.7.42`), use the allow-list overload:
+
+```java
+InetAddress configService = InetAddress.getByName("10.0.7.42");
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .disallowPrivateAndLoopbackHosts(addr -> addr.equals(configService))
+        .build();
+```
+
+The predicate runs on every resolved address that would otherwise be blocked; returning
+`true` lets it through, `false` keeps the deny.
+
+#### URI scheme allow-list
+
+Lock the client to HTTP/HTTPS only — refuse `file://`, `jar://`, `data:` and other schemes
+that an attacker might smuggle in:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .allowHttpAndHttpsOnly()
+        .build();
+
+httpRequest.
+
+target("file:///etc/passwd"); // throws IllegalArgumentException
+```
+
+#### HTTP/1.1 head-size limits
+
+Bound memory consumption when talking to a hostile or buggy server that sends an unbounded
+header list:
+
+```java
+CloseableHttpClient httpClient = ClientBuilder.create()
+        .setMaxHeaderCount(200)        // reject responses with > 200 headers
+        .setMaxLineLength(16 * 1024)   // reject any header line > 16 KiB
+        .build();
+```
+
+These pair with `setMaxResponseBodySizeBytes(...)` (described above) — the body limit
+protects you from oversized payloads, the head limits protect you from oversized header
+sets.
+
+#### Payload redaction for request logging
+
+When `enableRequestPayloadLogging()` is on, the library logs the outgoing request body at
+DEBUG. To prevent secrets (API keys, OAuth tokens, PII) from landing in those logs, register
+one or more redactors:
+
+```java
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+        .enableRequestPayloadLogging()
+        // Mask the value of an "apiKey" JSON field.
+        .addPayloadRedactor(body -> body.replaceAll(
+                "\"apiKey\"\\s*:\\s*\"[^\"]+\"",
+                "\"apiKey\":\"***\""))
+        // Mask any "password" form field.
+        .addPayloadRedactor(body -> body.replaceAll(
+                "(password=)[^&]+",
+                "$1***"))
+        .build();
+```
+
+Redactors compose left-to-right (each one's output feeds the next). If a redactor throws,
+the library swaps in `[redaction-failed]` rather than killing the in-flight request — so a
+buggy redactor degrades to "no logged body" instead of "no request sent." Redactors are
+only invoked when payload logging is enabled.
+
+> **Important.** When payload logging is on but no redactor is registered, the library logs
+> the body verbatim. If your traffic ever carries credentials, register a redactor *or* turn
+> payload logging off in production.
+
 ### Debugging
 
 Enable request payload logging for easier debugging.
@@ -679,6 +853,9 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .enableRequestPayloadLogging()
         .build();
 ```
+
+> Pair this with `addPayloadRedactor(...)` (see [Security &amp; Hardening](#security--hardening))
+> when the body might carry credentials.
 
 ## Why use http-request?
 

@@ -86,6 +86,58 @@ class SecurityAndLimitsTest {
     }
 
     @Test
+    void disallowPrivateAndLoopbackHosts_withAllowListPredicate_letsExceptionAddressesThrough()
+            throws java.io.IOException, java.net.UnknownHostException {
+        // Allow-list overload: predicate returning true for 127.0.0.1 only — that address must
+        // pass the guard, while every other private/loopback address remains blocked.
+        // We can't round-trip a request to 127.0.0.1 here without a server bound there, so the
+        // assertion is "the allow-listed address skips the SSRF-reject path" — verified via the
+        // error message not being the SSRF-guard text.
+        java.net.InetAddress allowed = java.net.InetAddress.getByName("127.0.0.1");
+
+        try (org.apache.hc.client5.http.impl.classic.CloseableHttpClient guardedClient =
+                     ClientBuilder.create()
+                             .disallowPrivateAndLoopbackHosts(addr -> addr.equals(allowed))
+                             .setConnectionRequestTimeout(500)
+                             .setResponseTimeout(500)
+                             .setConnectTimeout(500)
+                             .build()) {
+            HttpRequest httpRequest = HttpRequestBuilder.create(guardedClient).build();
+
+            ResponseHandler<String> allowedRh = httpRequest.target("http://127.0.0.1:1/").get(String.class);
+            assertFalse(allowedRh.isSuccess(), "127.0.0.1:1 should fail at connect (server absent), not at DNS");
+            String allowedMsg = String.valueOf(allowedRh.getErrorText());
+            assertFalse(allowedMsg.contains("disallowPrivateAndLoopbackHosts is enabled"),
+                    "127.0.0.1 with allow-list predicate must bypass the SSRF-guard reject path; got: " + allowedMsg);
+
+            // 10.0.0.1 is NOT in the allow-list — must be blocked by the SSRF guard.
+            assertFalse(httpRequest.target("http://10.0.0.1/").get(String.class).isSuccess(),
+                    "10.0.0.1 should be blocked by SSRF guard despite the allow-list predicate");
+        }
+    }
+
+    @Test
+    void disallowPrivateAndLoopbackHosts_withNullPredicate_isEquivalentToNoArgOverload()
+            throws java.io.IOException {
+        // Pin: passing null for the allow-list predicate is equivalent to the no-arg overload
+        // (block everything). Refactors that drop the null-guard would surface here.
+        try (org.apache.hc.client5.http.impl.classic.CloseableHttpClient guardedClient =
+                     ClientBuilder.create()
+                             .disallowPrivateAndLoopbackHosts(null)
+                             .setConnectionRequestTimeout(500)
+                             .setResponseTimeout(500)
+                             .setConnectTimeout(500)
+                             .build()) {
+            HttpRequest httpRequest = HttpRequestBuilder.create(guardedClient).build();
+
+            assertFalse(httpRequest.target("http://127.0.0.1/").get(String.class).isSuccess(),
+                    "127.0.0.1 must remain blocked when allow-list predicate is null");
+            assertFalse(httpRequest.target("http://10.0.0.1/").get(String.class).isSuccess(),
+                    "10.0.0.1 must remain blocked when allow-list predicate is null");
+        }
+    }
+
+    @Test
     void uriSchemeValidation_rejectsRelativeOrSchemeLessUris_whenAllowListIsActive() {
         // Relative URIs (no scheme) must not slip past the allow-list — URI.getScheme() returns
         // null and the validator's null-check is the only thing standing between this and a

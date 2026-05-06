@@ -81,8 +81,44 @@ public class HttpRequestBuilder {
     /**
      * Creates a new instance of HttpRequestBuilder.
      *
-     * @param closeableHttpClient the HTTP client to use
+     * <h3>Lifecycle ownership</h3>
+     *
+     * The supplied {@code closeableHttpClient} is <b>not</b> closed by this builder or by the
+     * resulting {@link HttpRequest} — the caller retains full ownership. The library never
+     * calls {@link CloseableHttpClient#close()} on the supplied client, because the same client
+     * is typically shared across multiple {@code HttpRequest} instances and may be needed
+     * past the lifetime of any individual one.
+     *
+     * <p>To release the underlying connection pool at shutdown, the caller must close the
+     * client explicitly. Three idiomatic patterns:
+     *
+     * <ul>
+     *   <li><b>Try-with-resources</b> (single-use scripts and short-lived tools):
+     * <pre>{@code
+     * try (CloseableHttpClient client = ClientBuilder.create().build()) {
+     *     HttpRequest req = HttpRequestBuilder.create(client).build();
+     *     // use req...
+     * } // pool released here
+     * }</pre></li>
+     *   <li><b>Spring-managed bean</b> (long-running services):
+     * <pre>{@code
+     * @Bean(destroyMethod = "close")
+     * CloseableHttpClient httpClient() { return ClientBuilder.create().build(); }
+     * }</pre></li>
+     *   <li><b>Application shutdown hook</b> (non-Spring servers):
+     * <pre>{@code
+     * CloseableHttpClient client = ClientBuilder.create().build();
+     * Runtime.getRuntime().addShutdownHook(new Thread(() -> client.close()));
+     * }</pre></li>
+     * </ul>
+     *
+     * Forgetting to close the client leaks the connection pool — sockets remain open until the
+     * JVM exits, which can exhaust the file-descriptor limit on long-running processes.
+     *
+     * @param closeableHttpClient the HTTP client to use; must not be {@code null}. The caller
+     *                            owns this client and is responsible for closing it.
      * @return a new instance of HttpRequestBuilder
+     * @throws NullPointerException if {@code closeableHttpClient} is {@code null}
      */
     public static HttpRequestBuilder create(CloseableHttpClient closeableHttpClient) {
         return new HttpRequestBuilder(closeableHttpClient);
