@@ -133,7 +133,13 @@ public interface RetryContext {
      * for the given fixed {@code delay}. Non-idempotent methods ({@link HttpMethod#POST POST},
      * {@link HttpMethod#PATCH PATCH}) are never retried by this policy.
      * <p>
-     * Safe default for most REST clients.
+     * Safe default for most REST clients — but "safe" here is RFC 9110 idempotency.
+     * {@link HttpMethod#PUT PUT} and {@link HttpMethod#DELETE DELETE} are RFC-idempotent and so
+     * <em>are</em> retried by this policy; if those endpoints in your upstream produce side
+     * effects on every call (audit log entries, metric counters, notifications, billing
+     * events) the retry will duplicate those side effects. Write a custom
+     * {@link RetryContext} that excludes the affected method when that matters — see
+     * {@link HttpMethod#isIdempotent()} for the full RFC-vs-real-world discussion.
      *
      * @param maxRetries maximum number of retries after the initial request; must be {@code >= 0}
      * @param delay      wait between attempts when no {@code Retry-After} header is present; must
