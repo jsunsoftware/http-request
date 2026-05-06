@@ -81,7 +81,7 @@ public class HttpRequestBuilder {
     /**
      * Creates a new instance of HttpRequestBuilder.
      *
-     * <h3>Lifecycle ownership</h3>
+     * <h4>Lifecycle ownership</h4>
      *
      * The supplied {@code closeableHttpClient} is <b>not</b> closed by this builder or by the
      * resulting {@link HttpRequest} — the caller retains full ownership. The library never
