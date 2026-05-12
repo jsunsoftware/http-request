@@ -67,15 +67,15 @@ class BasicWebTarget implements WebTarget {
     private final UnaryOperator<String> payloadRedactor;
     private Charset bodyCharset = UTF_8;
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) {
-        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor, Charset defaultQueryCharset, Charset defaultBodyCharset) {
+        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, defaultQueryCharset, defaultBodyCharset);
     }
 
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) throws URISyntaxException {
-        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
+    BasicWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor, Charset defaultQueryCharset, Charset defaultBodyCharset) throws URISyntaxException {
+        this(closeableHttpClient, new URIBuilder(uri), defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, defaultQueryCharset, defaultBodyCharset);
     }
 
-    private BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) {
+    private BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor, Charset defaultQueryCharset, Charset defaultBodyCharset) {
         this.closeableHttpClient = closeableHttpClient;
         this.uriBuilder = uriBuilder;
         this.responseBodyReaderConfig = responseBodyReaderConfig;
@@ -83,13 +83,15 @@ class BasicWebTarget implements WebTarget {
         this.requestPayloadLogging = requestPayloadLogging;
         this.payloadRedactor = payloadRedactor != null ? payloadRedactor : UnaryOperator.identity();
         this.httpUriRequestBuilder = new HttpUriRequestBuilder();
+        if (defaultQueryCharset != null) {
+            this.httpUriRequestBuilder.setCharset(defaultQueryCharset);
+        }
+        if (defaultBodyCharset != null) {
+            this.bodyCharset = defaultBodyCharset;
+        }
 
         defaultHeaders.forEach(httpUriRequestBuilder::addHeader);
         defaultRequestParameters.forEach(httpUriRequestBuilder::addParameter);
-    }
-
-    BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) {
-        this(closeableHttpClient, uriBuilder, httpUriRequestBuilder, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, UTF_8);
     }
 
     BasicWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor, Charset bodyCharset) {

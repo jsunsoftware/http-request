@@ -182,3 +182,13 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   Useful when you need to block public-internet SSRF surface but still talk to a specific
   internal endpoint (e.g. an internal config service on `10.0.7.42`). Passing `null` for the
   predicate is equivalent to the no-arg overload.
+* New `HttpRequestBuilder.setDefaultQueryCharset(Charset)` and
+  `HttpRequestBuilder.setDefaultBodyCharset(Charset)`. Set the initial value that every
+  {@code WebTarget} produced from the resulting {@code HttpRequest} starts with — applied to
+  targets returned by {@code target(...)}, {@code immutableTarget(...)}, and
+  {@code retryableTarget(...)}. Per-target {@code setQueryCharset} / {@code setBodyCharset}
+  still overrides; passing {@code null} at builder level keeps the library default (UTF-8).
+  Closes the gap where consumers wanting a non-UTF-8 default had to override on every
+  per-call target. {@code setCharset(Charset)} combo on the builder is intentionally not
+  added — explicit per-axis is the only entry point at the builder level, mirroring the
+  pre-existing {@code setDefaultResponseCharset} pattern.
