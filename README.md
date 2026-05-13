@@ -89,7 +89,7 @@ Add this dependency to your `pom.xml`:
 <dependency>
   <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>3.5.0-rc3</version>
+  <version>3.5.0</version>
 </dependency>
 ```
 
@@ -98,7 +98,7 @@ Add this dependency to your `pom.xml`:
 Add this dependency to your `build.gradle`:
 
 ```groovy
-implementation 'com.jsunsoft.http:http-request:3.5.0-rc3'
+implementation 'com.jsunsoft.http:http-request:3.5.0'
 ```
 
 ## Quick Start
