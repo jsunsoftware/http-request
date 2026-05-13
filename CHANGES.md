@@ -192,3 +192,13 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   per-call target. {@code setCharset(Charset)} combo on the builder is intentionally not
   added — explicit per-axis is the only entry point at the builder level, mirroring the
   pre-existing {@code setDefaultResponseCharset} pattern.
+
+# 3.6.0
+
+* Upgraded Apache HttpClient 5 (`httpclient5`) to `5.6.1`. Notable upstream behaviour
+  change: the default `HostnameVerificationPolicy` is now `BUILTIN` — a `HostnameVerifier`
+  set via `ClientBuilder.hostnameVerifier(...)` alone is silently ignored. Pair the call
+  with `hostnameVerificationPolicy(HostnameVerificationPolicy.CLIENT)` to keep the
+  verifier authoritative (or use `trustAllHosts()`, which already wires both). See the
+  Javadoc on `ClientBuilder.hostnameVerifier(...)` for the full note. No other API or
+  behaviour changes.
