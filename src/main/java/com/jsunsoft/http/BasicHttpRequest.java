@@ -23,6 +23,7 @@ import org.apache.hc.core5.net.URIBuilder;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.function.UnaryOperator;
 
@@ -38,6 +39,8 @@ class BasicHttpRequest implements HttpRequest {
     private final Set<String> allowedSchemes;
     private final boolean requestPayloadLogging;
     private final UnaryOperator<String> payloadRedactor;
+    private final Charset defaultQueryCharset;
+    private final Charset defaultBodyCharset;
 
     BasicHttpRequest(CloseableHttpClient closeableHttpClient,
                      Collection<Header> defaultHeaders,
@@ -46,7 +49,9 @@ class BasicHttpRequest implements HttpRequest {
                      RequestBodySerializeConfig requestBodySerializeConfig,
                      Collection<String> allowedSchemes,
                      boolean requestPayloadLogging,
-                     UnaryOperator<String> payloadRedactor) {
+                     UnaryOperator<String> payloadRedactor,
+                     Charset defaultQueryCharset,
+                     Charset defaultBodyCharset) {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
         this.defaultHeaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultHeaders, "defaultHeaders")));
         this.defaultRequestParameters = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters")));
@@ -55,13 +60,15 @@ class BasicHttpRequest implements HttpRequest {
         this.allowedSchemes = Collections.unmodifiableSet(new LinkedHashSet<>(ArgsCheck.notNull(allowedSchemes, "allowedSchemes")));
         this.requestPayloadLogging = requestPayloadLogging;
         this.payloadRedactor = ArgsCheck.notNull(payloadRedactor, "payloadRedactor");
+        this.defaultQueryCharset = defaultQueryCharset;
+        this.defaultBodyCharset = defaultBodyCharset;
     }
 
     @Override
     public WebTarget target(URI uri) {
         ArgsCheck.notNull(uri, "uri");
         validateUriScheme(uri);
-        return new BasicWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
+        return new BasicWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, defaultQueryCharset, defaultBodyCharset);
     }
 
     @Override
@@ -70,7 +77,7 @@ class BasicHttpRequest implements HttpRequest {
         try {
             URI parsed = new URIBuilder(uri).build();
             validateUriScheme(parsed);
-            return new BasicWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
+            return new BasicWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, defaultQueryCharset, defaultBodyCharset);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
@@ -87,7 +94,7 @@ class BasicHttpRequest implements HttpRequest {
         ArgsCheck.notNull(uri, "uri");
         ArgsCheck.notNull(retryContext, "retryContext");
         validateUriScheme(uri);
-        return new RetryableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
+        return new RetryableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, defaultQueryCharset, defaultBodyCharset);
     }
 
     /**
@@ -104,7 +111,7 @@ class BasicHttpRequest implements HttpRequest {
         try {
             URI parsed = new URIBuilder(uri).build();
             validateUriScheme(parsed);
-            return new RetryableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
+            return new RetryableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, retryContext, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, defaultQueryCharset, defaultBodyCharset);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
@@ -114,7 +121,7 @@ class BasicHttpRequest implements HttpRequest {
     public WebTarget immutableTarget(URI uri) {
         ArgsCheck.notNull(uri, "uri");
         validateUriScheme(uri);
-        return new ImmutableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
+        return new ImmutableWebTarget(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, defaultQueryCharset, defaultBodyCharset);
     }
 
     @Override
@@ -123,7 +130,7 @@ class BasicHttpRequest implements HttpRequest {
         try {
             URI parsed = new URIBuilder(uri).build();
             validateUriScheme(parsed);
-            return new ImmutableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
+            return new ImmutableWebTarget(closeableHttpClient, parsed, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, defaultQueryCharset, defaultBodyCharset);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }

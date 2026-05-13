@@ -25,7 +25,6 @@ import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.net.URIBuilder;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -33,12 +32,8 @@ import java.util.function.UnaryOperator;
 
 class ImmutableWebTarget extends BasicWebTarget {
 
-    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
-    }
-
-    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, String uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor) throws URISyntaxException {
-        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor);
+    ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URI uri, Collection<Header> defaultHeaders, Collection<NameValuePair> defaultRequestParameters, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor, Charset defaultQueryCharset, Charset defaultBodyCharset) {
+        super(closeableHttpClient, uri, defaultHeaders, defaultRequestParameters, responseBodyReaderConfig, requestBodySerializeConfig, requestPayloadLogging, payloadRedactor, defaultQueryCharset, defaultBodyCharset);
     }
 
     private ImmutableWebTarget(CloseableHttpClient closeableHttpClient, URIBuilder uriBuilder, HttpUriRequestBuilder httpUriRequestBuilder, ResponseBodyReaderConfig responseBodyReaderConfig, RequestBodySerializeConfig requestBodySerializeConfig, boolean requestPayloadLogging, UnaryOperator<String> payloadRedactor, Charset bodyCharset) {

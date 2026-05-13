@@ -73,6 +73,8 @@ public class HttpRequestBuilder {
     private Set<String> allowedSchemes;
     private boolean requestPayloadLogging;
     private UnaryOperator<String> payloadRedactor;
+    private Charset defaultQueryCharset;
+    private Charset defaultBodyCharset;
 
     private HttpRequestBuilder(CloseableHttpClient closeableHttpClient) {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
@@ -629,6 +631,51 @@ public class HttpRequestBuilder {
     }
 
     /**
+     * Sets the default charset for URI query-string percent-encoding applied to every
+     * {@link WebTarget} created from the resulting {@link HttpRequest} — i.e. to all targets
+     * returned by {@link HttpRequest#target(java.net.URI) target(URI)},
+     * {@link HttpRequest#immutableTarget(java.net.URI) immutableTarget(URI)}, and
+     * {@link HttpRequest#retryableTarget(java.net.URI, RetryContext) retryableTarget(URI, RetryContext)}.
+     * <p>
+     * A target may still override the charset per-call via
+     * {@link WebTarget#setQueryCharset(Charset)} — this setter only sets the initial value.
+     * Defaults to {@link java.nio.charset.StandardCharsets#UTF_8 UTF-8} when not called.
+     * <p>
+     * URI path segments are always percent-encoded as UTF-8 per RFC 3986 and are not affected
+     * by this setting; pre-encode the path yourself if you need a different encoding for path
+     * segments.
+     *
+     * @param defaultQueryCharset the charset to apply to every new target's query-string
+     *                            encoding; {@code null} restores the library default (UTF-8).
+     * @return the current instance of HttpRequestBuilder
+     * @since 3.5.0
+     */
+    public HttpRequestBuilder setDefaultQueryCharset(Charset defaultQueryCharset) {
+        this.defaultQueryCharset = defaultQueryCharset;
+        return this;
+    }
+
+    /**
+     * Sets the default charset for request-body conversion applied to every
+     * {@link WebTarget} created from the resulting {@link HttpRequest} — used by the
+     * {@code Object}-payload overloads (e.g. {@link WebTarget#post(Object)} when the
+     * library serialises the payload into bytes).
+     * <p>
+     * A target may still override the charset per-call via
+     * {@link WebTarget#setBodyCharset(Charset)} — this setter only sets the initial value.
+     * Defaults to {@link java.nio.charset.StandardCharsets#UTF_8 UTF-8} when not called.
+     *
+     * @param defaultBodyCharset the charset to apply to every new target's body
+     *                           conversion; {@code null} restores the library default (UTF-8).
+     * @return the current instance of HttpRequestBuilder
+     * @since 3.5.0
+     */
+    public HttpRequestBuilder setDefaultBodyCharset(Charset defaultBodyCharset) {
+        this.defaultBodyCharset = defaultBodyCharset;
+        return this;
+    }
+
+    /**
      * Builds the HttpRequest instance.
      *
      * @return the HttpRequest instance
@@ -650,6 +697,6 @@ public class HttpRequestBuilder {
                 ? payloadRedactor
                 : UnaryOperator.identity();
 
-        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build(), requestBodySerializeConfigBuilder.build(), allowedSchemes, requestPayloadLogging, effectiveRedactor);
+        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build(), requestBodySerializeConfigBuilder.build(), allowedSchemes, requestPayloadLogging, effectiveRedactor, defaultQueryCharset, defaultBodyCharset);
     }
 }
