@@ -86,15 +86,22 @@ final class BasicRetryContext implements RetryContext {
         if (retryAfter == null) {
             return null;
         }
+
+        String rawValue = retryAfter.getValue();
+
+        if (rawValue == null) {
+            return null;
+        }
+
         try {
-            long seconds = Long.parseLong(retryAfter.getValue().trim());
+            long seconds = Long.parseLong(rawValue.trim());
             if (seconds < 0) {
                 return null;
             }
             return Duration.ofSeconds(seconds);
         } catch (NumberFormatException e) {
             // RFC 7231 also allows an HTTP-date here; not parsed — fall back to the configured delay.
-            LOGGER.debug("Ignoring unparseable {} header value: {}", HttpHeaders.RETRY_AFTER, retryAfter.getValue());
+            LOGGER.debug("Ignoring unparseable {} header value: {}", HttpHeaders.RETRY_AFTER, rawValue);
             return null;
         }
     }
