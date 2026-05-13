@@ -537,7 +537,15 @@ public class ClientBuilder {
     }
 
     /**
-     * Sets {@link javax.net.ssl.HostnameVerifier}
+     * Sets {@link javax.net.ssl.HostnameVerifier}.
+     * <p>
+     * Since Apache HttpClient 5.6, the default {@link HostnameVerificationPolicy} is
+     * {@code BUILTIN} — host verification is delegated to the JSSE security manager and a
+     * verifier set here is <strong>silently ignored</strong>. To make your verifier
+     * authoritative, also call
+     * {@link #hostnameVerificationPolicy(HostnameVerificationPolicy)} with
+     * {@link HostnameVerificationPolicy#CLIENT}. The {@link #trustAllHosts()} convenience
+     * already wires both for you.
      *
      * @param hostnameVerifier HostnameVerifier instance
      * @return ClientBuilder instance
