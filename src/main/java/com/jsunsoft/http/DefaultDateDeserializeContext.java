@@ -19,24 +19,16 @@ package com.jsunsoft.http;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 class DefaultDateDeserializeContext implements DateDeserializeContext {
     static final DateDeserializeContext DEFAULT = new DefaultDateDeserializeContext();
 
-    private static final Map<Class<?>, String> DEFAULT_DATE_TYPE_TO_PATTERN;
-
-    static {
-        Map<Class<?>, String> dateTypeToPattern = new HashMap<>();
-
-        dateTypeToPattern.put(LocalTime.class, "HH:mm:ss");
-        dateTypeToPattern.put(LocalDate.class, "dd/MM/yyyy");
-        dateTypeToPattern.put(LocalDateTime.class, "dd/MM/yyyy HH:mm:ss");
-
-        DEFAULT_DATE_TYPE_TO_PATTERN = Collections.unmodifiableMap(dateTypeToPattern);
-    }
+    private static final Map<Class<?>, String> DEFAULT_DATE_TYPE_TO_PATTERN = Map.of(
+            LocalTime.class, "HH:mm:ss",
+            LocalDate.class, "dd/MM/yyyy",
+            LocalDateTime.class, "dd/MM/yyyy HH:mm:ss"
+    );
 
     DefaultDateDeserializeContext() {
 

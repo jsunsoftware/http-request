@@ -24,7 +24,10 @@ import org.apache.hc.core5.net.URIBuilder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 /**
@@ -53,11 +56,11 @@ class BasicHttpRequest implements HttpRequest {
                      Charset defaultQueryCharset,
                      Charset defaultBodyCharset) {
         this.closeableHttpClient = ArgsCheck.notNull(closeableHttpClient, "closeableHttpClient");
-        this.defaultHeaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultHeaders, "defaultHeaders")));
-        this.defaultRequestParameters = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters")));
+        this.defaultHeaders = List.copyOf(ArgsCheck.notNull(defaultHeaders, "defaultHeaders"));
+        this.defaultRequestParameters = List.copyOf(ArgsCheck.notNull(defaultRequestParameters, "defaultRequestParameters"));
         this.responseBodyReaderConfig = ArgsCheck.notNull(responseBodyReaderConfig, "responseBodyReaderConfig");
         this.requestBodySerializeConfig = ArgsCheck.notNull(requestBodySerializeConfig, "requestBodySerializeConfig");
-        this.allowedSchemes = Collections.unmodifiableSet(new LinkedHashSet<>(ArgsCheck.notNull(allowedSchemes, "allowedSchemes")));
+        this.allowedSchemes = Set.copyOf(ArgsCheck.notNull(allowedSchemes, "allowedSchemes"));
         this.requestPayloadLogging = requestPayloadLogging;
         this.payloadRedactor = ArgsCheck.notNull(payloadRedactor, "payloadRedactor");
         this.defaultQueryCharset = defaultQueryCharset;

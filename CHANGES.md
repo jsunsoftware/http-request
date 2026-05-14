@@ -202,3 +202,23 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   verifier authoritative (or use `trustAllHosts()`, which already wires both). See the
   Javadoc on `ClientBuilder.hostnameVerifier(...)` for the full note. No other API or
   behaviour changes.
+
+# 4.0.0
+
+* **Java baseline raised to Java 17.** Bytecode target moves from Java 8 to Java 17;
+  the build enforcer now rejects JDKs below 17. The `3.6.x` line remains the supported
+  Java 8 baseline. No public API was renamed, removed, or re-typed — source built
+  against `3.6.x` recompiles unchanged on `4.0.0`. See `MIGRATION.md`.
+* **Published as a JPMS module `com.jsunsoft.http`.** Adds `src/main/java/module-info.java`
+  declaring the module with `exports com.jsunsoft.http` and `exports com.jsunsoft.http.annotations`.
+  Apache HttpClient 5 (client + core) and Jackson `databind` / `dataformat-xml` are
+  `requires transitive`, so modulepath consumers see the public-API types from those modules
+  without re-declaring them. Classpath consumers are unaffected.
+* Internal modernization to Java 9–17 idioms (no behaviour change): defensive collection
+  copies now use `List.copyOf` / `Set.copyOf`; `HttpMethod.isIdempotent()` is a switch
+  expression with compile-time-exhaustive enum cases; pattern-matching `instanceof`
+  applied in `BasicResponseHandler`, `BasicWebTarget`, and `TypeReference`.
+* Build: `maven-compiler-plugin` configuration collapsed to a single `<release>17</release>`
+  (previously a dual main/test execution); added an explicit `maven-surefire-plugin` with
+  `<useModulePath>false</useModulePath>` so tests run on the classpath without forcing the
+  production module to `opens` its package to reflective frameworks.

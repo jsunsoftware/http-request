@@ -25,7 +25,7 @@ class CustomArgsCheck {
     }
 
     static void checkIsCorrectTypeForDeserialization(Type type) {
-        if (type instanceof Class && InputStream.class.isAssignableFrom((Class<?>) type)) {
+        if (type instanceof Class<?> cls && InputStream.class.isAssignableFrom(cls)) {
             throw new IllegalArgumentException(
                     "Parameter 'type' can't be assignable from: " + InputStream.class +
                             ". The stream will have closed after execution and can't be used"

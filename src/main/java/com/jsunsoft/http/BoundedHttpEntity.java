@@ -16,7 +16,6 @@
 
 package com.jsunsoft.http;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.HttpEntityWrapper;
@@ -92,7 +91,7 @@ final class BoundedHttpEntity extends HttpEntityWrapper {
         ArgsCheck.notNull(outStream, "Output stream");
 
         try (InputStream inStream = getContent()) {
-            IOUtils.copy(inStream, outStream);
+            inStream.transferTo(outStream);
         }
     }
 }

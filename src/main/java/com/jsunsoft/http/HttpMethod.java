@@ -59,18 +59,9 @@ public enum HttpMethod {
      * @return {@code true} if the method is idempotent per RFC 9110, otherwise {@code false}.
      */
     public boolean isIdempotent() {
-        switch (this) {
-            case GET:
-            case HEAD:
-            case OPTIONS:
-            case PUT:
-            case DELETE:
-            case TRACE:
-                return true;
-            case POST:
-            case PATCH:
-            default:
-                return false;
-        }
+        return switch (this) {
+            case GET, HEAD, OPTIONS, PUT, DELETE, TRACE -> true;
+            case POST, PATCH -> false;
+        };
     }
 }

@@ -35,8 +35,8 @@ class RequestBodySerializeConfig {
                                        boolean useDefaultBodySerializer) {
         this.defaultJsonMapper = defaultJsonMapper;
         this.defaultXmlMapper = defaultXmlMapper;
-        this.requestBodyConverters = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(requestBodyConverters, "requestBodyConverters")));
-        this.defaultRequestBodyConverters = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultRequestBodyConverters, "defaultRequestBodyConverters")));
+        this.requestBodyConverters = List.copyOf(ArgsCheck.notNull(requestBodyConverters, "requestBodyConverters"));
+        this.defaultRequestBodyConverters = List.copyOf(ArgsCheck.notNull(defaultRequestBodyConverters, "defaultRequestBodyConverters"));
         this.useDefaultBodySerializer = useDefaultBodySerializer;
     }
 
@@ -120,10 +120,9 @@ class RequestBodySerializeConfig {
             if (useDefaultBodySerializer) {
                 json = ObjectMapperInitializer.initJsonMapperIfNull(defaultJsonMapper, dateTypeToPattern);
                 xml = ObjectMapperInitializer.initXmlMapperIfNull(defaultXmlMapper, dateTypeToPattern);
-                List<RequestBodyConverter> defaults = new ArrayList<>(2);
-                defaults.add(RequestBodyConverters.jsonConverter(json));
-                defaults.add(RequestBodyConverters.xmlConverter(xml));
-                defaultRequestBodyConverters = Collections.unmodifiableList(defaults);
+                defaultRequestBodyConverters = List.of(
+                        RequestBodyConverters.jsonConverter(json),
+                        RequestBodyConverters.xmlConverter(xml));
             } else {
                 if (defaultJsonMapper != null || defaultXmlMapper != null || dateTypeToPattern != null) {
                     throw new IllegalArgumentException("Do not provide defaultJsonMapper/defaultXmlMapper/dateTypeToPattern if default body serializer is disabled.");

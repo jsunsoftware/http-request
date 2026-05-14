@@ -568,7 +568,7 @@ public class HttpRequestBuilder {
         } else {
             Set<String> s = new LinkedHashSet<>();
             for (String scheme : schemes) {
-                if (scheme == null || scheme.trim().isEmpty()) {
+                if (scheme == null || scheme.isBlank()) {
                     throw new IllegalArgumentException("Scheme must not be null/blank");
                 }
                 s.add(scheme.trim().toLowerCase(Locale.ROOT));
@@ -585,7 +585,7 @@ public class HttpRequestBuilder {
      */
     @Beta
     public HttpRequestBuilder allowHttpAndHttpsOnly() {
-        return setAllowedSchemes(Arrays.asList("http", "https"));
+        return setAllowedSchemes(List.of("http", "https"));
     }
 
     /**

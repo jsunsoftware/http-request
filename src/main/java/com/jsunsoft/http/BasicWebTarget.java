@@ -506,8 +506,8 @@ class BasicWebTarget implements WebTarget {
 
         ArgsCheck.notNull(body, "body");
 
-        if (body instanceof HttpEntity) {
-            return (HttpEntity) body;
+        if (body instanceof HttpEntity entity) {
+            return entity;
         }
 
         Header contentTypeHeader = httpUriRequestBuilder.getFirstHeader(HttpHeaders.CONTENT_TYPE);

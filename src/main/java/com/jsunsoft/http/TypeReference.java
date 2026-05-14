@@ -129,15 +129,13 @@ public class TypeReference<T> implements Comparable<TypeReference<T>> {
      * @return the class or interface that declared the supplied {@code type}.
      */
     private static Class getClass(Type type) {
-        if (type instanceof Class) {
-            return (Class) type;
-        } else if (type instanceof ParameterizedType) {
-            ParameterizedType parameterizedType = (ParameterizedType) type;
-            if (parameterizedType.getRawType() instanceof Class) {
-                return (Class) parameterizedType.getRawType();
+        if (type instanceof Class t) {
+            return t;
+        } else if (type instanceof ParameterizedType parameterizedType) {
+            if (parameterizedType.getRawType() instanceof Class pt) {
+                return pt;
             }
-        } else if (type instanceof GenericArrayType) {
-            GenericArrayType array = (GenericArrayType) type;
+        } else if (type instanceof GenericArrayType array) {
             final Class<?> componentRawType = getClass(array.getGenericComponentType());
             return getArrayClass(componentRawType);
         }
@@ -177,10 +175,10 @@ public class TypeReference<T> implements Comparable<TypeReference<T>> {
         do {
             currentType = currentClass.getGenericSuperclass();
             superclasses.push(currentType);
-            if (currentType instanceof Class) {
-                currentClass = (Class) currentType;
-            } else if (currentType instanceof ParameterizedType) {
-                currentClass = (Class) ((ParameterizedType) currentType).getRawType();
+            if (currentType instanceof Class ct) {
+                currentClass = ct;
+            } else if (currentType instanceof ParameterizedType ct) {
+                currentClass = (Class) ct.getRawType();
             }
         } while (!currentClass.equals(baseClass));
 
@@ -189,16 +187,15 @@ public class TypeReference<T> implements Comparable<TypeReference<T>> {
         while (!superclasses.isEmpty()) {
             currentType = superclasses.pop();
 
-            if (currentType instanceof ParameterizedType) {
-                ParameterizedType pt = (ParameterizedType) currentType;
+            if (currentType instanceof ParameterizedType pt) {
                 Class<?> rawType = (Class) pt.getRawType();
                 int argIndex = Arrays.asList(rawType.getTypeParameters()).indexOf(tv);
                 if (argIndex > -1) {
                     Type typeArg = pt.getActualTypeArguments()[argIndex];
-                    if (typeArg instanceof TypeVariable) {
+                    if (typeArg instanceof TypeVariable ta) {
                         // type argument is another type variable - look for the value of that
                         // variable in subclasses
-                        tv = (TypeVariable) typeArg;
+                        tv = ta;
                         continue;
                     } else {
                         // found the value - return it
@@ -216,9 +213,8 @@ public class TypeReference<T> implements Comparable<TypeReference<T>> {
     @Override
     public boolean equals(Object obj) {
         boolean result = this == obj;
-        if (!result && obj instanceof TypeReference) {
+        if (!result && obj instanceof TypeReference<?> that) {
             // Compare inner type for equality
-            TypeReference<?> that = (TypeReference<?>) obj;
             return this.type.equals(that.type);
         }
         return result;
