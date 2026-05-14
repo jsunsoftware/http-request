@@ -53,8 +53,8 @@ class ResponseBodyReaderConfig {
                                      Charset defaultResponseCharset) {
         this.defaultJsonMapper = defaultJsonMapper;
         this.defaultXmlMapper = defaultXmlMapper;
-        this.responseBodyReaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(responseBodyReaders, "responseBodyReaders")));
-        this.defaultResponseBodyReaders = Collections.unmodifiableList(new ArrayList<>(ArgsCheck.notNull(defaultResponseBodyReaders, "defaultResponseBodyReaders")));
+        this.responseBodyReaders = List.copyOf(ArgsCheck.notNull(responseBodyReaders, "responseBodyReaders"));
+        this.defaultResponseBodyReaders = List.copyOf(ArgsCheck.notNull(defaultResponseBodyReaders, "defaultResponseBodyReaders"));
         this.useDefaultReader = useDefaultReader;
         this.maxResponseBodySizeBytes = maxResponseBodySizeBytes;
         this.defaultResponseCharset = ArgsCheck.notNull(defaultResponseCharset, "defaultResponseCharset");
@@ -162,12 +162,11 @@ class ResponseBodyReaderConfig {
             if (useDefaultReader) {
                 json = ObjectMapperInitializer.initJsonMapperIfNull(defaultJsonMapper, dateTypeToPattern);
                 xml = ObjectMapperInitializer.initXmlMapperIfNull(defaultXmlMapper, dateTypeToPattern);
-                List<ResponseBodyReader<?>> defaults = new ArrayList<>(4);
-                defaults.add(ResponseBodyReaders.stringReader());
-                defaults.add(ResponseBodyReaders.byteReader());
-                defaults.add(ResponseBodyReaders.jsonReader(json));
-                defaults.add(ResponseBodyReaders.xmlReader(xml));
-                defaultResponseBodyReaders = Collections.unmodifiableList(defaults);
+                defaultResponseBodyReaders = List.of(
+                        ResponseBodyReaders.stringReader(),
+                        ResponseBodyReaders.byteReader(),
+                        ResponseBodyReaders.jsonReader(json),
+                        ResponseBodyReaders.xmlReader(xml));
             } else {
                 if (defaultJsonMapper != null || defaultXmlMapper != null || dateTypeToPattern != null) {
                     throw new IllegalArgumentException("Do not provide defaultJsonMapper/defaultXmlMapper/dateTypeToPattern if default body reader is disabled.");

@@ -38,7 +38,7 @@ class HttpRequestUtils {
     static String humanTime(long startTime) {
         long difference = System.currentTimeMillis() - startTime;
         long seconds = MILLISECONDS.toSeconds(difference);
-        return String.format("%d sec, %d millis", seconds, difference - SECONDS.toMillis(seconds));
+        return "%d sec, %d millis".formatted(seconds, difference - SECONDS.toMillis(seconds));
     }
 
     static boolean isSuccess(int statusCode) {

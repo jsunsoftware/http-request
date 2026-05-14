@@ -64,7 +64,8 @@ responses, managing connections, and processing data, building on top of the rob
 
 ## Requirements
 
-- Java 8 or higher
+- Java 17 or higher (starting with **4.0.0** — see [MIGRATION.md](MIGRATION.md) for upgrade notes; Java 8 consumers
+  should pin to the `3.6.x` line)
 - Dependencies (automatically managed by build tools):
   - Apache HttpClient 5.x
   - Jackson (for JSON/XML processing)
@@ -89,7 +90,7 @@ Add this dependency to your `pom.xml`:
 <dependency>
   <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>3.6.0</version>
+  <version>4.0.0</version>
 </dependency>
 ```
 
@@ -98,7 +99,7 @@ Add this dependency to your `pom.xml`:
 Add this dependency to your `build.gradle`:
 
 ```groovy
-implementation 'com.jsunsoft.http:http-request:3.6.0'
+implementation 'com.jsunsoft.http:http-request:4.0.0'
 ```
 
 ## Quick Start

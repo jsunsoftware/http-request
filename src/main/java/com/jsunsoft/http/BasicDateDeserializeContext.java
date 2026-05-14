@@ -16,7 +16,6 @@
 
 package com.jsunsoft.http;
 
-import java.util.Collections;
 import java.util.Map;
 
 class BasicDateDeserializeContext implements DateDeserializeContext {
@@ -24,7 +23,7 @@ class BasicDateDeserializeContext implements DateDeserializeContext {
     private final Map<Class<?>, String> dateTypeToPattern;
 
     BasicDateDeserializeContext(Map<Class<?>, String> dateTypeToPattern) {
-        this.dateTypeToPattern = Collections.unmodifiableMap(dateTypeToPattern);
+        this.dateTypeToPattern = Map.copyOf(dateTypeToPattern);
     }
 
 

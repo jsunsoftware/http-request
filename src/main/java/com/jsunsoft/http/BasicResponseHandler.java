@@ -459,8 +459,8 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     private ResponseException responseException() {
         if (errorCause == null) {
             return new UnexpectedStatusCodeException(statusCode, originalStatusCode, errorText, uri);
-        } else if (errorCause instanceof ResponseException) {
-            return (ResponseException) errorCause;
+        } else if (errorCause instanceof ResponseException re) {
+            return re;
         } else {
             return new ResponseException(statusCode, originalStatusCode, errorText, uri, connectionFailureType, errorCause);
         }

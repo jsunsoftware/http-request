@@ -68,10 +68,10 @@ class RetryableWebTarget extends BasicWebTarget {
                 closeResponse(response);
 
                 WebTarget retryTarget = retryContext.beforeRetry(attempt, this);
-                if (retryTarget instanceof RetryableWebTarget) {
+                if (retryTarget instanceof RetryableWebTarget rt) {
                     // Avoid recursion (and retryCount reset) when beforeRetry returns the same retryable instance.
                     // Execute a single request attempt using a non-retryable target copy.
-                    response = new BasicWebTarget((BasicWebTarget) retryTarget).request(method, context);
+                    response = new BasicWebTarget(rt).request(method, context);
                 } else {
                     response = retryTarget.request(method, context);
                 }

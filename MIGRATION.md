@@ -52,6 +52,37 @@ Rename `addDefaultDateDeserializationPattern` of `HttpRequestBuilder` has been r
 Removed support default deserialization of joda.time module. To achieve that, provide custom Json or Xml mapper e.g(
 `HttpRequestBuilder.setDefaultJsonMapper(mapper)`) or use custom response reader.
 
+# 4.0.0
+
+## Java baseline raised to Java 17
+
+The library now targets Java 17 bytecode at both compile time and runtime; the build enforcer
+rejects JDKs below 17. Consumers still on Java 8 must stay on the `3.6.x` line — that branch
+remains the supported Java 8 baseline.
+
+No public API was renamed, removed, or re-typed in this release: source built against `3.6.x`
+recompiles unchanged against `4.0.0` once the JDK requirement is met.
+
+## Published as a JPMS module
+
+The artifact is now a named JPMS module `com.jsunsoft.http`. Consumers on the **classpath** see
+no difference — the JAR works exactly as before. Consumers using the **modulepath** can now
+write `requires com.jsunsoft.http;` in their own `module-info.java` instead of relying on the
+automatic module name derived from the artifact id.
+
+Public packages: `com.jsunsoft.http` and `com.jsunsoft.http.annotations`. Apache HttpClient 5
+(client + core) and Jackson `databind` / `dataformat-xml` are declared `requires transitive`,
+so consumers automatically see the public-API types from those modules (`CloseableHttpClient`,
+`Header`, `ObjectMapper`, `XmlMapper`, etc.) without restating the requires themselves.
+
+## Reflective frameworks and your own POJOs
+
+Strong encapsulation does **not** apply to consumer code on the classpath. If you run on the
+modulepath and your consumer code uses Jackson, Gson, JAXB, Hibernate, or another reflective
+framework on POJOs that you own, the same `opens` rules that apply to all JPMS modules apply to
+your consumer module too — that is unchanged by this release and has nothing to do with this
+library. You typically need `opens your.app.dto;` in your own `module-info.java`.
+
 # 3.5.x
 
 ## Removed
