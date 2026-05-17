@@ -17,13 +17,12 @@ module com.jsunsoft.http {
     requires transitive org.apache.httpcomponents.client5.httpclient5;
     requires transitive org.apache.httpcomponents.core5.httpcore5;
 
-    requires transitive com.fasterxml.jackson.databind;
-    requires transitive com.fasterxml.jackson.dataformat.xml;
-    requires com.fasterxml.jackson.core;
+    requires transitive tools.jackson.databind;
+    requires transitive tools.jackson.dataformat.xml;
+    requires tools.jackson.core;
+    // jackson-annotations keeps its 2.x JPMS name in Jackson 3 — the annotations artifact is
+    // intentionally shared between Jackson 2.x and 3.x consumers.
     requires com.fasterxml.jackson.annotation;
-    requires com.fasterxml.jackson.datatype.jdk8;
-    requires com.fasterxml.jackson.datatype.jsr310;
-    requires com.fasterxml.jackson.module.paramnames;
 
     requires org.slf4j;
     requires org.apache.commons.lang3;
@@ -39,6 +38,6 @@ module com.jsunsoft.http {
     // to the two Jackson modules we already publish as `requires transitive`, so no other
     // module gains reflective access.
     opens com.jsunsoft.http to
-            com.fasterxml.jackson.databind,
-            com.fasterxml.jackson.dataformat.xml;
+            tools.jackson.databind,
+            tools.jackson.dataformat.xml;
 }

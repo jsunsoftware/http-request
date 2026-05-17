@@ -16,13 +16,14 @@
 
 package com.jsunsoft.http;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -32,91 +33,87 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.apache.hc.core5.http.ContentType.APPLICATION_JSON;
 import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 
 class SimpleHttpRequestToParseJsonResponseTest {
 
-    private static final String RESPONSE_DATA_STRING = "{\n" +
-            "  \"displayLength\": \"4\",\n" +
-            "  \"iTotal\": \"20\",\n" +
-            "  \"users\": [\n" +
-            "    {\n" +
-            "      \"id\": \"2\",\n" +
-            "      \"userName\": \"Test1\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"17\",\n" +
-            "      \"userName\": \"Test2\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"32\",\n" +
-            "      \"userName\": \"Test3\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"35\",\n" +
-            "      \"userName\": \"Test4\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    }\n" +
-            "\n" +
-            "  ]\n" +
-            "}";
+    private static final String RESPONSE_DATA_STRING = """
+            {
+              "displayLength": "4",
+              "iTotal": "20",
+              "users": [
+                {
+                  "id": "2",
+                  "userName": "Test1",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "17",
+                  "userName": "Test2",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "32",
+                  "userName": "Test3",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "35",
+                  "userName": "Test4",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                }
+              ]
+            }""";
 
-    private static final String RESPONSE_DATA_STRING_OVERRIDDEN_DATE_PATTERN = "{\n" +
-            "  \"displayLength\": \"4\",\n" +
-            "  \"iTotal\": \"20\",\n" +
-            "  \"javaLocalDateTime\": \"11/05/1993 05:00:00\",\n" +
-            "  \"jodaLocalDate\": \"20170925\",\n" +
-            "  \"users\": [\n" +
-            "    {\n" +
-            "      \"id\": \"2\",\n" +
-            "      \"userName\": \"Test1\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"17\",\n" +
-            "      \"userName\": \"Test2\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"32\",\n" +
-            "      \"userName\": \"Test3\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"id\": \"35\",\n" +
-            "      \"userName\": \"Test4\",\n" +
-            "      \"Group\": {   \"id\":1,\n" +
-            "        \"name\":\"Test-Admin\"\n" +
-            "      }\n" +
-            "    }\n" +
-            "\n" +
-            "  ]\n" +
-            "}";
-
-    private final String responseMapString = "{\n" +
-            "  \"testKey\" : \"testValue\"\n" +
-            "}";
+    private static final String RESPONSE_DATA_STRING_OVERRIDDEN_DATE_PATTERN = """
+            {
+              "displayLength": "4",
+              "iTotal": "20",
+              "javaLocalDateTime": "11/05/1993 05:00:00",
+              "jodaLocalDate": "20170925",
+              "users": [
+                {
+                  "id": "2",
+                  "userName": "Test1",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "17",
+                  "userName": "Test2",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "32",
+                  "userName": "Test3",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                },
+                {
+                  "id": "35",
+                  "userName": "Test4",
+                  "Group": {   "id":1,
+                    "name":"Test-Admin"
+                  }
+                }
+              ]
+            }""";
 
     private static final CloseableHttpClient closeableHttpClient = ClientBuilder.create().build();
     private static final HttpRequest HTTP_REQUEST = HttpRequestBuilder.create(closeableHttpClient)
@@ -134,7 +131,7 @@ class SimpleHttpRequestToParseJsonResponseTest {
 
                 @Override
                 public Map<String, String> read(ResponseBodyReaderContext<Map<String, String>> bodyReaderContext) throws IOException {
-                    ObjectMapper mapper = new ObjectMapper();
+                    ObjectMapper mapper = JsonMapper.builder().build();
                     return mapper.readValue(bodyReaderContext.getContent(), mapper.constructType(bodyReaderContext.getGenericType()));
                 }
             })
@@ -146,8 +143,9 @@ class SimpleHttpRequestToParseJsonResponseTest {
 
                 @Override
                 public ResponseData read(ResponseBodyReaderContext<ResponseData> bodyReaderContext) throws IOException {
-                    return new ObjectMapper()
+                    return JsonMapper.builder()
                             .disable(FAIL_ON_UNKNOWN_PROPERTIES)
+                            .build()
                             .readValue(bodyReaderContext.getContent(), bodyReaderContext.getType());
                 }
             })
@@ -158,9 +156,10 @@ class SimpleHttpRequestToParseJsonResponseTest {
             .options(WireMockConfiguration.wireMockConfig().dynamicPort())
             .build();
 
-    private static final String RESPONSE_MAP_STRING = "{\n" +
-            "              \"testKey\" : \"testValue\"\n" +
-            "            }";
+    private static final String RESPONSE_MAP_STRING = """
+            {
+              "testKey" : "testValue"
+            }""";
 
     @BeforeEach
     public void before() {

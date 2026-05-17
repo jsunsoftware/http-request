@@ -63,7 +63,8 @@ class HttpRequestComplexTest {
         WebTarget target = httpRequest.target(baseUrl).path("/users");
 
         // 2. Create User (POST)
-        String newUserJson = "{\"name\":\"John Doe\", \"email\":\"john@example.com\"}";
+        String newUserJson = """
+                {"name":"John Doe", "email":"john@example.com"}""";
         wm.stubFor(post(urlEqualTo("/users"))
                 .withHeader("Content-Type", containing("application/json"))
                 .withRequestBody(equalToJson(newUserJson))
@@ -84,7 +85,8 @@ class HttpRequestComplexTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"id\":\"123\", \"name\":\"John Doe\", \"email\":\"john@example.com\"}")));
+                        .withBody("""
+                                {"id":"123", "name":"John Doe", "email":"john@example.com"}""")));
 
         ResponseHandler<User> getResponse = httpRequest.target(baseUrl).path("/users/123").get(User.class);
 
@@ -92,7 +94,8 @@ class HttpRequestComplexTest {
         assertEquals("John Doe", getResponse.get().name);
 
         // 4. Update User (PUT)
-        String updateUserJson = "{\"name\":\"Jane Doe\", \"email\":\"jane@example.com\"}";
+        String updateUserJson = """
+                {"name":"Jane Doe", "email":"jane@example.com"}""";
         wm.stubFor(put(urlEqualTo("/users/123"))
                 .withRequestBody(equalToJson(updateUserJson))
                 .willReturn(aResponse().withStatus(200))); // Or 204

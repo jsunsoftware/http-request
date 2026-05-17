@@ -77,7 +77,8 @@ class PayloadRedactorTest {
                 .addPayloadRedactor(capturingRedactor)
                 .build();
 
-        String body = "{\"user\":\"alice\",\"password\":\"hunter2\"}";
+        String body = """
+                {"user":"alice","password":"hunter2"}""";
         httpRequest.target(httpUri("/login")).rawRequest(HttpMethod.POST, body);
 
         assertEquals(body, seen.get(), "Redactor must receive the original payload as input");

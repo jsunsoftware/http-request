@@ -16,14 +16,16 @@
 
 package com.jsunsoft.http;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.io.entity.BasicHttpEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.xml.XmlMapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -32,6 +34,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,25 +44,26 @@ class ResponseBodyReaderTest {
 
     @Test
     void testDeserializeResponse() throws IOException {
-        String content = "{\n" +
-                "              \"value\": 1,\n" +
-                "              \"message\": \"Test message\",\n" +
-                "              \"relations\": [\n" +
-                "                {\n" +
-                "                  \"string\": \"12345\",\n" +
-                "                  \"localDate\": \"11/05/1993\"\n" +
-                "                },\n" +
-                "                {\n" +
-                "                  \"string\": \"54321\",\n" +
-                "                  \"javaLocalDate\": \"08/09/2017\"\n" +
-                "                }\n" +
-                "              ]\n" +
-                "            }";
+        String content = """
+                {
+                  "value": 1,
+                  "message": "Test message",
+                  "relations": [
+                    {
+                      "string": "12345",
+                      "localDate": "11/05/1993"
+                    },
+                    {
+                      "string": "54321",
+                      "javaLocalDate": "08/09/2017"
+                    }
+                  ]
+                }""";
 
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = ResponseBodyReaders.jsonReader(
-                ObjectMapperInitializer.defaultInit(new ObjectMapper(), DEFAULT)
+                ObjectMapperInitializer.initJsonMapperIfNull(null, DEFAULT.getDateTypeToPattern())
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -74,63 +78,135 @@ class ResponseBodyReaderTest {
     }
 
     @Test
-    void initJsonMapperIfNullAppliesPatternsInPlaceOnOwnedMapper() throws IOException {
+    void initJsonMapperIfNullAppliesPatternsToOwnedMapper() throws IOException {
         // Contract at the internal boundary: the caller (HttpRequestBuilder.setDefaultJsonMapper)
-        // has already taken a defensive copy, so the mapper arriving here is owned. This method
-        // installs date-pattern configOverrides directly on it and returns the same instance.
-        String content = "{\n" +
-                "              \"value\": 1,\n" +
-                "              \"message\": \"Test message\",\n" +
-                "              \"relations\": [\n" +
-                "                {\n" +
-                "                  \"string\": \"12345\",\n" +
-                "                  \"localDate\": \"19930511\"\n" +
-                "                }\n" +
-                "              ]\n" +
-                "            }";
+        // hands us its mapper. Under Jackson 3 mappers are immutable, so we cannot mutate "in
+        // place" — we instead produce a derivative via ObjectMapper#rebuild() with the
+        // date-pattern configOverride installed. The original is by construction untouched.
+        String content = """
+                {
+                  "value": 1,
+                  "message": "Test message",
+                  "relations": [
+                    {
+                      "string": "12345",
+                      "localDate": "19930511"
+                    }
+                  ]
+                }""";
 
-        ObjectMapper owned = new ObjectMapper()
-                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
-                .registerModule(new com.fasterxml.jackson.module.paramnames.ParameterNamesModule(com.fasterxml.jackson.annotation.JsonCreator.Mode.PROPERTIES))
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        ObjectMapper owned = JsonMapper.builder()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .build();
 
         Map<Class<?>, String> dateTypeToPattern = new HashMap<>();
         dateTypeToPattern.put(LocalDate.class, "yyyyMMdd");
 
         ObjectMapper effective = ObjectMapperInitializer.initJsonMapperIfNull(owned, dateTypeToPattern);
 
-        Assertions.assertSame(owned, effective, "Owned mapper must be mutated in place, not copied again");
-        Assertions.assertNotNull(owned.getDeserializationConfig().findConfigOverride(LocalDate.class), "LocalDate configOverride must be installed");
+        Assertions.assertNotSame(owned, effective, "Date overrides force a rebuild() — result must be a fresh derivative");
 
         Result result = ResponseBodyReaders.<Result>jsonReader(effective).read(resolveResponseContext(content));
-        Assertions.assertEquals(LocalDate.of(1993, 5, 11), result.getRelations().get(0).localDate);
+        Assertions.assertEquals(LocalDate.of(1993, 5, 11), result.getRelations().get(0).localDate,
+                "Date pattern override on the derivative must be honoured during deserialization");
     }
 
     @Test
-    void httpRequestBuilderTakesDefensiveSnapshotOfUserJsonMapper() throws IOException {
+    void httpRequestBuilderDoesNotMutateUserJsonMapper() throws IOException {
         // End-to-end: routing a user mapper through the public setter + a date pattern must not
-        // mutate the user's instance in any observable way.
-        ObjectMapper userMapper = new ObjectMapper()
-                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        // change the user's instance in any observable way. In Jackson 3 the mapper is immutable
+        // so this is structurally true, but the test guards the contract for future regressions.
+        ObjectMapper userMapper = JsonMapper.builder().build();
 
-        boolean failOnUnknownBefore = userMapper.getDeserializationConfig().isEnabled(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        int modulesBefore = userMapper.getRegisteredModuleIds().size();
+        ResponseBodyReader<Result> referenceBefore = ResponseBodyReaders.jsonReader(userMapper);
+        String unstructuredDate = """
+                {"value":0,"message":"m","relations":[{"string":"x","localDate":"19930511"}]}""";
+        // The user's mapper has no date pattern: parsing a custom-pattern date with it should fail.
+        Assertions.assertThrows(Exception.class,
+                () -> referenceBefore.read(resolveResponseContext(unstructuredDate)),
+                "Sanity: user's untouched mapper cannot parse the custom yyyyMMdd date");
 
         try (CloseableHttpClient client = ClientBuilder.create().build()) {
             HttpRequestBuilder.create(client)
                     .setDefaultJsonMapper(userMapper)
-                    .addResponseDefaultDateDeserializationPattern(LocalDate.class, "yyyy-MM-dd")
+                    .addResponseDefaultDateDeserializationPattern(LocalDate.class, "yyyyMMdd")
                     .build();
         }
 
-        Assertions.assertEquals(failOnUnknownBefore, userMapper.getDeserializationConfig().isEnabled(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES), "setDefaultJsonMapper must not flip FAIL_ON_UNKNOWN_PROPERTIES on the caller's mapper");
-        Assertions.assertEquals(modulesBefore, userMapper.getRegisteredModuleIds().size(), "setDefaultJsonMapper must not register additional modules on the caller's mapper");
-        Assertions.assertNull(userMapper.getDeserializationConfig().findConfigOverride(LocalDate.class), "setDefaultJsonMapper must not install date configOverrides on the caller's mapper");
+        // After going through setDefaultJsonMapper + addResponseDefaultDateDeserializationPattern,
+        // the *user's* mapper must still be unable to parse the custom-pattern date: it was never
+        // mutated. The library's derivative is internal to the request config.
+        Assertions.assertThrows(Exception.class,
+                () -> ResponseBodyReaders.<Result>jsonReader(userMapper).read(resolveResponseContext(unstructuredDate)),
+                "User's mapper must remain unconfigured for the custom date pattern");
+    }
+
+    @Test
+    void defaultJsonMapperDropsBothNullValuesAndNullMapEntries() {
+        // Pins the 2.x setDefaultPropertyInclusion(NON_NULL) semantics in the Jackson 3 builder
+        // translation: NON_NULL must apply to BOTH value-inclusion (top-level property nulls
+        // dropped) AND content-inclusion (null entries inside Maps/collections dropped). A
+        // future cleanup that drops the .withContentInclusion(...) chain in applyLibraryDefaults
+        // would silently regress Map serialization to emit null entries — this test fails fast
+        // when that happens.
+        ObjectMapper mapper = ObjectMapperInitializer.initJsonMapperIfNull(null, DEFAULT.getDateTypeToPattern());
+
+        DtoWithNullables dto = new DtoWithNullables();
+        dto.name = null;                                  // top-level null property
+        dto.kept = "ok";
+        Map<String, String> tags = new LinkedHashMap<>(); // preserve insertion order so the
+        tags.put("present", "x");                         // assertion error messages are stable
+        tags.put("missing", null);                        // null Map entry
+        dto.tags = tags;
+
+        String json = mapper.writeValueAsString(dto);
+
+        Assertions.assertFalse(json.contains("\"name\""),
+                "value-inclusion NON_NULL: top-level null property must be dropped. Got: " + json);
+        Assertions.assertFalse(json.contains("\"missing\""),
+                "content-inclusion NON_NULL: null Map entry must be dropped. Got: " + json);
+        Assertions.assertTrue(json.contains("\"kept\":\"ok\""),
+                "non-null top-level properties must be retained. Got: " + json);
+        Assertions.assertTrue(json.contains("\"present\":\"x\""),
+                "non-null Map entries must be retained. Got: " + json);
+    }
+
+    @Test
+    void initXmlMapperIfNullAppliesPatternsToOwnedMapper() throws IOException {
+        // Symmetric XML counterpart of initJsonMapperIfNullAppliesPatternsToOwnedMapper. Defends the
+        // XmlMapper.rebuild() → withConfigOverride → build() path through applyDatePatterns; without
+        // a behavioral test here, a regression that breaks the XmlMapper branch (e.g. a wildcard-
+        // typing change that compiles but mis-binds the date override) would slip through silently.
+        String xml = """
+                <Result>
+                  <message>Test message</message>
+                  <value>1</value>
+                  <relations>
+                    <string>12345</string>
+                    <localDate>19930511</localDate>
+                  </relations>
+                </Result>""";
+
+        ObjectMapper owned = XmlMapper.builder()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .build();
+
+        Map<Class<?>, String> dateTypeToPattern = new HashMap<>();
+        dateTypeToPattern.put(LocalDate.class, "yyyyMMdd");
+
+        ObjectMapper effective = ObjectMapperInitializer.initXmlMapperIfNull(owned, dateTypeToPattern);
+
+        Assertions.assertNotSame(owned, effective,
+                "Date overrides force an XmlMapper.rebuild() — result must be a fresh derivative");
+
+        XmlResult result = effective.readValue(xml, XmlResult.class);
+        Assertions.assertEquals(LocalDate.of(1993, 5, 11), result.getRelations().localDate,
+                "Date pattern override on the XmlMapper derivative must be honoured during deserialization");
     }
 
     @Test
     void noPatternsReturnsUserMapperUnchanged() {
-        ObjectMapper userMapper = new ObjectMapper();
+        ObjectMapper userMapper = JsonMapper.builder().build();
         ObjectMapper effective = ObjectMapperInitializer.initJsonMapperIfNull(userMapper, (Map<Class<?>, String>) null);
         Assertions.assertSame(userMapper, effective, "With no patterns, user's mapper should be returned as-is");
 
@@ -141,20 +217,21 @@ class ResponseBodyReaderTest {
 
     @Test
     void testDeserializeResponseWithOverriddenDateFormat() throws IOException {
-        String content = "{\n" +
-                "              \"value\": 1,\n" +
-                "              \"message\": \"Test message\",\n" +
-                "              \"relations\": [\n" +
-                "                {\n" +
-                "                  \"string\": \"12345\",\n" +
-                "                  \"localDate\": \"19930511\"\n" +
-                "                },\n" +
-                "                {\n" +
-                "                  \"string\": \"54321\",\n" +
-                "                  \"javaLocalDate\": \"20170908\"\n" +
-                "                }\n" +
-                "              ]\n" +
-                "            }";
+        String content = """
+                {
+                  "value": 1,
+                  "message": "Test message",
+                  "relations": [
+                    {
+                      "string": "12345",
+                      "localDate": "19930511"
+                    },
+                    {
+                      "string": "54321",
+                      "javaLocalDate": "20170908"
+                    }
+                  ]
+                }""";
 
         Map<Class<?>, String> dateTypeToPattern = new HashMap<>();
         dateTypeToPattern.put(LocalDate.class, "yyyyMMdd");
@@ -164,7 +241,7 @@ class ResponseBodyReaderTest {
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = ResponseBodyReaders.jsonReader(
-                ObjectMapperInitializer.defaultInit(new ObjectMapper(), dateDeserializeContext)
+                ObjectMapperInitializer.initJsonMapperIfNull(null, dateDeserializeContext.getDateTypeToPattern())
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -232,5 +309,35 @@ class ResponseBodyReaderTest {
             return localDate;
         }
 
+    }
+
+    /**
+     * Fixture for {@link #defaultJsonMapperDropsBothNullValuesAndNullMapEntries()}. Public fields
+     * are sufficient for serialization under Jackson's default field-auto-detection visibility.
+     */
+    private static class DtoWithNullables {
+        public String name;
+        public String kept;
+        public Map<String, String> tags;
+    }
+
+    /**
+     * Fixture for {@link #initXmlMapperIfNullAppliesPatternsToOwnedMapper()}. Public no-arg
+     * constructor + public mutable fields keep the Jackson wiring trivial across the JSON-vs-XML
+     * comparison; the test only cares about the {@code LocalDate} round-trip.
+     */
+    public static class XmlResult {
+        public String message;
+        public long value;
+        public XmlRelations relations;
+
+        public XmlRelations getRelations() {
+            return relations;
+        }
+    }
+
+    public static class XmlRelations {
+        public String string;
+        public LocalDate localDate;
     }
 }

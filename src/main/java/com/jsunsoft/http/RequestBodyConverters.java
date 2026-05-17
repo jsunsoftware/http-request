@@ -16,10 +16,10 @@
 
 package com.jsunsoft.http;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.Charset;
 

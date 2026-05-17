@@ -90,7 +90,7 @@ Add this dependency to your `pom.xml`:
 <dependency>
   <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>4.0.0</version>
+  <version>5.0.0-rc1</version>
 </dependency>
 ```
 
@@ -99,7 +99,7 @@ Add this dependency to your `pom.xml`:
 Add this dependency to your `build.gradle`:
 
 ```groovy
-implementation 'com.jsunsoft.http:http-request:4.0.0'
+implementation 'com.jsunsoft.http:http-request:5.0.0-rc1'
 ```
 
 ## Quick Start
@@ -403,7 +403,8 @@ ObjectMapper appMapper = /* injected from your app */;
 
 HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .setDefaultJsonMapper(appMapper)
-        // …and the date patterns are installed on a defensive copy of it; `appMapper` itself is not mutated.
+        // …and the date patterns are installed on a fresh derivative produced via rebuild();
+        // appMapper is immutable in Jackson 3 and is never mutated by the library.
         .addResponseDefaultDateDeserializationPattern(LocalDate.class, "yyyy-MM-dd")
         .build();
 ```
@@ -414,17 +415,24 @@ When you don't supply an `ObjectMapper` of your own, the library default disable
 `FAIL_ON_UNKNOWN_PROPERTIES` — unknown JSON fields are silently dropped. This favours
 forward-compatibility (the server can roll out new fields without breaking existing clients) but
 it also masks typos in field names and silent API drift while you're developing. To opt into
-the stricter Jackson default, supply your own `ObjectMapper`:
+strict mode (throw on unknown properties), supply a mapper you've configured yourself:
 
 ```java
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.DeserializationFeature;
+
+JsonMapper strict = JsonMapper.builder()
+        .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        .build();
+
 HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
-        // A bare new ObjectMapper() inherits Jackson's default — strict on unknowns.
-        .setDefaultJsonMapper(new ObjectMapper())
+        .setDefaultJsonMapper(strict)
         .build();
 ```
 
-The library never mutates your supplied mapper, so its `FAIL_ON_UNKNOWN_PROPERTIES`,
-`FAIL_ON_NULL_FOR_PRIMITIVES`, registered modules, etc. all flow through unchanged.
+The library never re-applies its own defaults to a user-supplied mapper, so your
+`FAIL_ON_UNKNOWN_PROPERTIES`, `FAIL_ON_NULL_FOR_PRIMITIVES`, registered modules, etc. flow
+through unchanged.
 
 ```
 
@@ -657,8 +665,11 @@ HttpRequest httpRequest = HttpRequestBuilder.create(closeableHttpClient)
             @Override
             public ResponseData read(ResponseBodyReaderContext<Map<String, String>> ctx)
                     throws IOException, ResponseBodyReaderException {
-                return new ObjectMapper()
-                        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+              // Jackson 3 mappers are immutable — configure via the builder, then call readValue.
+              // FAIL_ON_UNKNOWN_PROPERTIES is already off by default in Jackson 3, so the bare
+              // JsonMapper.builder().build() matches the library's lenient default behaviour.
+              return JsonMapper.builder()
+                      .build()
                         .readValue(ctx.getContent(), ctx.getGenericType());
             }
         })

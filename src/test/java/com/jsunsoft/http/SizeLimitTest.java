@@ -151,7 +151,8 @@ class SizeLimitTest {
 
     @Test
     void throwsExceptionWhenJsonResponseExceedsLimit() {
-        String oversizedJson = "{\"data\":\"" + "a".repeat(2048) + "\"}";
+        String oversizedJson = """
+                {"data":"%s"}""".formatted("a".repeat(2048));
         server.stubFor(get(urlEqualTo("/large-json"))
                 .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json").withBody(oversizedJson)));
 
@@ -163,6 +164,39 @@ class SizeLimitTest {
         assertNotNull(exception.getCause(), "Exception cause should not be null");
         assertTrue(exception.getCause() instanceof InvalidContentLengthException,
                 "Expected cause to be InvalidContentLengthException, but was: " + exception.getCause().getClass().getName());
+    }
+
+    @Test
+    void malformedJsonResponseRoutesTo502_andCauseIsResponseBodyReaderException() {
+        // Pins the Jackson 3 migration semantic correction: parse / mapping failures must surface
+        // as a ResponseBodyReaderException — i.e. the same 502 BAD_GATEWAY bucket as the
+        // throwsExceptionWhenJsonResponseExceedsLimit case above, NOT the 503 SERVICE_UNAVAILABLE
+        // that Jackson 2.x incidentally produced because JsonProcessingException happened to
+        // extend IOException. The body is deliberately a few bytes (well under the 1024-byte
+        // cap configured in setUp) so the size-cap path is not engaged — the only failure mode
+        // exercised here is Jackson's parser refusing the malformed JSON.
+        server.stubFor(get(urlEqualTo("/bad-json"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{this-is-not-valid-json")));
+
+        ResponseHandler<DummyData> rh = httpRequest.target(httpUri("/bad-json")).get(DummyData.class);
+
+        assertFalse(rh.isSuccess());
+        assertEquals(502, rh.getCode(),
+                "Parse failure on a 200 response must surface as BAD_GATEWAY, not SERVICE_UNAVAILABLE");
+        assertEquals(200, rh.getOriginalCode(),
+                "Original upstream code (200) must be preserved on the ResponseHandler");
+
+        ResponseException exception = assertThrows(ResponseException.class, rh::orElseThrow);
+        assertNotNull(exception.getCause(), "ResponseHandler must carry an error cause for the 502");
+        assertTrue(exception.getCause() instanceof ResponseBodyReaderException,
+                "Parse failures must be wrapped as ResponseBodyReaderException for the 502 routing. Got: "
+                        + exception.getCause().getClass().getName());
+        // Defensive: an InvalidContentLengthException is also a ResponseBodyReaderException, so the
+        // assertion above passes for size-cap failures too. Tighten by ruling that branch out here.
+        assertFalse(exception.getCause() instanceof InvalidContentLengthException,
+                "A parse failure must not be reported as InvalidContentLengthException");
     }
 
     static class DummyData {

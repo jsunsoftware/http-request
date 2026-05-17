@@ -33,7 +33,7 @@ import java.util.Deque;
  *  TypeReference ref = new TypeReference&lt;List&lt;Integer&gt;&gt;() { };
  * </pre>
  *
- * <h2>Why a custom type — why not Jackson's {@code com.fasterxml.jackson.core.type.TypeReference}?</h2>
+ * <h2>Why a custom type — why not Jackson's {@code tools.jackson.core.type.TypeReference}?</h2>
  *
  * Library-internal {@code TypeReference} is intentional: keeping our own type lets the library
  * stay neutral on the deserialization backend. Today the bundled body readers are Jackson-based,

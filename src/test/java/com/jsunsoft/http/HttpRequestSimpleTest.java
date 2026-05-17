@@ -41,7 +41,8 @@ class HttpRequestSimpleTest {
 
     private static final String XML_BODY = "<xml><id>1</id><key>testValue</key></xml>";
     private static final String TEXT_BODY = "abcd";
-    private static final String JSON_BODY = "{\"id\":1,\"key\":\"testValue\"}";
+    private static final String JSON_BODY = """
+            {"id":1,"key":"testValue"}""";
 
     @RegisterExtension
     static WireMockExtension wireMockRule = WireMockExtension.newInstance()

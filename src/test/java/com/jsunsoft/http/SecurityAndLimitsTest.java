@@ -153,7 +153,8 @@ class SecurityAndLimitsTest {
 
     @Test
     void responseSizeLimit_enforced_forJsonDeserialization() {
-        String largeJson = "{\"data\":\"" + "a".repeat(5000) + "\"}";
+        String largeJson = """
+                {"data":"%s"}""".formatted("a".repeat(5000));
         wm.stubFor(get(urlEqualTo("/large"))
                 .willReturn(aResponse()
                         .withStatus(200)
