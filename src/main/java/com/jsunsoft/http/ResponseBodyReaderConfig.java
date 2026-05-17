@@ -22,7 +22,7 @@ package com.jsunsoft.http;
  */
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;

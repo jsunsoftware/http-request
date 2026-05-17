@@ -222,3 +222,35 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   (previously a dual main/test execution); added an explicit `maven-surefire-plugin` with
   `<useModulePath>false</useModulePath>` so tests run on the classpath without forcing the
   production module to `opens` its package to reflective frameworks.
+
+# 5.0.0-rc1
+
+* **Jackson 2.x → 3.x.** `jackson-databind` and `jackson-dataformat-xml` move from
+  `com.fasterxml.jackson.{core,dataformat}` to `tools.jackson.{core,dataformat}` (3.1.3);
+  JPMS module names follow (`tools.jackson.databind`, `tools.jackson.core`,
+  `tools.jackson.dataformat.xml`). `jackson-annotations` stays on
+  `com.fasterxml.jackson.core:jackson-annotations` (2.21) — the annotations artifact is
+  intentionally shared between Jackson 2.x and 3.x consumers. `jackson-datatype-jdk8`,
+  `jackson-datatype-jsr310`, and `jackson-module-parameter-names` are folded into
+  `jackson-databind` in 3.0 and their standalone declarations are dropped. The Jackson 3 BOM
+  is imported in `dependencyManagement` so all `tools.jackson.*` coordinates resolve to a
+  single coherent release train. See **[MIGRATION.md](MIGRATION.md)** for the full upgrade
+  guide — built-in modules, immutable-mapper consequences, exception-hierarchy changes,
+  default-toggle flips, and the `HEURISTIC` single-arg constructor binding behaviour.
+* **Mapper handling refactored for Jackson 3's immutable model.** `HttpRequestBuilder`'s
+  `setDefaultJsonMapper(ObjectMapper)` and `setDefaultXmlMapper(ObjectMapper)` no longer
+  take a defensive `.copy()` — Jackson 3 mappers are immutable, so the supplied reference is
+  stored directly; per-config date-pattern overrides applied via
+  `addResponseDefaultDateDeserializationPattern` /
+  `addRequestDefaultDateSerializationPattern` are installed on a fresh derivative produced
+  via `ObjectMapper#rebuild()`, leaving the caller's mapper untouched.
+* **Parse-failure routing tightened.** Malformed-JSON / type-mismatch responses now surface
+  as `ResponseBodyReaderException` (→ HTTP 502 Bad Gateway on the `ResponseHandler`),
+  consistent with `InvalidContentLengthException`. In 4.0.0 these incidentally surfaced as
+  503 Service Unavailable because Jackson 2.x's `JsonProcessingException` extended
+  `IOException`; Jackson 3 fixed the hierarchy and the library follows the corrected
+  semantics. Stream-level IO failures still route to 503; size-cap failures still route to 502.
+* Jackson 3 default-toggle changes are accepted as-is rather than papered over with
+  `builderWithJackson2Defaults()` — see MIGRATION.md for the per-toggle table (most are
+  strict/safe wins; the visible deltas are `READ/WRITE_ENUMS_USING_TO_STRING` and
+  `SORT_PROPERTIES_ALPHABETICALLY`).

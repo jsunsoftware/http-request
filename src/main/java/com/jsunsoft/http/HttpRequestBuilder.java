@@ -16,7 +16,6 @@
 
 package com.jsunsoft.http;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jsunsoft.http.annotations.Beta;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ContentType;
@@ -27,6 +26,7 @@ import org.apache.hc.core5.http.message.BasicNameValuePair;
 import org.apache.hc.core5.util.Args;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.ObjectMapper;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -337,10 +337,11 @@ public class HttpRequestBuilder {
      * Adds a date deserialization pattern for the default response deserializer.
      * <p>
      * When a custom {@link ObjectMapper} is supplied via {@link #setDefaultJsonMapper(ObjectMapper)}
-     * or {@link #setDefaultXmlMapper(ObjectMapper)}, the pattern is applied on a {@link ObjectMapper#copy() copy}
-     * of the provided mapper — the caller's instance is left unmodified — and is registered as a
-     * Jackson {@code configOverride} for the given type. A {@code configOverride} already set by the
-     * caller for the same type will be replaced on the copy.
+     * or {@link #setDefaultXmlMapper(ObjectMapper)}, the pattern is installed on a derived mapper
+     * produced via {@link ObjectMapper#rebuild() rebuild()} of the provided mapper — the caller's
+     * instance is left unmodified (it is immutable in any case under Jackson 3) — and is registered
+     * as a Jackson {@code configOverride} for the given type. A {@code configOverride} already set
+     * by the caller for the same type will be replaced on the derivative.
      *
      * @param dateType the date type
      * @param pattern  the pattern to use for deserialization
@@ -355,10 +356,11 @@ public class HttpRequestBuilder {
      * Adds a date serialization pattern for the request body serialization.
      * <p>
      * When a custom {@link ObjectMapper} is supplied via {@link #setDefaultJsonMapper(ObjectMapper)}
-     * or {@link #setDefaultXmlMapper(ObjectMapper)}, the pattern is applied on a {@link ObjectMapper#copy() copy}
-     * of the provided mapper — the caller's instance is left unmodified — and is registered as a
-     * Jackson {@code configOverride} for the given type. A {@code configOverride} already set by the
-     * caller for the same type will be replaced on the copy.
+     * or {@link #setDefaultXmlMapper(ObjectMapper)}, the pattern is installed on a derived mapper
+     * produced via {@link ObjectMapper#rebuild() rebuild()} of the provided mapper — the caller's
+     * instance is left unmodified — and is registered as a Jackson {@code configOverride} for the
+     * given type. A {@code configOverride} already set by the caller for the same type will be
+     * replaced on the derivative.
      *
      * @param dateType the date type
      * @param pattern  the pattern to use for serialization
@@ -372,54 +374,59 @@ public class HttpRequestBuilder {
     /**
      * Sets the default JSON mapper used for request body serialization and response body deserialization.
      * <p>
-     * A defensive {@link ObjectMapper#copy() copy} of the supplied mapper is taken at the moment this
-     * method is called. The caller's instance is never mutated by the library, and any later changes
-     * to it are ignored — the builder uses the snapshot captured here. Pass {@code null} to fall back
-     * to the library default mapper.
+     * Jackson 3 mappers are immutable, so the supplied instance is stored by reference without any
+     * defensive copy: nothing the library does can affect it. When a per-config date pattern is
+     * registered via {@link #addResponseDefaultDateDeserializationPattern(Class, String)} /
+     * {@link #addRequestDefaultDateSerializationPattern(Class, String)}, a derived mapper is built
+     * via {@link ObjectMapper#rebuild() rebuild()} and used for that config only; the caller's
+     * instance is never mutated. Pass {@code null} to fall back to the library default mapper.
      * <p>
      * <b>Strict vs. lenient deserialization.</b> When no mapper is supplied, the library default
      * disables {@code FAIL_ON_UNKNOWN_PROPERTIES} — unrecognized JSON fields are silently dropped.
      * That trade-off favours forward-compatibility (the server can add new fields without
      * breaking existing clients), but masks typos in field names and silent API drift in
-     * development. To opt into Jackson's stricter default (throw on unknown properties), pass an
-     * {@code ObjectMapper} you've configured yourself — your choice is preserved on the snapshot
-     * since the library never re-applies its own defaults to a user-supplied mapper:
+     * development. To opt into Jackson's stricter default (throw on unknown properties), pass a
+     * {@link tools.jackson.databind.json.JsonMapper} you've configured yourself — your choice is
+     * preserved on the snapshot since the library never re-applies its own defaults to a
+     * user-supplied mapper:
      * <pre>{@code
+     *   import tools.jackson.databind.json.JsonMapper;
+     *
      *   HttpRequestBuilder.create(client)
-     *           .setDefaultJsonMapper(new ObjectMapper())  // Jackson default = strict
+     *           .setDefaultJsonMapper(JsonMapper.builder().build())  // Jackson default = strict
      *           .build();
      * }</pre>
      *
-     * @param defaultJsonMapper the JSON mapper to snapshot, or {@code null} to restore the default
+     * @param defaultJsonMapper the JSON mapper to use, or {@code null} to restore the default
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder setDefaultJsonMapper(ObjectMapper defaultJsonMapper) {
-        // Eager defensive copy: one independent snapshot per downstream config. Protects the caller's
-        // instance from library-side mutation and keeps each config's date-pattern overrides from
-        // leaking into the other. Runs twice at builder-build time; not on the per-request hot path.
-        requestBodySerializeConfigBuilder.setDefaultJsonMapper(defaultJsonMapper == null ? null : defaultJsonMapper.copy());
-        responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper == null ? null : defaultJsonMapper.copy());
+        // Jackson 3 mappers are immutable, so no defensive copy is needed: nothing the library does
+        // (or any subsequent caller code) can mutate the instance. Per-config date-pattern overrides
+        // are applied at build() time via ObjectMapper#rebuild(), which produces a fresh derivative
+        // and leaves the original untouched — request- and response-side configs therefore stay
+        // independent even though they share the same source reference here.
+        requestBodySerializeConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
+        responseBodyReaderConfigBuilder.setDefaultJsonMapper(defaultJsonMapper);
         return this;
     }
 
     /**
      * Sets the default XML mapper used for request body serialization and response body deserialization.
      * <p>
-     * A defensive {@link ObjectMapper#copy() copy} of the supplied mapper is taken at the moment this
-     * method is called. The caller's instance is never mutated by the library, and any later changes
-     * to it are ignored — the builder uses the snapshot captured here. Pass {@code null} to fall back
-     * to the library default mapper.
+     * Jackson 3 mappers are immutable, so the supplied instance is stored by reference; no defensive
+     * copy is necessary. Pass {@code null} to fall back to the library default mapper.
      * <p>
      * Strict / lenient deserialization works the same as for the JSON mapper — see
      * {@link #setDefaultJsonMapper(ObjectMapper)} for the discussion.
      *
-     * @param defaultXmlMapper the XML mapper to snapshot, or {@code null} to restore the default
+     * @param defaultXmlMapper the XML mapper to use, or {@code null} to restore the default
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder setDefaultXmlMapper(ObjectMapper defaultXmlMapper) {
-        // See setDefaultJsonMapper — eager per-config defensive copy.
-        requestBodySerializeConfigBuilder.setDefaultXmlMapper(defaultXmlMapper == null ? null : defaultXmlMapper.copy());
-        responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper == null ? null : defaultXmlMapper.copy());
+        // See setDefaultJsonMapper — Jackson 3 mappers are immutable, no defensive copy required.
+        requestBodySerializeConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
+        responseBodyReaderConfigBuilder.setDefaultXmlMapper(defaultXmlMapper);
         return this;
     }
 

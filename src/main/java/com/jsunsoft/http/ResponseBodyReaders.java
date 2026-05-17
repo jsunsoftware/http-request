@@ -16,13 +16,16 @@
 
 package com.jsunsoft.http;
 
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.exc.JacksonIOException;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -205,7 +208,26 @@ class ResponseBodyReaders {
 
         long startTime = System.currentTimeMillis();
         JavaType javaType = objectMapper.constructType(type);
-        T result = objectMapper.readValue(inputStreamToDeserialize, javaType);
+        T result;
+        try {
+            result = objectMapper.readValue(inputStreamToDeserialize, javaType);
+        } catch (JacksonIOException e) {
+            // Jackson 3 wraps stream-side IO failures in an unchecked JacksonIOException, including
+            // our own InvalidContentLengthException (extends ResponseBodyReaderException extends
+            // IOException). Recover the original IOException from anywhere in the cause chain so
+            // the downstream handler in BasicWebTarget routes by runtime type — an
+            // InvalidContentLengthException naturally takes the ResponseBodyReaderException branch
+            // and is reported as 502 BAD_GATEWAY, while a plain transport IOException is reported
+            // as 503 SERVICE_UNAVAILABLE. ExceptionUtils handles cycle detection and the (rare)
+            // double-wrapped case for us.
+            IOException unwrapped = ExceptionUtils.throwableOfType(e, IOException.class);
+            if (unwrapped != null) {
+                throw unwrapped;
+            }
+            throw new IOException("Deserialization stream error: " + e.getMessage(), e);
+        } catch (JacksonException e) {
+            throw new ResponseBodyReaderException("Deserialization failed: " + e.getMessage(), e);
+        }
 
         if (logger.isDebugEnabled()) {
             logger.debug("Deserialization to type: [{}] completed in {}", type, HttpRequestUtils.humanTime(startTime));
