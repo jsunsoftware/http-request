@@ -129,11 +129,12 @@ class RequestBodySerializeConfig {
                 }
             }
 
-            if (requestBodyConverters == null) {
-                requestBodyConverters = Collections.emptyList();
-            }
+            // Resolved into a local — assigning an immutable sentinel to the field would break
+            // addRequestBodyConverter(...) after a first build() (build → mutate → build reuse).
+            Collection<RequestBodyConverter> effectiveRequestBodyConverters =
+                    requestBodyConverters != null ? requestBodyConverters : Collections.emptyList();
 
-            return new RequestBodySerializeConfig(json, xml, requestBodyConverters, defaultRequestBodyConverters, useDefaultBodySerializer);
+            return new RequestBodySerializeConfig(json, xml, effectiveRequestBodyConverters, defaultRequestBodyConverters, useDefaultBodySerializer);
         }
     }
 }
