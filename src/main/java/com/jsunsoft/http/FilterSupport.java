@@ -63,6 +63,10 @@ public class FilterSupport<T> {
 
     /**
      * Executes the consumer if any filter fails.
+     * <p>
+     * The returned {@code OtherwiseSupport} mirrors {@link #ifPassed(Consumer)}: a chained
+     * {@link OtherwiseSupport#otherwise(Consumer) otherwise} consumer runs only when this
+     * consumer did not — i.e. when every filter passed.
      *
      * @param consumer action to execute when any filter fails
      * @return support for the {@code otherwise} branch
@@ -70,9 +74,9 @@ public class FilterSupport<T> {
     public OtherwiseSupport<T> ifNotPassed(Consumer<ResponseHandler<T>> consumer) {
         if (filters.stream().anyMatch(predicate -> predicate.negate().test(responseHandler))) {
             consumer.accept(responseHandler);
-            return OtherwiseSupport.createNotIgnored(responseHandler);
+            return OtherwiseSupport.createIgnored(responseHandler);
         }
-        return OtherwiseSupport.createIgnored(responseHandler);
+        return OtherwiseSupport.createNotIgnored(responseHandler);
     }
 
     static <T> FilterSupport<T> create(ResponseHandler<T> responseHandler, Predicate<ResponseHandler<T>> predicate) {

@@ -54,6 +54,13 @@ import static org.apache.hc.core5.http.HttpStatus.*;
  * defeat the user's intent. Build, configure, and fire the request from the same thread —
  * typically all in one fluent expression. For shared / cross-thread use cases, see
  * {@link ImmutableWebTarget} (returned by {@link HttpRequest#immutableTarget(java.net.URI)}).
+ * <p>
+ * <b>Single request per instance.</b> Request state — the body entity (set by the
+ * {@code request(method, httpEntity, ...)} / payload overloads), headers, parameters, request
+ * config — persists on this instance and is never reset after execution. Firing another request
+ * from the same instance re-sends the previously set state (e.g. a body set by an earlier
+ * {@code post(...)} is sent again by a later {@code get()}). Create a fresh target per request;
+ * use {@link ImmutableWebTarget} for a reusable configuration.
  */
 class BasicWebTarget implements WebTarget {
     private static final Logger LOGGER = LoggerFactory.getLogger(BasicWebTarget.class);
@@ -417,7 +424,7 @@ class BasicWebTarget implements WebTarget {
 
         logRequestBody(method, payload);
 
-        return request(method, new StringEntity(payload, getBodyCharset()), responseType);
+        return request(method, new StringEntity(payload, resolveBodyCharset()), responseType);
     }
 
     @Override
@@ -433,7 +440,7 @@ class BasicWebTarget implements WebTarget {
 
         logRequestBody(method, payload);
 
-        return request(method, new StringEntity(payload, getBodyCharset()), responseType);
+        return request(method, new StringEntity(payload, resolveBodyCharset()), responseType);
     }
 
     @Override
@@ -448,7 +455,7 @@ class BasicWebTarget implements WebTarget {
 
         logRequestBody(method, payload);
 
-        return request(method, new StringEntity(payload, getBodyCharset()));
+        return request(method, new StringEntity(payload, resolveBodyCharset()));
     }
 
     @Override
@@ -492,6 +499,29 @@ class BasicWebTarget implements WebTarget {
 
     Charset getBodyCharset() {
         return bodyCharset != null ? bodyCharset : UTF_8;
+    }
+
+    /**
+     * Effective charset for encoding {@code String} request payloads: a charset explicitly
+     * declared on the request's {@code Content-Type} header is authoritative — the wire header
+     * always wins over the entity's content type in Apache HC5, so encoding the body with
+     * anything else would put mismatching bytes on the wire. The configured body charset applies
+     * when the header declares no charset (or is unparseable).
+     */
+    Charset resolveBodyCharset() {
+        Header contentTypeHeader = httpUriRequestBuilder.getFirstHeader(HttpHeaders.CONTENT_TYPE);
+        if (contentTypeHeader != null && contentTypeHeader.getValue() != null) {
+            try {
+                ContentType contentType = ContentType.parse(contentTypeHeader.getValue());
+                if (contentType.getCharset() != null) {
+                    return contentType.getCharset();
+                }
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("Ignoring unparseable Content-Type header value '{}' when resolving the request body charset: {}",
+                        contentTypeHeader.getValue(), e.getMessage());
+            }
+        }
+        return getBodyCharset();
     }
 
     boolean isRequestPayloadLogging() {

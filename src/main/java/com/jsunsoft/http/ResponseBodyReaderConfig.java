@@ -173,11 +173,12 @@ class ResponseBodyReaderConfig {
                 }
             }
 
-            if (responseBodyReaders == null) {
-                responseBodyReaders = Collections.emptyList();
-            }
+            // Resolved into a local — assigning an immutable sentinel to the field would break
+            // addResponseBodyReader(...) after a first build() (build → mutate → build reuse).
+            Collection<ResponseBodyReader<?>> effectiveResponseBodyReaders =
+                    responseBodyReaders != null ? responseBodyReaders : Collections.emptyList();
 
-            return new ResponseBodyReaderConfig(json, xml, responseBodyReaders, defaultResponseBodyReaders, useDefaultReader, maxResponseBodySizeBytes, defaultResponseCharset);
+            return new ResponseBodyReaderConfig(json, xml, effectiveResponseBodyReaders, defaultResponseBodyReaders, useDefaultReader, maxResponseBodySizeBytes, defaultResponseCharset);
         }
     }
 }

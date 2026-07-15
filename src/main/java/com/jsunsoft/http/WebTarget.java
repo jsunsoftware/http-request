@@ -36,9 +36,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * A resource target identified by the resource URI.
  * <p>
  * Thread-safety: {@link WebTarget} is an interface and implementations may be mutable. Instances returned by
- * {@link HttpRequest#target(String)} / {@link HttpRequest#target(java.net.URI)} are not thread-safe.
+ * {@link HttpRequest#target(String)} / {@link HttpRequest#target(java.net.URI)} are not thread-safe and are
+ * intended for a single request — state configured on them (body entity, headers, parameters) persists across
+ * invocations, so firing several requests from the same mutable instance re-sends previously set state.
  * Use {@link HttpRequest#immutableTarget(String)} / {@link HttpRequest#immutableTarget(java.net.URI)} when you need
- * a thread-safe target that can be shared.
+ * a thread-safe target that can be shared or reused for many requests.
  * <p>
  * Resource management: methods returning {@link Response} return a live, closable HTTP response.
  * The caller is responsible for closing it (prefer try-with-resources). Methods returning {@link ResponseHandler}
@@ -320,7 +322,13 @@ public interface WebTarget {
     }
 
     /**
-     * Sets charset used for request body conversion when using {@code Object} payload overloads.
+     * Sets charset used for request body encoding by the {@code String} and {@code Object}
+     * payload overloads.
+     * <p>
+     * A charset explicitly declared on the request's {@code Content-Type} header always takes
+     * precedence over this setting — the body encoding must match what the header advertises on
+     * the wire. This charset applies when the {@code Content-Type} header carries no
+     * {@code charset} parameter (or there is no {@code Content-Type} header at all).
      * <p>
      * Default implementation delegates to {@link #setCharset(Charset)}. Implementations are expected
      * to override this method and only update the body charset.

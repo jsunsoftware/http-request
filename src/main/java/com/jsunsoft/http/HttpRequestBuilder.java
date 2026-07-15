@@ -48,8 +48,7 @@ import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
  * {@link #addDefaultHeader(String, String)} and
  * {@link #addDefaultRequestParameter(String, String) addDefaultRequestParameter}
  * <em>accumulate</em> state across calls — calling {@code addDefaultHeader} twice on the same
- * builder adds two headers; subsequent {@link #build()} calls each snapshot the current
- * accumulated state. The typical pattern is build-once-discard:
+ * builder adds two headers. The typical pattern is build-once-discard:
  *
  * <pre>{@code
  *     HttpRequest req = HttpRequestBuilder.create(client)
@@ -57,8 +56,11 @@ import static org.apache.hc.core5.http.HttpHeaders.CONTENT_TYPE;
  *             .build();
  * }</pre>
  *
- * Reuse for a second {@link #build()} is supported (each call produces an independent
- * {@code HttpRequest}); just remember that prior mutations are <em>not</em> reset between calls.
+ * Reuse for a second {@link #build()} — including further mutation between builds — is
+ * supported. Each {@code build()} snapshots the state accumulated so far and produces an
+ * independent {@link HttpRequest}: mutations applied after a {@code build()} affect only
+ * subsequently built instances, never previously built ones. Prior mutations are <em>not</em>
+ * reset between calls.
  *
  * @see HttpRequest
  */
@@ -671,6 +673,11 @@ public class HttpRequestBuilder {
      * A target may still override the charset per-call via
      * {@link WebTarget#setBodyCharset(Charset)} — this setter only sets the initial value.
      * Defaults to {@link java.nio.charset.StandardCharsets#UTF_8 UTF-8} when not called.
+     * <p>
+     * A charset explicitly declared on the request's {@code Content-Type} header always takes
+     * precedence over this setting — the body encoding must match what the header advertises on
+     * the wire. This charset applies when the {@code Content-Type} header carries no
+     * {@code charset} parameter.
      *
      * @param defaultBodyCharset the charset to apply to every new target's body
      *                           conversion; {@code null} restores the library default (UTF-8).
@@ -688,22 +695,18 @@ public class HttpRequestBuilder {
      * @return the HttpRequest instance
      */
     public HttpRequest build() {
-        if (defaultHeaders == null) {
-            defaultHeaders = Collections.emptyList();
-        }
-
-        if (defaultRequestParameters == null) {
-            defaultRequestParameters = Collections.emptyList();
-        }
-
-        if (allowedSchemes == null) {
-            allowedSchemes = Collections.emptySet();
-        }
+        // Defaults are resolved into locals — never written back into the builder's fields.
+        // Writing immutable sentinels (Collections.emptyList()) into the fields would make the
+        // accumulator methods throw UnsupportedOperationException after the first build(),
+        // breaking the documented build → mutate → build reuse contract.
+        Collection<Header> effectiveHeaders = defaultHeaders != null ? defaultHeaders : Collections.emptyList();
+        Collection<NameValuePair> effectiveRequestParameters = defaultRequestParameters != null ? defaultRequestParameters : Collections.emptyList();
+        Set<String> effectiveAllowedSchemes = allowedSchemes != null ? allowedSchemes : Collections.emptySet();
 
         UnaryOperator<String> effectiveRedactor = payloadRedactor != null
                 ? payloadRedactor
                 : UnaryOperator.identity();
 
-        return new BasicHttpRequest(closeableHttpClient, defaultHeaders, defaultRequestParameters, responseBodyReaderConfigBuilder.build(), requestBodySerializeConfigBuilder.build(), allowedSchemes, requestPayloadLogging, effectiveRedactor, defaultQueryCharset, defaultBodyCharset);
+        return new BasicHttpRequest(closeableHttpClient, effectiveHeaders, effectiveRequestParameters, responseBodyReaderConfigBuilder.build(), requestBodySerializeConfigBuilder.build(), effectiveAllowedSchemes, requestPayloadLogging, effectiveRedactor, defaultQueryCharset, defaultBodyCharset);
     }
 }
