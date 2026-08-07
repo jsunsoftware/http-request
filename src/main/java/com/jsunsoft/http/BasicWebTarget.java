@@ -260,87 +260,102 @@ class BasicWebTarget implements WebTarget {
         long startTime = System.currentTimeMillis();
 
         ResponseHandler<T> result;
-        int originalStatusCode = -1;
 
-        try (Response response = request(method)) {
-
-            originalStatusCode = response.getCode();
-            int statusCode = originalStatusCode;
-            HttpEntity httpEntity = response.getEntity();
-            URI responseUri = getURI();
-
-            LOGGER.debug("Response code from uri: [{}] is {}", responseUri, statusCode);
-
-            // RFC 9110: HEAD never has a body, and 1xx/204/205/304 forbid a body too. For every
-            // other (method, status) pair Apache HC5 sets a (possibly length-0) HttpEntity.
-            boolean mayHaveBody = HttpRequestUtils.responseMayHaveBody(method, statusCode);
-
-            T content = null;
-            Exception errorCause = null;
-            String failedMessage = null;
-
-            if (mayHaveBody && httpEntity == null) {
-                // The spec says this response could carry a body but Apache surfaced null —
-                // i.e. the server sent something genuinely malformed (closed mid-stream, etc.).
-                // Treat as a Bad Gateway since we can't satisfy the caller's deserialization.
-                failedMessage = "Response entity is null";
-                LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, responseUri, statusCode);
-                statusCode = SC_BAD_GATEWAY;
-            } else {
+        try {
+            Response response = request(method);
+            try {
+                result = readResponse(response, method, typeReference, startTime);
+            } finally {
+                // A close failure must not override the committed result: the payload (or error
+                // text) is already safely in memory, so failing the whole request over a
+                // connection-teardown hiccup would discard data the caller can use. Log and move on.
                 try {
-                    if (!HttpRequestUtils.isVoidType(typeReference.getRawType()) && mayHaveBody && HttpRequestUtils.isSuccess(statusCode)) {
-
-                        content = response.readEntityChecked(typeReference);
-
-                        LOGGER.trace("Result of Uri: [{}] is {}", responseUri, content);
-                    } else if (HttpRequestUtils.isNonSuccess(statusCode)) {
-
-                        failedMessage = response.readEntityChecked(String.class);
-                        String logMsg = "Unexpected Response. Url: [" + responseUri + "] Status code: " + statusCode + ", Error message: " + failedMessage;
-                        if (statusCode == SC_BAD_REQUEST) {
-                            LOGGER.warn(logMsg);
-                        } else {
-                            LOGGER.debug(logMsg);
-                        }
-                    }
-                } catch (ResponseBodyReaderException e) {
-                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "].";
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug(failedMessage + ". Uri: [" + responseUri + "]. Status code: " + statusCode, e);
-                    }
-                    statusCode = SC_BAD_GATEWAY;
-                    errorCause = e;
+                    response.close();
                 } catch (IOException e) {
-                    failedMessage = "Get content from response failed: " + e;
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("Stream could not be created. Uri: [" + responseUri + "]. Status code: " + statusCode, e);
-                    }
-                    statusCode = SC_SERVICE_UNAVAILABLE;
-                    errorCause = e;
+                    LOGGER.warn("Failed to close http response. URI: [{}]", response.getURI(), e);
                 }
             }
-
-            HeaderGroup headerGroup = new HeaderGroup();
-            headerGroup.setHeaders(response.getHeaders());
-
-            ContentType responseContentType = HttpRequestUtils.getContentTypeFromHttpEntity(httpEntity);
-            // here we don't consume the httpEntity e.g. EntityUtils.consumeQuietly(httpEntity); as The close method of BasicResponse will do it
-            result = new BasicResponseHandler<>(content, statusCode, originalStatusCode, headerGroup, errorCause, failedMessage, typeReference.getType(), responseContentType, responseUri, startTime);
         } catch (ResponseException e) {
 
             result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getOriginalStatusCode(), e, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
             LOGGER.debug("Request failed.", e);
-        } catch (IOException e) {
-
-            LOGGER.error("IO error occurred.", e);
-
-            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, originalStatusCode, "IO error occurred while closing response.", e, typeReference.getType(), null, getURI(), IO, startTime);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Executing of uri: [{}] completed. Time: {}", result.getURI(), HttpRequestUtils.humanTime(startTime));
         }
         LOGGER.trace("Executed result: {}", result);
         return result;
+    }
+
+    /**
+     * Interprets an already-received response into the eager {@link ResponseHandler} result:
+     * reads/deserializes the body per method+status, maps read failures to synthetic status
+     * codes (502 deserialization / 503 stream IO), and captures headers and error text.
+     * Never closes {@code response} — the caller owns it.
+     */
+    private <T> ResponseHandler<T> readResponse(Response response, HttpMethod method, TypeReference<T> typeReference, long startTime) {
+        int originalStatusCode = response.getCode();
+        int statusCode = originalStatusCode;
+        HttpEntity httpEntity = response.getEntity();
+        URI responseUri = getURI();
+
+        LOGGER.debug("Response code from uri: [{}] is {}", responseUri, statusCode);
+
+        // RFC 9110: HEAD never has a body, and 1xx/204/205/304 forbid a body too. For every
+        // other (method, status) pair Apache HC5 sets a (possibly length-0) HttpEntity.
+        boolean mayHaveBody = HttpRequestUtils.responseMayHaveBody(method, statusCode);
+
+        T content = null;
+        Exception errorCause = null;
+        String failedMessage = null;
+
+        if (mayHaveBody && httpEntity == null) {
+            // The spec says this response could carry a body but Apache surfaced null —
+            // i.e. the server sent something genuinely malformed (closed mid-stream, etc.).
+            // Treat as a Bad Gateway since we can't satisfy the caller's deserialization.
+            failedMessage = "Response entity is null";
+            LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, responseUri, statusCode);
+            statusCode = SC_BAD_GATEWAY;
+        } else {
+            try {
+                if (!HttpRequestUtils.isVoidType(typeReference.getRawType()) && mayHaveBody && HttpRequestUtils.isSuccess(statusCode)) {
+
+                    content = response.readEntityChecked(typeReference);
+
+                    LOGGER.trace("Result of Uri: [{}] is {}", responseUri, content);
+                } else if (HttpRequestUtils.isNonSuccess(statusCode)) {
+
+                    failedMessage = response.readEntityChecked(String.class);
+                    String logMsg = "Unexpected Response. Url: [" + responseUri + "] Status code: " + statusCode + ", Error message: " + failedMessage;
+                    if (statusCode == SC_BAD_REQUEST) {
+                        LOGGER.warn(logMsg);
+                    } else {
+                        LOGGER.debug(logMsg);
+                    }
+                }
+            } catch (ResponseBodyReaderException e) {
+                failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "].";
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(failedMessage + ". Uri: [" + responseUri + "]. Status code: " + statusCode, e);
+                }
+                statusCode = SC_BAD_GATEWAY;
+                errorCause = e;
+            } catch (IOException e) {
+                failedMessage = "Get content from response failed: " + e;
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Stream could not be created. Uri: [" + responseUri + "]. Status code: " + statusCode, e);
+                }
+                statusCode = SC_SERVICE_UNAVAILABLE;
+                errorCause = e;
+            }
+        }
+
+        HeaderGroup headerGroup = new HeaderGroup();
+        headerGroup.setHeaders(response.getHeaders());
+
+        ContentType responseContentType = HttpRequestUtils.getContentTypeFromHttpEntity(httpEntity);
+        // here we don't consume the httpEntity e.g. EntityUtils.consumeQuietly(httpEntity); as The close method of BasicResponse will do it
+        return new BasicResponseHandler<>(content, statusCode, originalStatusCode, headerGroup, errorCause, failedMessage, typeReference.getType(), responseContentType, responseUri, startTime);
     }
 
     @Override
