@@ -254,3 +254,11 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   `builderWithJackson2Defaults()` — see MIGRATION.md for the per-toggle table (most are
   strict/safe wins; the visible deltas are `READ/WRITE_ENUMS_USING_TO_STRING` and
   `SORT_PROPERTIES_ALPHABETICALLY`).
+* **Default date-format patterns removed (breaking).** The default mappers no longer install the implicit `HH:mm:ss` /
+  `dd/MM/yyyy` / `dd/MM/yyyy HH:mm:ss` patterns for `LocalTime` /
+  `LocalDate` / `LocalDateTime` — Jackson 3's standard ISO-8601 `java.time` handling applies instead. Re-register the
+  legacy patterns via
+  `addResponseDefaultDateDeserializationPattern(...)` /
+  `addRequestDefaultDateSerializationPattern(...)` if your upstream still emits them — see MIGRATION.md. The now-unused
+  `DateDeserializeContext` / `BasicDateDeserializeContext` /
+  `DefaultDateDeserializeContext` types are `@Deprecated(forRemoval = true)`.

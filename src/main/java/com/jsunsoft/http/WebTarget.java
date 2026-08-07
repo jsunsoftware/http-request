@@ -467,12 +467,20 @@ public interface WebTarget {
     WebTarget setRequestConfig(final RequestConfig requestConfig);
 
     /**
-     * Adds a query-string parameter to the request URI.
+     * Adds a parameter to the request.
      * <p>
      * The {@code name} and {@code value} are <b>raw</b> — the library percent-encodes them when
-     * the URI is materialised, using the charset configured via {@link #setQueryCharset(Charset)}
+     * the request is materialised, using the charset configured via {@link #setQueryCharset(Charset)}
      * (UTF-8 by default). Pass plain text such as {@code "你好"} or {@code "a=b"} and the
-     * library will produce a correctly-encoded query.
+     * library will produce a correctly-encoded value.
+     * <p>
+     * <b>Where the parameters land</b> (Apache HC5 request-builder semantics):
+     * <ul>
+     *     <li>for most requests they are appended to the URI as <b>query-string</b> parameters;</li>
+     *     <li>for an <b>entity-less POST or PUT</b> they are sent as an
+     *         {@code application/x-www-form-urlencoded} request <b>body</b> instead — this is the
+     *         library's form-post mechanism. Attach any entity/payload to keep them on the URI.</li>
+     * </ul>
      *
      * @param nameValuePair nameValuePair carrying the raw (un-encoded) name and value.
      * @return WebTarget instance
@@ -480,11 +488,20 @@ public interface WebTarget {
     WebTarget addParameter(final NameValuePair nameValuePair);
 
     /**
-     * @return URI as string
+     * @return the URI as string — equivalent to {@code getURI().toString()}.
+     * @see #getURI()
      */
     String getURIString();
 
     /**
+     * The target URI, including parameters added via {@link #addParameter(NameValuePair)} /
+     * {@code addParameters(...)} as query-string parameters.
+     * <p>
+     * Note: for an entity-less POST/PUT request the pending parameters are sent as an
+     * {@code application/x-www-form-urlencoded} body instead of the query string (see
+     * {@link #addParameter(NameValuePair)}), so for that specific case the URI on the wire will
+     * not carry them.
+     *
      * @return The URI
      */
     URI getURI();
@@ -611,9 +628,10 @@ public interface WebTarget {
     }
 
     /**
-     * Add a query-string parameter to the request. Both {@code name} and {@code value} are raw —
-     * the library percent-encodes them when the URI is materialised, using the charset configured
-     * via {@link #setQueryCharset(Charset)}.
+     * Add a parameter to the request. Both {@code name} and {@code value} are raw —
+     * the library percent-encodes them when the request is materialised, using the charset
+     * configured via {@link #setQueryCharset(Charset)}. See {@link #addParameter(NameValuePair)}
+     * for where the parameters land (query string vs. form body for entity-less POST/PUT).
      *
      * @param name  raw (un-encoded) parameter name
      * @param value raw (un-encoded) parameter value

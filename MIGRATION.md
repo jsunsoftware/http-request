@@ -360,3 +360,44 @@ register your own mapper with
 `JsonMapper.builder().constructorDetector(ConstructorDetector.USE_PROPERTIES_BASED).build()`
 and pass it via `HttpRequestBuilder.setDefaultJsonMapper(...)`, or annotate the constructor
 with `@JsonCreator(mode = JsonCreator.Mode.PROPERTIES)`.
+
+### Default date-format patterns removed
+
+Through 4.0.0 the library's *default* mappers (used when you did not supply your own via
+`setDefaultJsonMapper` / `setDefaultXmlMapper` and did not register explicit patterns) silently installed fixed date
+formats:
+
+| Type                      | Pre-5.0 implicit default |
+|---------------------------|--------------------------|
+| `java.time.LocalTime`     | `HH:mm:ss`               |
+| `java.time.LocalDate`     | `dd/MM/yyyy`             |
+| `java.time.LocalDateTime` | `dd/MM/yyyy HH:mm:ss`    |
+
+Starting with 5.0.0-rc1 these implicit defaults are **gone**: the default mappers use Jackson 3's standard `java.time`
+handling, i.e. ISO-8601 (`2025-07-14`, `10:15:30`, `2025-07-14T10:15:30`). A response carrying `"14/07/2025"` that
+deserialized fine on 3.6.x / 4.0.0 fails on 5.0.0-rc1 with a deserialization error (surfaced as 502 Bad Gateway on the
+`ResponseHandler`).
+
+Restore the old behaviour per type when your upstream still emits the legacy formats:
+
+```java
+HttpRequestBuilder.create(client)
+        .
+
+addResponseDefaultDateDeserializationPattern(LocalTime .class, "HH:mm:ss")
+        .
+
+addResponseDefaultDateDeserializationPattern(LocalDate .class, "dd/MM/yyyy")
+        .
+
+addResponseDefaultDateDeserializationPattern(LocalDateTime .class, "dd/MM/yyyy HH:mm:ss")
+        .
+
+build();
+```
+
+The request-serialization side has the mirror `addRequestDefaultDateSerializationPattern`.
+
+With the implicit defaults gone, the `DateDeserializeContext` type (and its two bundled implementations) no longer
+participates in mapper construction; it is `@Deprecated(forRemoval =
+true)` and will be dropped in a later release.

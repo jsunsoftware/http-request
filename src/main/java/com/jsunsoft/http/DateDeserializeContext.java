@@ -21,7 +21,14 @@ import java.util.Map;
 /**
  * Interface representing a context for date deserialization.
  * Provides a mapping between date types and their corresponding date patterns.
+ *
+ * @deprecated Since 5.0.0-rc1 the library no longer installs implicit default date patterns and
+ * nothing consumes this type. Register per-type patterns via
+ * {@link HttpRequestBuilder#addResponseDefaultDateDeserializationPattern(Class, String)} /
+ * {@link HttpRequestBuilder#addRequestDefaultDateSerializationPattern(Class, String)} instead.
+ * See MIGRATION.md, "Default date-format patterns removed". Scheduled for removal.
  */
+@Deprecated(since = "5.0.0-rc1", forRemoval = true)
 public interface DateDeserializeContext {
 
     /**
