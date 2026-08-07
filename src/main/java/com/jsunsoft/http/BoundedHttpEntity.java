@@ -27,12 +27,21 @@ import java.io.OutputStream;
 final class BoundedHttpEntity extends HttpEntityWrapper {
 
     private final long maxSize;
+    private InputStream boundedContent;
 
     BoundedHttpEntity(final HttpEntity entity, final long maxSize) {
         super(entity);
         this.maxSize = maxSize;
     }
 
+    /**
+     * Reports {@code min(actual, maxSize)} — deliberately, even though a declared length beyond
+     * the cap is rejected on {@link #getContent()} anyway: consumers commonly pre-allocate
+     * buffers sized by {@code getContentLength()} <em>before</em> touching the content, and
+     * advertising a hostile multi-GB declared length would hand them an allocation-DoS. The
+     * capped value can never mislead a reader into silent truncation because any attempt to
+     * actually read a declared-over-cap body fails fast in {@link #getContent()}.
+     */
     @Override
     public long getContentLength() {
         long wrapped = super.getContentLength();
@@ -45,6 +54,19 @@ final class BoundedHttpEntity extends HttpEntityWrapper {
     /**
      * Wraps the underlying entity stream so that no more than {@code maxSize} bytes can be read
      * before the library throws {@link InvalidContentLengthException}.
+     * <p>
+     * <b>Fail-fast on the declared length:</b> when the response declares a {@code Content-Length}
+     * beyond the cap, this method throws before reading a single byte. Besides being cheaper than
+     * streaming up to the cap, this closes the silent-truncation trap: a consumer that trusts
+     * {@link #getContentLength()} (which reports the capped value) would otherwise read exactly
+     * that many bytes, stop before the streaming bound fires, and treat the truncated body as
+     * complete.
+     * <p>
+     * <b>One stream, one budget:</b> the bounded stream is created once and returned for every
+     * call. That is required by the {@link HttpEntity#getContent()} contract for non-repeatable
+     * entities (the same stream instance must be returned), and it makes the byte budget a
+     * per-entity budget — handing out a fresh wrapper per call would reset the count and let a
+     * caller read {@code n × maxSize} bytes through repeated {@code getContent()} calls.
      * <p>
      * The cap is delegated to commons-io's {@link BoundedInputStream}, which clamps both
      * {@code read(byte[], int, int)} and {@code skip(long)} so wire reads cannot exceed the
@@ -65,15 +87,23 @@ final class BoundedHttpEntity extends HttpEntityWrapper {
      */
     @Override
     public InputStream getContent() throws IOException {
-        return BoundedInputStream.builder()
-                .setInputStream(super.getContent())
-                .setMaxCount(maxSize + 1L)
-                .setOnMaxCount((max, count) -> {
-                    throw new InvalidContentLengthException(count,
-                            "Response body exceeds maximum allowed size: " + maxSize + " bytes");
-                })
-                .setPropagateClose(true)
-                .get();
+        long declaredLength = super.getContentLength();
+        if (declaredLength > maxSize) {
+            throw new InvalidContentLengthException(declaredLength,
+                    "Declared Content-Length exceeds maximum allowed size: " + maxSize + " bytes");
+        }
+        if (boundedContent == null) {
+            boundedContent = BoundedInputStream.builder()
+                    .setInputStream(super.getContent())
+                    .setMaxCount(maxSize + 1L)
+                    .setOnMaxCount((max, count) -> {
+                        throw new InvalidContentLengthException(count,
+                                "Response body exceeds maximum allowed size: " + maxSize + " bytes");
+                    })
+                    .setPropagateClose(true)
+                    .get();
+        }
+        return boundedContent;
     }
 
     /**
