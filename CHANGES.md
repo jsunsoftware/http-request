@@ -262,3 +262,16 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   `addRequestDefaultDateSerializationPattern(...)` if your upstream still emits them — see MIGRATION.md. The now-unused
   `DateDeserializeContext` / `BasicDateDeserializeContext` /
   `DefaultDateDeserializeContext` types are `@Deprecated(forRemoval = true)`.
+
+* **Bounded close-drain for size-capped responses (fixes an unbounded cap-bypassing read).**
+  With `setMaxResponseBodySizeBytes` configured, `Response.close()` previously ended up reading the entire unread
+  remainder (Apache HC5's own `response.close()` self-exhausts the raw entity stream, bypassing the cap) — a hostile
+  oversized body was read to the end on close. `close()`
+  now drains through the cap-enforcing stream under a dual bound — at most a configurable byte allowance within a hard
+  wall-clock timeout (the drain runs on a shared daemon thread, JDK
+  `KeepAliveStreamCleaner`-style) — and otherwise detaches the entity and discards the connection instead of reading
+  further. New `@Beta` knobs on `HttpRequestBuilder`:
+  `setMaxResponseDrainSizeBytes(long)` (default `65536`; `0` = never drain; negative = unlimited, bounded only by the
+  cap and the timeout) and `setResponseDrainTimeout(Duration)` (default 100 ms; must be positive). Both require the
+  response body size cap and are rejected at
+  `build()` without it. Uncapped behavior is unchanged (full consume on close).

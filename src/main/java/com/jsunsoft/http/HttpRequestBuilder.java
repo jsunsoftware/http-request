@@ -32,6 +32,7 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.*;
 import java.util.function.UnaryOperator;
 
@@ -534,6 +535,10 @@ public class HttpRequestBuilder {
      * Pass a strictly-positive value (e.g. {@code 1024}) to enable the cap. Pass {@code 0} or any
      * negative value to disable it — that is also the default state of a fresh builder, so a
      * caller who simply does not want a cap should not call this method at all.
+     * <p>
+     * With a cap enabled, how much of an <em>unread</em> body {@link Response#close()} may
+     * consume to keep the pooled connection reusable is governed by
+     * {@link #setMaxResponseDrainSizeBytes(long)} / {@link #setResponseDrainTimeout(Duration)}.
      *
      * @param maxResponseBodySizeBytes positive byte cap, or {@code <= 0} to disable.
      * @return the current instance of HttpRequestBuilder
@@ -541,6 +546,65 @@ public class HttpRequestBuilder {
     @Beta
     public HttpRequestBuilder setMaxResponseBodySizeBytes(long maxResponseBodySizeBytes) {
         responseBodyReaderConfigBuilder.setMaxResponseBodySizeBytes(maxResponseBodySizeBytes);
+        return this;
+    }
+
+    /**
+     * Sets the byte bound of the <em>close-drain</em>: how much of an unread response body
+     * {@link Response#close()} may consume to make the pooled connection reusable, when a body
+     * size cap is configured via {@link #setMaxResponseBodySizeBytes(long)}. Beyond this bound
+     * the connection is discarded instead of drained — a drain is only worth doing while it is
+     * cheaper than establishing a new connection.
+     * <p>
+     * Values: a positive byte count bounds the drain (default {@code 65536} — deliberately below
+     * the JDK's 512&nbsp;KB {@code http.KeepAlive.remainingData} and .NET's 1&nbsp;MB
+     * {@code MaxResponseDrainSize}, since the drain lives inside a security-cap feature);
+     * {@code 0} disables draining entirely (an unread remainder always discards the connection);
+     * a negative value means <b>unlimited</b> — the drain is then bounded only by the response
+     * body size cap itself and by {@link #setResponseDrainTimeout(Duration)}.
+     * <p>
+     * Requires {@link #setMaxResponseBodySizeBytes(long)} with a positive value — {@link #build()}
+     * rejects drain options without the cap they belong to. Without a cap, unread bodies are
+     * always fully consumed on close (longstanding behavior).
+     *
+     * @param maxResponseDrainSizeBytes positive byte bound, {@code 0} to never drain, or a
+     *                                  negative value for unlimited.
+     * @return the current instance of HttpRequestBuilder
+     */
+    @Beta
+    public HttpRequestBuilder setMaxResponseDrainSizeBytes(long maxResponseDrainSizeBytes) {
+        responseBodyReaderConfigBuilder.setMaxResponseDrainSizeBytes(maxResponseDrainSizeBytes);
+        return this;
+    }
+
+    /**
+     * Sets the wall-clock bound of the <em>close-drain</em> (see
+     * {@link #setMaxResponseDrainSizeBytes(long)}): how long {@link Response#close()} waits for
+     * the unread remainder to drain before giving up and discarding the connection. The bound is
+     * hard — the drain runs on a background daemon thread and an abandoned drain dies as soon as
+     * the connection is closed underneath it — so {@code close()} never blocks longer than this
+     * (plus scheduling noise) on a slow or silent peer.
+     * <p>
+     * Default: {@code 100 ms} (OkHttp's discard timeout, documented as "significantly less than
+     * the time it takes to establish a new connection"; .NET's {@code ResponseDrainTimeout}
+     * default is 2&nbsp;s).
+     * <p>
+     * Requires {@link #setMaxResponseBodySizeBytes(long)} with a positive value — {@link #build()}
+     * rejects drain options without the cap they belong to.
+     *
+     * @param responseDrainTimeout positive drain timeout; must not be {@code null}, zero, or
+     *                             negative.
+     * @return the current instance of HttpRequestBuilder
+     * @throws NullPointerException     if {@code responseDrainTimeout} is {@code null}
+     * @throws IllegalArgumentException if {@code responseDrainTimeout} is zero or negative
+     */
+    @Beta
+    public HttpRequestBuilder setResponseDrainTimeout(Duration responseDrainTimeout) {
+        ArgsCheck.notNull(responseDrainTimeout, "responseDrainTimeout");
+        if (responseDrainTimeout.isZero() || responseDrainTimeout.isNegative()) {
+            throw new IllegalArgumentException("responseDrainTimeout must be positive, got " + responseDrainTimeout);
+        }
+        responseBodyReaderConfigBuilder.setResponseDrainTimeout(responseDrainTimeout);
         return this;
     }
 
