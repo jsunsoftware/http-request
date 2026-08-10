@@ -691,8 +691,9 @@ to you.
 - When using a `ResponseHandler`, methods like `.orElseThrow()` will throw a `ResponseException`. The cause of this
   exception will be the `InvalidContentLengthException`.
 
-**Important:** Even when this limit is exceeded, the underlying HTTP connection is **always safely closed and released
-back to the pool**. The library ensures resources are cleaned up correctly to prevent connection leaks.
+**Important:** Even when this limit is exceeded, the underlying HTTP connection is **never leaked**: it is either
+drained and returned to the pool for reuse, or closed with its pool slot freed — see
+[the bounded drain](#connection-reuse-on-close-the-bounded-drain) below for how the library decides between the two.
 
 ```java
 // Configure a client with a 1KB limit
@@ -720,14 +721,70 @@ try{
 }
 ```
 
-> **A Note on Connection Handling:** The library's closing behavior changes depending on whether a size limit is set.
-> - **Without a size limit:** The library attempts to fully consume the response body before closing. This is a
-    performance optimization that allows the underlying connection to be kept alive and reused for subsequent requests
-    to the same host.
-> - **With a size limit:** The library **intentionally does not** consume the rest of the body. It immediately closes
-    the connection to avoid downloading potentially huge amounts of unwanted data. While this may prevent the connection
-    from being reused, it guarantees safety and responsiveness, and the connection is always correctly returned to the
-    pool.
+#### Connection reuse on close: the bounded drain
+
+An HTTP/1.1 connection can only be kept alive and reused when the response body has been read to the end. When a
+`Response` is closed with part of the body still unread — you only checked the status code, a parser stopped early, an
+error body wasn't interesting — something has to happen to that remainder. (This applies equally to the eager
+`ResponseHandler` API, which closes the response internally.)
+
+- **Without a size limit** the library fully consumes the remainder on close, so the connection always returns to the
+  pool. This is the longstanding behavior and is unchanged.
+- **With a size limit** the remainder may be hostile — reading all of it would defeat the point of the cap. Instead,
+  `close()` performs a **bounded drain**: it reads the remainder through the same cap-enforcing stream, up to a
+  configured number of bytes and within a hard wall-clock timeout.
+  - End-of-body reached within both bounds → the connection returns to the pool for reuse.
+  - Anything else — a remainder larger than the drain allowance, data arriving too slowly, the response-size cap being
+    exceeded mid-drain, or a declared `Content-Length` already over the cap (rejected without reading a single byte) →
+    the drain stops and the connection is closed and discarded instead. A reconnect on the next request is cheaper than
+    reading data you don't want.
+
+The timeout is **hard**: the drain runs on a shared background daemon thread and `close()` waits at most the configured
+time, so a slow or completely silent server cannot hold your `close()` hostage — an abandoned drain dies together with
+the discarded connection. `close()` never throws the size-cap exception; a failed drain only downgrades connection
+reuse.
+
+Both bounds are configurable on the `HttpRequestBuilder` (`@Beta`). They require
+`setMaxResponseBodySizeBytes(...)` with a positive value — `build()` rejects drain options without the cap they belong
+to.
+
+| Option                               | Default          | Values                                                                                                                                                                     |
+|--------------------------------------|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `setMaxResponseDrainSizeBytes(long)` | `65536` (64 KiB) | positive — byte bound of the drain; `0` — never drain (an unread remainder always discards the connection); negative — unlimited (bounded only by the cap and the timeout) |
+| `setResponseDrainTimeout(Duration)`  | `100 ms`         | any positive `java.time.Duration`                                                                                                                                          |
+
+```java
+// Defaults: salvages small remainders instantly, never waits on a slow peer
+HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
+                .setMaxResponseBodySizeBytes(1024 * 1024)
+                .build();
+
+// Throughput-tuned — trusted upstream on a fast internal network, reconnects are expensive
+// (TLS handshakes, proxies with connection limits): drain whatever the cap allows, wait up to 2s.
+HttpRequest throughputTuned = HttpRequestBuilder.create(httpClient)
+        .setMaxResponseBodySizeBytes(1024 * 1024)
+        .setMaxResponseDrainSizeBytes(-1)                  // unlimited — the response-size cap still bounds it
+        .setResponseDrainTimeout(Duration.ofSeconds(2))
+        .build();
+
+// Latency-strict — close() must return as fast as possible and connection reuse is worthless
+// (e.g. one-shot requests fanned out to many different hosts): never read a byte on close.
+HttpRequest latencyStrict = HttpRequestBuilder.create(httpClient)
+        .setMaxResponseBodySizeBytes(1024 * 1024)
+        .setMaxResponseDrainSizeBytes(0)                   // never drain
+        .build();
+```
+
+**Choosing values.** The trade-off is always *reading data you don't want* vs. *paying for a new connection*:
+
+- **Keep the defaults** unless you have a measured reason not to. They salvage the common case — a small unread tail
+  such as a skipped error body or trailing bytes after partial parsing — and give up fast on everything else. For
+  reference, the JDK drains up to 512 KB in the background (`http.KeepAlive.remainingData`), .NET up to 1 MB within 2 s
+  (`MaxResponseDrainSize` / `ResponseDrainTimeout`), and OkHttp bounds the same work by 100 ms.
+- **Raise the bounds** (or go unlimited with a generous timeout) when connection churn measurably hurts and the upstream
+  is trusted.
+- **Set the drain size to `0`** when any extra read is unacceptable — you get the strictest close behavior at the cost
+  of a reconnect after every partially-read response.
 
 ### Character Encoding
 

@@ -36,9 +36,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * A resource target identified by the resource URI.
  * <p>
  * Thread-safety: {@link WebTarget} is an interface and implementations may be mutable. Instances returned by
- * {@link HttpRequest#target(String)} / {@link HttpRequest#target(java.net.URI)} are not thread-safe.
+ * {@link HttpRequest#target(String)} / {@link HttpRequest#target(java.net.URI)} are not thread-safe and are
+ * intended for a single request — state configured on them (body entity, headers, parameters) persists across
+ * invocations, so firing several requests from the same mutable instance re-sends previously set state.
  * Use {@link HttpRequest#immutableTarget(String)} / {@link HttpRequest#immutableTarget(java.net.URI)} when you need
- * a thread-safe target that can be shared.
+ * a thread-safe target that can be shared or reused for many requests.
  * <p>
  * Resource management: methods returning {@link Response} return a live, closable HTTP response.
  * The caller is responsible for closing it (prefer try-with-resources). Methods returning {@link ResponseHandler}
@@ -320,7 +322,13 @@ public interface WebTarget {
     }
 
     /**
-     * Sets charset used for request body conversion when using {@code Object} payload overloads.
+     * Sets charset used for request body encoding by the {@code String} and {@code Object}
+     * payload overloads.
+     * <p>
+     * A charset explicitly declared on the request's {@code Content-Type} header always takes
+     * precedence over this setting — the body encoding must match what the header advertises on
+     * the wire. This charset applies when the {@code Content-Type} header carries no
+     * {@code charset} parameter (or there is no {@code Content-Type} header at all).
      * <p>
      * Default implementation delegates to {@link #setCharset(Charset)}. Implementations are expected
      * to override this method and only update the body charset.
@@ -459,12 +467,20 @@ public interface WebTarget {
     WebTarget setRequestConfig(final RequestConfig requestConfig);
 
     /**
-     * Adds a query-string parameter to the request URI.
+     * Adds a parameter to the request.
      * <p>
      * The {@code name} and {@code value} are <b>raw</b> — the library percent-encodes them when
-     * the URI is materialised, using the charset configured via {@link #setQueryCharset(Charset)}
+     * the request is materialised, using the charset configured via {@link #setQueryCharset(Charset)}
      * (UTF-8 by default). Pass plain text such as {@code "你好"} or {@code "a=b"} and the
-     * library will produce a correctly-encoded query.
+     * library will produce a correctly-encoded value.
+     * <p>
+     * <b>Where the parameters land</b> (Apache HC5 request-builder semantics):
+     * <ul>
+     *     <li>for most requests they are appended to the URI as <b>query-string</b> parameters;</li>
+     *     <li>for an <b>entity-less POST or PUT</b> they are sent as an
+     *         {@code application/x-www-form-urlencoded} request <b>body</b> instead — this is the
+     *         library's form-post mechanism. Attach any entity/payload to keep them on the URI.</li>
+     * </ul>
      *
      * @param nameValuePair nameValuePair carrying the raw (un-encoded) name and value.
      * @return WebTarget instance
@@ -472,11 +488,20 @@ public interface WebTarget {
     WebTarget addParameter(final NameValuePair nameValuePair);
 
     /**
-     * @return URI as string
+     * @return the URI as string — equivalent to {@code getURI().toString()}.
+     * @see #getURI()
      */
     String getURIString();
 
     /**
+     * The target URI, including parameters added via {@link #addParameter(NameValuePair)} /
+     * {@code addParameters(...)} as query-string parameters.
+     * <p>
+     * Note: for an entity-less POST/PUT request the pending parameters are sent as an
+     * {@code application/x-www-form-urlencoded} body instead of the query string (see
+     * {@link #addParameter(NameValuePair)}), so for that specific case the URI on the wire will
+     * not carry them.
+     *
      * @return The URI
      */
     URI getURI();
@@ -603,9 +628,10 @@ public interface WebTarget {
     }
 
     /**
-     * Add a query-string parameter to the request. Both {@code name} and {@code value} are raw —
-     * the library percent-encodes them when the URI is materialised, using the charset configured
-     * via {@link #setQueryCharset(Charset)}.
+     * Add a parameter to the request. Both {@code name} and {@code value} are raw —
+     * the library percent-encodes them when the request is materialised, using the charset
+     * configured via {@link #setQueryCharset(Charset)}. See {@link #addParameter(NameValuePair)}
+     * for where the parameters land (query string vs. form body for entity-less POST/PUT).
      *
      * @param name  raw (un-encoded) parameter name
      * @param value raw (un-encoded) parameter value

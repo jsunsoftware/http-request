@@ -18,6 +18,11 @@ package com.jsunsoft.http;
 
 import java.util.Map;
 
+/**
+ * @deprecated See {@link DateDeserializeContext} — unused since 5.0.0-rc1, scheduled for removal.
+ */
+@Deprecated(since = "5.0.0-rc1", forRemoval = true)
+@SuppressWarnings("removal")
 class BasicDateDeserializeContext implements DateDeserializeContext {
 
     private final Map<Class<?>, String> dateTypeToPattern;

@@ -33,12 +33,13 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.jsunsoft.http.DefaultDateDeserializeContext.DEFAULT;
 
 class ResponseBodyReaderTest {
 
@@ -63,7 +64,7 @@ class ResponseBodyReaderTest {
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = ResponseBodyReaders.jsonReader(
-                ObjectMapperInitializer.initJsonMapperIfNull(null, DEFAULT.getDateTypeToPattern())
+                ObjectMapperInitializer.initJsonMapperIfNull(null, legacyDefaultDatePatterns())
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -149,7 +150,7 @@ class ResponseBodyReaderTest {
         // future cleanup that drops the .withContentInclusion(...) chain in applyLibraryDefaults
         // would silently regress Map serialization to emit null entries — this test fails fast
         // when that happens.
-        ObjectMapper mapper = ObjectMapperInitializer.initJsonMapperIfNull(null, DEFAULT.getDateTypeToPattern());
+        ObjectMapper mapper = ObjectMapperInitializer.initJsonMapperIfNull(null, legacyDefaultDatePatterns());
 
         DtoWithNullables dto = new DtoWithNullables();
         dto.name = null;                                  // top-level null property
@@ -172,7 +173,7 @@ class ResponseBodyReaderTest {
     }
 
     @Test
-    void initXmlMapperIfNullAppliesPatternsToOwnedMapper() throws IOException {
+    void initXmlMapperIfNullAppliesPatternsToOwnedMapper() {
         // Symmetric XML counterpart of initJsonMapperIfNullAppliesPatternsToOwnedMapper. Defends the
         // XmlMapper.rebuild() → withConfigOverride → build() path through applyDatePatterns; without
         // a behavioral test here, a regression that breaks the XmlMapper branch (e.g. a wildcard-
@@ -207,7 +208,7 @@ class ResponseBodyReaderTest {
     @Test
     void noPatternsReturnsUserMapperUnchanged() {
         ObjectMapper userMapper = JsonMapper.builder().build();
-        ObjectMapper effective = ObjectMapperInitializer.initJsonMapperIfNull(userMapper, (Map<Class<?>, String>) null);
+        ObjectMapper effective = ObjectMapperInitializer.initJsonMapperIfNull(userMapper, null);
         Assertions.assertSame(userMapper, effective, "With no patterns, user's mapper should be returned as-is");
 
         Map<Class<?>, String> emptyPatterns = new HashMap<>();
@@ -236,12 +237,10 @@ class ResponseBodyReaderTest {
         Map<Class<?>, String> dateTypeToPattern = new HashMap<>();
         dateTypeToPattern.put(LocalDate.class, "yyyyMMdd");
 
-        DateDeserializeContext dateDeserializeContext = new BasicDateDeserializeContext(dateTypeToPattern);
-
         ResponseBodyReaderContext<Result> responseContext = resolveResponseContext(content);
 
         ResponseBodyReader<Result> responseBodyReader = ResponseBodyReaders.jsonReader(
-                ObjectMapperInitializer.initJsonMapperIfNull(null, dateDeserializeContext.getDateTypeToPattern())
+                ObjectMapperInitializer.initJsonMapperIfNull(null, dateTypeToPattern)
         );
 
         Result result = responseBodyReader.read(responseContext);
@@ -253,6 +252,19 @@ class ResponseBodyReaderTest {
         Assertions.assertEquals(LocalDate.of(1993, 5, 11), result.getRelations().get(0).localDate);
         Assertions.assertEquals("54321", result.getRelations().get(1).string);
         Assertions.assertEquals(LocalDate.of(2017, 9, 8), result.getRelations().get(1).javaLocalDate);
+    }
+
+    /**
+     * The date patterns the library installed implicitly through 4.0.0 (dropped in 5.0.0-rc1 —
+     * see MIGRATION.md "Default date-format patterns removed"). These tests register them
+     * explicitly, the supported way.
+     */
+    private static Map<Class<?>, String> legacyDefaultDatePatterns() {
+        return Map.of(
+                LocalTime.class, "HH:mm:ss",
+                LocalDate.class, "dd/MM/yyyy",
+                LocalDateTime.class, "dd/MM/yyyy HH:mm:ss"
+        );
     }
 
     private ResponseBodyReaderContext<Result> resolveResponseContext(String content) {

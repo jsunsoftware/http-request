@@ -106,7 +106,10 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     @Override
     @Beta
     public int getOriginalCode() {
-        return originalStatusCode;
+        // -1 is the internal "no response was received" sentinel (set by the ResponseException
+        // constructors used on transport failures). The interface contract promises getCode()
+        // in that case — never the sentinel.
+        return originalStatusCode != -1 ? originalStatusCode : statusCode;
     }
 
     /**

@@ -74,6 +74,13 @@ public interface HttpRequest {
      * <pre>{@code
      *   httpRequest.target(uri).addHeader("X-Foo", "bar").get(User.class);
      * }</pre>
+     * <b>Single request per target.</b> The returned target is designed for firing one request:
+     * request state set on it — the body entity, headers, parameters, request config — persists
+     * on the instance, so invoking further requests from the same target re-sends the previously
+     * set state (for example, a body set by {@code post(...)} is sent again by a later
+     * {@code get()}). Create a fresh target per request, or use {@link #immutableTarget(URI)}
+     * for a configuration you want to reuse.
+     * <p>
      * Storing the returned target in a field that multiple threads write to leads to interleaved
      * header / parameter mutations. If you need a target you can share across threads, use
      * {@link #immutableTarget(URI)} — it allocates per fluent call but is safe.

@@ -92,13 +92,19 @@ class RequestBodyConverters {
         }
     }
 
+    /**
+     * A charset explicitly declared on the request's {@code Content-Type} header is authoritative:
+     * the wire header always wins over the entity's content type in Apache HC5, so encoding the
+     * body with anything else would put mismatching bytes on the wire. The configured body charset
+     * applies only when the header declares no charset.
+     */
     private static Charset resolveCharset(RequestBodyConverterContext context) {
-        if (context.getCharset() != null) {
-            return context.getCharset();
-        }
         ContentType ct = context.getContentType();
         if (ct != null && ct.getCharset() != null) {
             return ct.getCharset();
+        }
+        if (context.getCharset() != null) {
+            return context.getCharset();
         }
         return UTF_8;
     }

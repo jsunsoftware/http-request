@@ -21,6 +21,15 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Map;
 
+/**
+ * Holds the date patterns the library installed implicitly through 4.0.0.
+ *
+ * @deprecated See {@link DateDeserializeContext} — since 5.0.0-rc1 the default mappers use
+ * Jackson 3's ISO-8601 {@code java.time} handling and these patterns are no longer applied.
+ * Scheduled for removal.
+ */
+@Deprecated(since = "5.0.0-rc1", forRemoval = true)
+@SuppressWarnings("removal")
 class DefaultDateDeserializeContext implements DateDeserializeContext {
     static final DateDeserializeContext DEFAULT = new DefaultDateDeserializeContext();
 

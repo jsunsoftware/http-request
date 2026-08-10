@@ -46,11 +46,12 @@ class RetryableWebTarget extends BasicWebTarget {
     public Response request(HttpMethod method, HttpContext context) {
         Response response = super.request(method, context);
 
-        final int maxRetries = retryContext.getRetryCount();
-        int remaining = maxRetries;
-        int attemptNumber = 1;
-
+        boolean completed = false;
         try {
+            final int maxRetries = retryContext.getRetryCount();
+            int remaining = maxRetries;
+            int attemptNumber = 1;
+
             while (remaining > 0) {
                 RetryAttempt attempt = new BasicRetryAttempt(response, method, response.getURI(), attemptNumber, null);
                 if (!retryContext.mustBeRetried(attempt)) {
@@ -67,7 +68,8 @@ class RetryableWebTarget extends BasicWebTarget {
 
                 closeResponse(response);
 
-                WebTarget retryTarget = retryContext.beforeRetry(attempt, this);
+                WebTarget retryTarget = ArgsCheck.notNull(retryContext.beforeRetry(attempt, this),
+                        "retryContext.beforeRetry result");
                 if (retryTarget instanceof RetryableWebTarget rt) {
                     // Avoid recursion (and retryCount reset) when beforeRetry returns the same retryable instance.
                     // Execute a single request attempt using a non-retryable target copy.
@@ -78,10 +80,19 @@ class RetryableWebTarget extends BasicWebTarget {
                 attemptNumber++;
                 remaining--;
             }
+            completed = true;
         } catch (InterruptedException e) {
-            closeResponse(response);
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Thread was interrupted.", e);
+        } finally {
+            // RetryContext callbacks are user code — whatever aborts the loop, the live response
+            // must be closed before propagating: the caller can never reach it once we throw.
+            // Same completion-flag construct try-with-resources desugars to, so the guarantee
+            // holds for anything thrown. Closing an already-closed response (possible between
+            // closeResponse and the retry attempt's reassignment) is a safe no-op.
+            if (!completed) {
+                closeResponse(response);
+            }
         }
 
         return response;

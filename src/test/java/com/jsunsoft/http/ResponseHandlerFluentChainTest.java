@@ -148,6 +148,58 @@ class ResponseHandlerFluentChainTest {
     }
 
     @Test
+    void filter_ifNotPassed_invokesConsumer_andSuppressesOtherwise_whenPredicateFails() {
+        server.stubFor(get(urlEqualTo("/nf-empty"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Length", "0")));
+
+        AtomicBoolean notPassedHit = new AtomicBoolean();
+        AtomicBoolean otherwiseHit = new AtomicBoolean();
+
+        ResponseHandler<String> handler = httpRequest.target(httpUri("/nf-empty")).get(String.class);
+        handler.filter(ResponseHandler::hasContent)   // empty body → predicate is false
+                .ifNotPassed(h -> notPassedHit.set(true))
+                .otherwise(h -> otherwiseHit.set(true));
+
+        assertTrue(notPassedHit.get(), "ifNotPassed must run when a filter predicate is false");
+        assertFalse(otherwiseHit.get(), "otherwise must be suppressed when ifNotPassed fired");
+    }
+
+    @Test
+    void filter_ifNotPassed_skipsConsumer_andRunsOtherwise_whenPredicatePasses() {
+        server.stubFor(get(urlEqualTo("/nf-ok"))
+                .willReturn(aResponse().withStatus(200).withBody("body-content")));
+
+        AtomicBoolean notPassedHit = new AtomicBoolean();
+        AtomicBoolean otherwiseHit = new AtomicBoolean();
+
+        ResponseHandler<String> handler = httpRequest.target(httpUri("/nf-ok")).get(String.class);
+        handler.filter(ResponseHandler::hasContent)   // body present → predicate is true
+                .ifNotPassed(h -> notPassedHit.set(true))
+                .otherwise(h -> otherwiseHit.set(true));
+
+        assertFalse(notPassedHit.get(), "ifNotPassed must NOT run when every filter predicate passes");
+        assertTrue(otherwiseHit.get(), "otherwise must run when all filters passed (the ifNotPassed condition did not hold)");
+    }
+
+    @Test
+    void filter_ifNotPassed_firesWhenAnyChainedPredicateFails() {
+        server.stubFor(get(urlEqualTo("/nf-mixed"))
+                .willReturn(aResponse().withStatus(200).withBody("body-content")));
+
+        AtomicBoolean notPassedHit = new AtomicBoolean();
+        AtomicBoolean otherwiseHit = new AtomicBoolean();
+
+        ResponseHandler<String> handler = httpRequest.target(httpUri("/nf-mixed")).get(String.class);
+        handler.filter(ResponseHandler::hasContent)   // passes
+                .filter(h -> h.getCode() == 500)      // fails
+                .ifNotPassed(h -> notPassedHit.set(true))
+                .otherwise(h -> otherwiseHit.set(true));
+
+        assertTrue(notPassedHit.get(), "ifNotPassed must fire when ANY chained predicate fails");
+        assertFalse(otherwiseHit.get(), "otherwise must be suppressed when ifNotPassed fired");
+    }
+
+    @Test
     void filter_chainsAllPassing_runIfPassed() {
         server.stubFor(get(urlEqualTo("/all"))
                 .willReturn(aResponse().withStatus(200).withBody("body-content")));

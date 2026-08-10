@@ -36,6 +36,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.UnaryOperator;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
@@ -54,6 +55,13 @@ import static org.apache.hc.core5.http.HttpStatus.*;
  * defeat the user's intent. Build, configure, and fire the request from the same thread —
  * typically all in one fluent expression. For shared / cross-thread use cases, see
  * {@link ImmutableWebTarget} (returned by {@link HttpRequest#immutableTarget(java.net.URI)}).
+ * <p>
+ * <b>Single request per instance.</b> Request state — the body entity (set by the
+ * {@code request(method, httpEntity, ...)} / payload overloads), headers, parameters, request
+ * config — persists on this instance and is never reset after execution. Firing another request
+ * from the same instance re-sends the previously set state (e.g. a body set by an earlier
+ * {@code post(...)} is sent again by a later {@code get()}). Create a fresh target per request;
+ * use {@link ImmutableWebTarget} for a reusable configuration.
  */
 class BasicWebTarget implements WebTarget {
     private static final Logger LOGGER = LoggerFactory.getLogger(BasicWebTarget.class);
@@ -226,7 +234,7 @@ class BasicWebTarget implements WebTarget {
 
     private ClassicHttpRequest resolveRequest(HttpMethod method) {
 
-        return httpUriRequestBuilder.setMethod(method.name()).setUri(getURI()).build();
+        return httpUriRequestBuilder.setMethod(method.name()).setUri(buildBareURI()).build();
     }
 
     private HttpHost resolveHttpHost(ClassicHttpRequest request) throws ClientProtocolException {
@@ -241,7 +249,7 @@ class BasicWebTarget implements WebTarget {
         try {
             return request.getUri();
         } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + getURIString() + "].", e);
+            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + uriBuilder + "].", e);
         }
     }
 
@@ -252,87 +260,102 @@ class BasicWebTarget implements WebTarget {
         long startTime = System.currentTimeMillis();
 
         ResponseHandler<T> result;
-        int originalStatusCode = -1;
 
-        try (Response response = request(method)) {
-
-            originalStatusCode = response.getCode();
-            int statusCode = originalStatusCode;
-            HttpEntity httpEntity = response.getEntity();
-            URI responseUri = getURI();
-
-            LOGGER.debug("Response code from uri: [{}] is {}", responseUri, statusCode);
-
-            // RFC 9110: HEAD never has a body, and 1xx/204/205/304 forbid a body too. For every
-            // other (method, status) pair Apache HC5 sets a (possibly length-0) HttpEntity.
-            boolean mayHaveBody = HttpRequestUtils.responseMayHaveBody(method, statusCode);
-
-            T content = null;
-            Exception errorCause = null;
-            String failedMessage = null;
-
-            if (mayHaveBody && httpEntity == null) {
-                // The spec says this response could carry a body but Apache surfaced null —
-                // i.e. the server sent something genuinely malformed (closed mid-stream, etc.).
-                // Treat as a Bad Gateway since we can't satisfy the caller's deserialization.
-                failedMessage = "Response entity is null";
-                LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, responseUri, statusCode);
-                statusCode = SC_BAD_GATEWAY;
-            } else {
+        try {
+            Response response = request(method);
+            try {
+                result = readResponse(response, method, typeReference, startTime);
+            } finally {
+                // A close failure must not override the committed result: the payload (or error
+                // text) is already safely in memory, so failing the whole request over a
+                // connection-teardown hiccup would discard data the caller can use. Log and move on.
                 try {
-                    if (!HttpRequestUtils.isVoidType(typeReference.getRawType()) && mayHaveBody && HttpRequestUtils.isSuccess(statusCode)) {
-
-                        content = response.readEntityChecked(typeReference);
-
-                        LOGGER.trace("Result of Uri: [{}] is {}", responseUri, content);
-                    } else if (HttpRequestUtils.isNonSuccess(statusCode)) {
-
-                        failedMessage = response.readEntityChecked(String.class);
-                        String logMsg = "Unexpected Response. Url: [" + responseUri + "] Status code: " + statusCode + ", Error message: " + failedMessage;
-                        if (statusCode == SC_BAD_REQUEST) {
-                            LOGGER.warn(logMsg);
-                        } else {
-                            LOGGER.debug(logMsg);
-                        }
-                    }
-                } catch (ResponseBodyReaderException e) {
-                    failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "].";
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug(failedMessage + ". Uri: [" + responseUri + "]. Status code: " + statusCode, e);
-                    }
-                    statusCode = SC_BAD_GATEWAY;
-                    errorCause = e;
+                    response.close();
                 } catch (IOException e) {
-                    failedMessage = "Get content from response failed: " + e;
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("Stream could not be created. Uri: [" + responseUri + "]. Status code: " + statusCode, e);
-                    }
-                    statusCode = SC_SERVICE_UNAVAILABLE;
-                    errorCause = e;
+                    LOGGER.warn("Failed to close http response. URI: [{}]", response.getURI(), e);
                 }
             }
-
-            HeaderGroup headerGroup = new HeaderGroup();
-            headerGroup.setHeaders(response.getHeaders());
-
-            ContentType responseContentType = HttpRequestUtils.getContentTypeFromHttpEntity(httpEntity);
-            // here we don't consume the httpEntity e.g. EntityUtils.consumeQuietly(httpEntity); as The close method of BasicResponse will do it
-            result = new BasicResponseHandler<>(content, statusCode, originalStatusCode, headerGroup, errorCause, failedMessage, typeReference.getType(), responseContentType, responseUri, startTime);
         } catch (ResponseException e) {
 
             result = new BasicResponseHandler<>(null, e.getStatusCode(), e.getOriginalStatusCode(), e, typeReference.getType(), null, e.getURI(), e.getConnectionFailureType(), startTime);
             LOGGER.debug("Request failed.", e);
-        } catch (IOException e) {
-
-            LOGGER.error("IO error occurred.", e);
-
-            result = new BasicResponseHandler<>(null, SC_INTERNAL_SERVER_ERROR, originalStatusCode, "IO error occurred while closing response.", e, typeReference.getType(), null, getURI(), IO, startTime);
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Executing of uri: [{}] completed. Time: {}", result.getURI(), HttpRequestUtils.humanTime(startTime));
         }
         LOGGER.trace("Executed result: {}", result);
         return result;
+    }
+
+    /**
+     * Interprets an already-received response into the eager {@link ResponseHandler} result:
+     * reads/deserializes the body per method+status, maps read failures to synthetic status
+     * codes (502 deserialization / 503 stream IO), and captures headers and error text.
+     * Never closes {@code response} — the caller owns it.
+     */
+    private <T> ResponseHandler<T> readResponse(Response response, HttpMethod method, TypeReference<T> typeReference, long startTime) {
+        int originalStatusCode = response.getCode();
+        int statusCode = originalStatusCode;
+        HttpEntity httpEntity = response.getEntity();
+        URI responseUri = getURI();
+
+        LOGGER.debug("Response code from uri: [{}] is {}", responseUri, statusCode);
+
+        // RFC 9110: HEAD never has a body, and 1xx/204/205/304 forbid a body too. For every
+        // other (method, status) pair Apache HC5 sets a (possibly length-0) HttpEntity.
+        boolean mayHaveBody = HttpRequestUtils.responseMayHaveBody(method, statusCode);
+
+        T content = null;
+        Exception errorCause = null;
+        String failedMessage = null;
+
+        if (mayHaveBody && httpEntity == null) {
+            // The spec says this response could carry a body but Apache surfaced null —
+            // i.e. the server sent something genuinely malformed (closed mid-stream, etc.).
+            // Treat as a Bad Gateway since we can't satisfy the caller's deserialization.
+            failedMessage = "Response entity is null";
+            LOGGER.debug("{} .Uri: [{}]. Status code: {}", failedMessage, responseUri, statusCode);
+            statusCode = SC_BAD_GATEWAY;
+        } else {
+            try {
+                if (!HttpRequestUtils.isVoidType(typeReference.getRawType()) && mayHaveBody && HttpRequestUtils.isSuccess(statusCode)) {
+
+                    content = response.readEntityChecked(typeReference);
+
+                    LOGGER.trace("Result of Uri: [{}] is {}", responseUri, content);
+                } else if (HttpRequestUtils.isNonSuccess(statusCode)) {
+
+                    failedMessage = response.readEntityChecked(String.class);
+                    String logMsg = "Unexpected Response. Url: [" + responseUri + "] Status code: " + statusCode + ", Error message: " + failedMessage;
+                    if (statusCode == SC_BAD_REQUEST) {
+                        LOGGER.warn(logMsg);
+                    } else {
+                        LOGGER.debug(logMsg);
+                    }
+                }
+            } catch (ResponseBodyReaderException e) {
+                failedMessage = "Response deserialization failed. Cannot deserialize response to: [" + typeReference + "].";
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(failedMessage + ". Uri: [" + responseUri + "]. Status code: " + statusCode, e);
+                }
+                statusCode = SC_BAD_GATEWAY;
+                errorCause = e;
+            } catch (IOException e) {
+                failedMessage = "Get content from response failed: " + e;
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Stream could not be created. Uri: [" + responseUri + "]. Status code: " + statusCode, e);
+                }
+                statusCode = SC_SERVICE_UNAVAILABLE;
+                errorCause = e;
+            }
+        }
+
+        HeaderGroup headerGroup = new HeaderGroup();
+        headerGroup.setHeaders(response.getHeaders());
+
+        ContentType responseContentType = HttpRequestUtils.getContentTypeFromHttpEntity(httpEntity);
+        // here we don't consume the httpEntity e.g. EntityUtils.consumeQuietly(httpEntity); as The close method of BasicResponse will do it
+        return new BasicResponseHandler<>(content, statusCode, originalStatusCode, headerGroup, errorCause, failedMessage, typeReference.getType(), responseContentType, responseUri, startTime);
     }
 
     @Override
@@ -342,18 +365,39 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public URI getURI() {
-        URI uri;
-        try {
-            uri = uriBuilder.build().normalize();
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + getURIString() + "].", e);
+        URI bareUri = buildBareURI();
+
+        List<NameValuePair> parameters = httpUriRequestBuilder.getParameters();
+        if (parameters.isEmpty()) {
+            return bareUri;
         }
-        return uri;
+        try {
+            return new URIBuilder(bareUri, httpUriRequestBuilder.getCharset())
+                    .addParameters(parameters)
+                    .build();
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + uriBuilder + "].", e);
+        }
     }
 
     @Override
     public String getURIString() {
-        return uriBuilder.toString();
+        return getURI().toString();
+    }
+
+    /**
+     * URI without the pending query parameters held by the request builder. Request assembly and
+     * copy flows must use this form: {@link HttpUriRequestBuilder#build()} merges the parameters
+     * itself (into the query string, or a form body for entity-less POST/PUT), and copies carry
+     * the parameter list in the copied request builder — starting from the parameter-carrying
+     * {@link #getURI()} would send every parameter twice.
+     */
+    private URI buildBareURI() {
+        try {
+            return uriBuilder.build().normalize();
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + uriBuilder + "].", e);
+        }
     }
 
     @Override
@@ -417,7 +461,7 @@ class BasicWebTarget implements WebTarget {
 
         logRequestBody(method, payload);
 
-        return request(method, new StringEntity(payload, getBodyCharset()), responseType);
+        return request(method, new StringEntity(payload, resolveBodyCharset()), responseType);
     }
 
     @Override
@@ -433,7 +477,7 @@ class BasicWebTarget implements WebTarget {
 
         logRequestBody(method, payload);
 
-        return request(method, new StringEntity(payload, getBodyCharset()), responseType);
+        return request(method, new StringEntity(payload, resolveBodyCharset()), responseType);
     }
 
     @Override
@@ -448,7 +492,7 @@ class BasicWebTarget implements WebTarget {
 
         logRequestBody(method, payload);
 
-        return request(method, new StringEntity(payload, getBodyCharset()));
+        return request(method, new StringEntity(payload, resolveBodyCharset()));
     }
 
     @Override
@@ -475,7 +519,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     URIBuilder getUriBuilder() {
-        return new URIBuilder(getURI(), httpUriRequestBuilder.getCharset());
+        return new URIBuilder(buildBareURI(), httpUriRequestBuilder.getCharset());
     }
 
     HttpUriRequestBuilder getHttpUriRequestBuilder() {
@@ -492,6 +536,29 @@ class BasicWebTarget implements WebTarget {
 
     Charset getBodyCharset() {
         return bodyCharset != null ? bodyCharset : UTF_8;
+    }
+
+    /**
+     * Effective charset for encoding {@code String} request payloads: a charset explicitly
+     * declared on the request's {@code Content-Type} header is authoritative — the wire header
+     * always wins over the entity's content type in Apache HC5, so encoding the body with
+     * anything else would put mismatching bytes on the wire. The configured body charset applies
+     * when the header declares no charset (or is unparseable).
+     */
+    Charset resolveBodyCharset() {
+        Header contentTypeHeader = httpUriRequestBuilder.getFirstHeader(HttpHeaders.CONTENT_TYPE);
+        if (contentTypeHeader != null && contentTypeHeader.getValue() != null) {
+            try {
+                ContentType contentType = ContentType.parse(contentTypeHeader.getValue());
+                if (contentType.getCharset() != null) {
+                    return contentType.getCharset();
+                }
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("Ignoring unparseable Content-Type header value '{}' when resolving the request body charset: {}",
+                        contentTypeHeader.getValue(), e.getMessage());
+            }
+        }
+        return getBodyCharset();
     }
 
     boolean isRequestPayloadLogging() {
