@@ -16,24 +16,49 @@
 
 package com.jsunsoft.http;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.concurrent.*;
 
 class BasicResponse implements Response {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BasicResponse.class);
 
+    /**
+     * Runs close-drains so the caller's {@code close()} can abandon them at the configured
+     * {@link ResponseBodyReaderConfig#getResponseDrainTimeout() drain timeout} — the same design
+     * as the JDK's {@code KeepAliveStreamCleaner} (which drains up to 512 KB on a background
+     * thread to keep connections reusable). Abandoning a drain immediately detaches the entity
+     * and closes the connection, which makes the drain thread's blocked read fail fast and the
+     * thread exit — nothing lingers beyond the socket teardown. The abandon/EOF race is safe:
+     * HC5's {@code InternalExecRuntime} clears its endpoint reference atomically, so whichever
+     * side acts second (the drain releasing at EOF vs. the caller discarding on timeout) finds
+     * the reference gone and no-ops — a connection released to the pool a moment after the
+     * timeout is genuinely reusable and is never double-freed. Daemon threads; idle threads die
+     * after the cached-pool keep-alive, so the pool costs nothing when no size-capped responses
+     * are closed.
+     */
+    private static final ExecutorService CLOSE_DRAIN_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "http-request-close-drain");
+        thread.setDaemon(true);
+        return thread;
+    });
+
     private final ClassicHttpResponse classicHttpResponse;
     private final ResponseBodyReaderConfig responseBodyReaderConfig;
     private final URI uri;
+    private boolean closed;
 
     public BasicResponse(ClassicHttpResponse classicHttpResponse, ResponseBodyReaderConfig responseBodyReaderConfig, URI uri) {
         this.classicHttpResponse = classicHttpResponse;
@@ -53,22 +78,119 @@ class BasicResponse implements Response {
     /**
      * Best-effort close of the response.
      * <p>
-     * Note: Entity consumption may fail (e.g. when response body size limit is exceeded). In such cases we still
-     * close the underlying response to release resources and avoid masking the original processing error.
+     * Without a body-size cap the unread remainder is fully consumed so the pooled connection
+     * stays reusable. With a cap configured the remainder is drained through the cap-enforcing
+     * bounded stream under a dual bound — at most
+     * {@link ResponseBodyReaderConfig#getMaxResponseDrainSizeBytes()} of data within at most
+     * {@link ResponseBodyReaderConfig#getResponseDrainTimeout()} of wall-clock time: reaching EOF
+     * within both keeps the connection reusable; otherwise (slow link, over-allowance, over-cap,
+     * or declared-over-cap) the remainder is not read any further — the entity is detached and
+     * the connection is discarded instead. The detach is load-bearing: Apache HC5's own
+     * {@code response.close()} self-exhausts the entity's <em>raw</em> stream (bypassing the
+     * bounded wrapper), so without it a hostile oversized body would be read to the end on
+     * close despite the cap.
+     * <p>
+     * Never throws the cap exception — drain failures only downgrade connection reuse.
      */
     @Override
     public void close() throws IOException {
+        if (closed) {
+            // Idempotent: the remainder was already handled on the first close (reachable e.g.
+            // through RetryableWebTarget's exception-safety net) — don't consume or drain again.
+            classicHttpResponse.close();
+            return;
+        }
+        closed = true;
 
         try {
             HttpEntity entity = getEntity();
-            if (entity != null && responseBodyReaderConfig.getMaxResponseBodySizeBytes() <= 0) {
-                // Only fully consume when there is no body size limit configured (safe for unlimited reads).
-                // When a limit is configured we avoid consuming because consuming = reading the remainder of the body,
-                // which can be arbitrarily large / slow (and defeats the purpose of the size limit).
-                EntityUtils.consumeQuietly(entity);
+            if (entity != null) {
+                if (responseBodyReaderConfig.getMaxResponseBodySizeBytes() <= 0) {
+                    EntityUtils.consumeQuietly(entity);
+                } else if (!drainedToEofWithinBounds(entity)) {
+                    classicHttpResponse.setEntity(null);
+                }
             }
         } finally {
             classicHttpResponse.close();
+        }
+    }
+
+    /**
+     * Drains the unread remainder through the cap-enforcing stream, bounded by the configured
+     * drain size and drain timeout. The byte bound runs inside the drain task; the time bound is
+     * enforced by abandoning the task — a read blocked on a slow peer cannot be interrupted from
+     * within. An abandoned drain's blocked read dies as soon as the caller detaches the entity
+     * and the connection is closed underneath it.
+     *
+     * @return {@code true} when EOF was reached in time (connection may be reused); {@code false}
+     * when a bound ran out, draining is disabled, the cap was exceeded, or the body could not be
+     * read — the caller must then prevent further reading and let the connection be discarded.
+     */
+    private boolean drainedToEofWithinBounds(HttpEntity entity) {
+        if (!entity.isStreaming()) {
+            return true;
+        }
+        long maxDrainSizeBytes = responseBodyReaderConfig.getMaxResponseDrainSizeBytes();
+        if (maxDrainSizeBytes == 0) {
+            LOGGER.debug("Close-drain is disabled (drain size 0); discarding the connection. URI: [{}]", uri);
+            return false;
+        }
+        // TimeUnit.convert saturates instead of throwing on overflow (Duration#toNanos throws
+        // ArithmeticException beyond ~292 years); computed before submit so nothing can fail
+        // between scheduling the task and awaiting it.
+        long drainTimeoutNanos = TimeUnit.NANOSECONDS.convert(responseBodyReaderConfig.getResponseDrainTimeout());
+        Future<Boolean> drain = CLOSE_DRAIN_EXECUTOR.submit(() -> drainToEofWithinByteAllowance(entity, maxDrainSizeBytes));
+        try {
+            return drain.get(drainTimeoutNanos, TimeUnit.NANOSECONDS);
+        } catch (TimeoutException e) {
+            LOGGER.debug("Unread response body not drained within {} ms; discarding the connection. URI: [{}]",
+                    TimeUnit.NANOSECONDS.toMillis(drainTimeoutNanos), uri);
+            drain.cancel(true);
+            return false;
+        } catch (ExecutionException e) {
+            LOGGER.debug("Close-drain of the response body failed; discarding the connection. URI: [{}]", uri, e.getCause());
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            drain.cancel(true);
+            return false;
+        }
+    }
+
+    private boolean drainToEofWithinByteAllowance(HttpEntity entity, long maxDrainSizeBytes) {
+        try {
+            InputStream content = entity.getContent();
+            if (content == null) {
+                return true;
+            }
+            if (maxDrainSizeBytes < 0 || maxDrainSizeBytes == Long.MAX_VALUE) {
+                // Unlimited: bounded only by the response-size cap enforced inside the stream
+                // (and by the drain timeout enforced by the caller).
+                IOUtils.consume(content);
+                return true;
+            }
+            // maxCount = allowance + 1: a remainder of exactly the allowance drains to a true
+            // EOF and is salvaged; only the byte beyond it trips the bound — the same probe
+            // pattern (and rationale) as BoundedHttpEntity#getContent.
+            BoundedInputStream allowanceBounded = BoundedInputStream.builder()
+                    .setInputStream(content)
+                    .setMaxCount(maxDrainSizeBytes + 1)
+                    .setPropagateClose(false)
+                    .get();
+            IOUtils.consume(allowanceBounded);
+            if (allowanceBounded.getCount() <= maxDrainSizeBytes) {
+                return true;
+            }
+            LOGGER.debug("Unread response body exceeds the close-drain allowance of {} bytes; discarding the connection. URI: [{}]",
+                    maxDrainSizeBytes, uri);
+            return false;
+        } catch (IOException | RuntimeException e) {
+            // Includes InvalidContentLengthException from the cap-enforcing stream (cap exceeded
+            // or declared-over-cap fail-fast), and the read failure of an abandoned drain whose
+            // connection was closed underneath it — close() must never surface these.
+            LOGGER.debug("Skipping close-drain of the response body; discarding the connection. URI: [{}]", uri, e);
+            return false;
         }
     }
 

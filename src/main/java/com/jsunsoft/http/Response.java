@@ -43,9 +43,15 @@ import java.net.URI;
  *       the underlying body stream is non-repeatable, so a second call sees an exhausted stream
  *       and surfaces a {@link ResponseBodyProcessingException}. Read into a buffer first if you
  *       need both typed and raw views.</li>
- *   <li>{@link #close()} — drains any unread body content (bounded by
- *       {@code setMaxResponseBodySizeBytes} when configured) so the connection is eligible for
- *       pool reuse, then closes the underlying response. Always called via try-with-resources.</li>
+ *   <li>{@link #close()} — drains any unread body content so the connection is eligible for
+ *       pool reuse, then closes the underlying response. With a body-size cap configured
+ *       ({@code setMaxResponseBodySizeBytes}) the drain is dual-bounded: a remainder beyond the
+ *       cap, beyond the drain-size allowance ({@code setMaxResponseDrainSizeBytes}, default
+ *       64&nbsp;KiB), or not drained within the hard drain timeout
+ *       ({@code setResponseDrainTimeout}, default 100&nbsp;ms) is not read further — the
+ *       connection is discarded instead, because a drain is only worth doing while it is cheaper
+ *       than a reconnect. {@code close()} never throws the cap exception. Always call via
+ *       try-with-resources.</li>
  * </ul>
  *
  * <h2>Thread safety</h2>
