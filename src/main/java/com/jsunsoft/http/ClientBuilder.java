@@ -23,6 +23,7 @@ import org.apache.hc.client5.http.SystemDefaultDnsResolver;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
+import org.apache.hc.client5.http.impl.DefaultSchemePortResolver;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory;
@@ -33,6 +34,7 @@ import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
 import org.apache.hc.client5.http.protocol.RedirectStrategy;
 import org.apache.hc.client5.http.routing.HttpRoutePlanner;
+import org.apache.hc.client5.http.routing.RoutingSupport;
 import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
 import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
@@ -40,6 +42,7 @@ import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.URIScheme;
 import org.apache.hc.core5.http.config.Http1Config;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.ssl.SSLContexts;
@@ -367,7 +370,15 @@ public class ClientBuilder {
     }
 
     /**
-     * Set the connection pool default max size of concurrent connections to a specific route
+     * Set the connection pool default max size of concurrent connections to a specific route.
+     * <p>
+     * The host is registered the way the runtime route planner will look it up: a missing port
+     * is resolved to the scheme default ({@code new HttpHost("example.com")} caps
+     * {@code http://example.com:80}), https hosts cap the secure route, and when {@link
+     * #proxy(HttpHost)} is configured the cap lands on the proxied route. Routes decided
+     * per-request by {@link #useDefaultProxy()} (JRE {@code ProxySelector}) or by a custom route
+     * planner cannot be matched at build time — configure explicit ports/proxy for per-route
+     * caps in those setups.
      *
      * @param httpHost         httpHost
      * @param maxRoutePoolSize maxRoutePoolSize
@@ -855,10 +866,8 @@ public class ClientBuilder {
                 .build();
 
 
-        hostPoolConfig.getHttpHostToMaxPoolSize().forEach((httpHost, maxPerRoute) -> {
-            HttpRoute httpRoute = new HttpRoute(httpHost);
-            connectionManager.setMaxPerRoute(httpRoute, maxPerRoute);
-        });
+        hostPoolConfig.getHttpHostToMaxPoolSize().forEach((httpHost, maxPerRoute) ->
+                connectionManager.setMaxPerRoute(toRuntimeShapedRoute(httpHost), maxPerRoute));
 
         HttpRoutePlanner routePlanner = null;
 
@@ -910,6 +919,28 @@ public class ClientBuilder {
         if (clientTlsStrategyBuilder == null) {
             clientTlsStrategyBuilder = ClientTlsStrategyBuilder.create();
         }
+    }
+
+    /**
+     * Builds the pool key for a per-route cap the same way the runtime route planner
+     * ({@code DefaultRoutePlanner} / {@code DefaultProxyRoutePlanner}) will: the scheme-default
+     * port resolved for portless hosts, the secure flag derived from the scheme, and the
+     * configured proxy hop included. {@code PoolingHttpClientConnectionManager} matches routes
+     * by full equality, so any shape mismatch silently disables the cap — a plain
+     * {@code new HttpRoute(host)} would reject portless hosts outright ("Target port must not
+     * be negative") and register https hosts as non-secure routes that never match.
+     * <p>
+     * Not knowable at build time: routes produced by {@link #useDefaultProxy()} (the JRE
+     * {@code ProxySelector} decides per request) or by a custom route planner installed via
+     * {@link #addHttpClientCustomizer(Consumer)} — caps are registered against the
+     * explicitly-configured proxy (or direct) shape only.
+     */
+    private HttpRoute toRuntimeShapedRoute(HttpHost httpHost) {
+        HttpHost normalized = RoutingSupport.normalize(httpHost, DefaultSchemePortResolver.INSTANCE);
+        boolean secure = URIScheme.HTTPS.same(normalized.getSchemeName());
+        return proxy != null
+                ? new HttpRoute(normalized, null, proxy, secure)
+                : new HttpRoute(normalized, null, secure);
     }
 
     /**

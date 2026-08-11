@@ -16,15 +16,16 @@
 
 package com.jsunsoft.http;
 
+import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.core5.http.HttpHost;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Pins the connection-pool defaults so they don't silently drift back to "single hot host can
@@ -51,17 +52,15 @@ class ClientBuilderDefaultsTest {
 
         try (CloseableHttpClient first = builder.build();
              CloseableHttpClient second = builder.build()) {
-            assertTrue(first != second, "Each build() must produce an independent client");
+            assertNotSame(first, second, "Each build() must produce an independent client");
         }
 
         assertEquals(2, seenRequestBuilders.size(), "customizer invoked once per build()");
-        assertTrue(seenRequestBuilders.get(0) != seenRequestBuilders.get(1),
-                "Each build() must hand the customizer a FRESH RequestConfig.Builder, not the " +
-                        "persistent field — otherwise stateful customizers compound across builds.");
+        assertNotSame(seenRequestBuilders.get(0), seenRequestBuilders.get(1), "Each build() must hand the customizer a FRESH RequestConfig.Builder, not the " +
+                "persistent field — otherwise stateful customizers compound across builds.");
 
         assertEquals(2, seenConnectionBuilders.size(), "customizer invoked once per build()");
-        assertTrue(seenConnectionBuilders.get(0) != seenConnectionBuilders.get(1),
-                "Each build() must hand the customizer a FRESH ConnectionConfig.Builder.");
+        assertNotSame(seenConnectionBuilders.get(0), seenConnectionBuilders.get(1), "Each build() must hand the customizer a FRESH ConnectionConfig.Builder.");
     }
 
     @Test
@@ -77,7 +76,7 @@ class ClientBuilderDefaultsTest {
                 .setTlsVersions("TLSv1.3", "TLSv1.2")
                 .setCipherSuites("TLS_AES_256_GCM_SHA384", "TLS_AES_128_GCM_SHA256")
                 .build()) {
-            assertTrue(client != null);
+            assertNotNull(client);
         }
 
         // Negative values for header limits are accepted as "use Apache default" — pin that
@@ -86,7 +85,7 @@ class ClientBuilderDefaultsTest {
                 .setMaxHeaderCount(-1)
                 .setMaxLineLength(-1)
                 .build()) {
-            assertTrue(client != null);
+            assertNotNull(client);
         }
     }
 
@@ -102,6 +101,80 @@ class ClientBuilderDefaultsTest {
             // below total so a single hot host cannot saturate the entire pool.
             assertTrue(pool.getDefaultMaxPerRoute() < pool.getMaxTotal(),
                     "perRoute (" + pool.getDefaultMaxPerRoute() + ") must be < total (" + pool.getMaxTotal() + ") to preserve multi-host fairness");
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // setMaxPoolSizePerRoute must register pool keys shaped exactly like the routes the runtime
+    // route planner produces (DefaultRoutePlanner: scheme-default port resolved, secure flag for
+    // https, proxy hop included) — PoolingHttpClientConnectionManager matches routes by full
+    // equality, so any shape mismatch silently disables the cap.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void maxPoolSizePerRoute_portlessHttpHost_capsTheNormalizedRuntimeRoute() throws IOException {
+        try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create()
+                .setMaxPoolSizePerRoute(new HttpHost("example.com"), 7)
+                .buildWithResources()) {
+            PoolingHttpClientConnectionManager pool = (PoolingHttpClientConnectionManager) resources.getConnectionManager();
+
+            HttpRoute runtimeRoute = new HttpRoute(new HttpHost("http", "example.com", 80));
+            assertEquals(7, pool.getMaxPerRoute(runtimeRoute),
+                    "a portless HttpHost must cap the runtime route with the scheme-default port resolved");
+        }
+    }
+
+    @Test
+    void maxPoolSizePerRoute_httpsHost_capsTheSecureRuntimeRoute() throws IOException {
+        try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create()
+                .setMaxPoolSizePerRoute(new HttpHost("https", "secure.example.com"), 5)
+                .buildWithResources()) {
+            PoolingHttpClientConnectionManager pool = (PoolingHttpClientConnectionManager) resources.getConnectionManager();
+
+            HttpRoute runtimeRoute = new HttpRoute(new HttpHost("https", "secure.example.com", 443), null, true);
+            assertEquals(5, pool.getMaxPerRoute(runtimeRoute),
+                    "an https host must cap the runtime route: port 443 resolved AND the secure flag set");
+        }
+    }
+
+    @Test
+    void maxPoolSizePerRoute_explicitPortHttpHost_stillApplies() throws IOException {
+        try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create()
+                .setMaxPoolSizePerRoute(new HttpHost("example.com", 8080), 9)
+                .buildWithResources()) {
+            PoolingHttpClientConnectionManager pool = (PoolingHttpClientConnectionManager) resources.getConnectionManager();
+
+            HttpRoute runtimeRoute = new HttpRoute(new HttpHost("http", "example.com", 8080));
+            assertEquals(9, pool.getMaxPerRoute(runtimeRoute),
+                    "the explicit-port http case must keep working");
+        }
+    }
+
+    @Test
+    void maxPoolSizePerRoute_explicitPortHttpsHost_capsTheSecureRoute() throws IOException {
+        try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create()
+                .setMaxPoolSizePerRoute(new HttpHost("https", "secure.example.com", 8443), 4)
+                .buildWithResources()) {
+            PoolingHttpClientConnectionManager pool = (PoolingHttpClientConnectionManager) resources.getConnectionManager();
+
+            HttpRoute runtimeRoute = new HttpRoute(new HttpHost("https", "secure.example.com", 8443), null, true);
+            assertEquals(4, pool.getMaxPerRoute(runtimeRoute),
+                    "an https host must cap the SECURE runtime route even when the port is explicit");
+        }
+    }
+
+    @Test
+    void maxPoolSizePerRoute_withProxyConfigured_capsTheProxiedRoute() throws IOException {
+        HttpHost proxy = new HttpHost("proxy.local", 3128);
+        try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create()
+                .proxy(proxy)
+                .setMaxPoolSizePerRoute(new HttpHost("https", "secure.example.com"), 3)
+                .buildWithResources()) {
+            PoolingHttpClientConnectionManager pool = (PoolingHttpClientConnectionManager) resources.getConnectionManager();
+
+            HttpRoute runtimeRoute = new HttpRoute(new HttpHost("https", "secure.example.com", 443), null, proxy, true);
+            assertEquals(3, pool.getMaxPerRoute(runtimeRoute),
+                    "with a proxy configured, the cap must land on the proxied route the planner produces");
         }
     }
 }
