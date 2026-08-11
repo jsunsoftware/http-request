@@ -119,8 +119,6 @@ class ResponseBodyReaders {
                 return null;
             }
 
-            LOGGER.trace("Content is: {}", result);
-
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Executed response body as string. Time: {}, length of response body: {}", HttpRequestUtils.humanTime(startTime), result.length());
             }

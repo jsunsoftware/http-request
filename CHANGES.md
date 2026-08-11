@@ -298,3 +298,19 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   "Can't find body reader … when http entity is null" log in
   `readEntity` is demoted from WARN to DEBUG — returning `null` for an entity-less response is the documented contract,
   not an anomaly.
+* **Verbose logging no longer leaks credentials or payloads (security).** With TRACE enabled on
+  `com.jsunsoft.http`, several log points printed secrets verbatim, bypassing the configured payload redactor. All are
+  closed: `HttpUriRequestBuilder.toString()` (the "Executing request: …" TRACE) masks `Authorization`,
+  `Proxy-Authorization`, `Cookie` and `Set-Cookie` header values as `<redacted>` and prints the entity's class instead
+  of its content; `ResponseHandler.toString()` (the "Executed result: …" TRACE) reports the content's presence/type and
+  a header count instead of dumping the body and every header value; the request-serialization and response-result
+  traces log types, not values; and the response reader's whole-body "Content is: …" TRACE is removed. Non-success error
+  text (the `getErrorText()` diagnostic channel) and request URIs/query parameters are still logged — don't put secrets
+  in query strings.
+* **`enableRequestPayloadLogging` now covers `Object` payloads.** The `post(Object)` / `rawRequest(method, Object)`
+  family — the main JSON path — previously never produced the redacted payload log; only the `String` overloads did. The
+  serialized wire form is now routed through the composed redactors, exactly like `String` payloads. A repeatable
+  serialized entity is read back for logging (briefly holding a second in-memory copy); a non-repeatable one is never
+  consumed — a placeholder is logged instead. Raw `HttpEntity` bodies remain excluded from payload logging (also when
+  passed through the `Object` overloads): an entity may be arbitrarily large or binary, and reading it back for a log
+  line could materialize it on the heap.

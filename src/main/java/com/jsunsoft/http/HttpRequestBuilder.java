@@ -662,7 +662,16 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Enables request payload logging.
+     * Enables request payload logging (DEBUG level), routed through the redactors registered via
+     * {@link #addPayloadRedactor(UnaryOperator)}.
+     * <p>
+     * Covers the {@code String} payload overloads and the {@code Object} payload overloads that
+     * serialize the body (the serialized wire form is logged). The serialized entity is read
+     * back for logging when it is repeatable — which briefly holds a second copy of the payload
+     * in memory; a non-repeatable entity is never consumed for logging and a placeholder is
+     * logged instead. Raw {@code HttpEntity} payloads are never logged — neither via the
+     * {@code HttpEntity} overloads (e.g. {@code post(HttpEntity)}) nor when an entity is passed
+     * through an {@code Object} overload — since an entity may be arbitrarily large or binary.
      *
      * @return the current instance of HttpRequestBuilder
      */
@@ -675,7 +684,8 @@ public class HttpRequestBuilder {
     /**
      * Registers a redactor that runs over the request payload before it is logged via
      * {@link #enableRequestPayloadLogging()}. Multiple redactors compose left-to-right (the
-     * output of one feeds the next).
+     * output of one feeds the next). Applies to {@code String} payloads and to the serialized
+     * wire form of {@code Object} payloads alike.
      * <p>
      * Common use cases:
      * <ul>

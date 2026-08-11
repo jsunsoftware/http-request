@@ -438,18 +438,23 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         return connectionFailureType;
     }
 
+    /**
+     * Diagnostic summary. Deliberately does NOT dump the deserialized content or header values —
+     * handlers routinely end up in log statements (including the library's own TRACE line), and
+     * response bodies / {@code Set-Cookie} values are payload, not diagnostics.
+     */
     @Override
     public String toString() {
         return "ResponseHandler{" +
                 "statusCode=" + statusCode +
                 ", originalStatusCode=" + originalStatusCode +
-                ", content=" + content +
+                ", content=" + (content != null ? "<present: " + content.getClass().getSimpleName() + ">" : "null") +
                 ", errorText='" + getErrorText() + '\'' +
                 ", uri=" + uri +
                 ", connectionFailureType=" + connectionFailureType +
                 ", duration=" + duration +
                 ", contentType=" + contentType +
-                ", headerGroup=" + headerGroup +
+                ", headerCount=" + headerGroup.getHeaders().length +
                 '}';
     }
 

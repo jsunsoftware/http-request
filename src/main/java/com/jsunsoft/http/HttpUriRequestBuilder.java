@@ -33,8 +33,17 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 
 class HttpUriRequestBuilder {
+
+    /**
+     * Header names whose values must never appear in {@link #toString()} output — the builder
+     * is logged at TRACE by {@code BasicWebTarget} ("Executing request: …"), and credentials in
+     * log files outlive every other secret store.
+     */
+    private static final Set<String> SENSITIVE_HEADERS =
+            Set.of("authorization", "proxy-authorization", "cookie", "set-cookie");
 
     private String method;
     private URI uri;
@@ -343,13 +352,29 @@ class HttpUriRequestBuilder {
         builder.append(version);
         builder.append(", uri=");
         builder.append(uri);
-        builder.append(", headerGroup=");
-        builder.append(headerGroup);
+        builder.append(", headers=");
+        appendMaskedHeaders(builder);
         builder.append(", entity=");
         builder.append(entity != null ? entity.getClass() : null);
         builder.append(", parameters=");
         builder.append(parameters);
         builder.append("]");
         return builder.toString();
+    }
+
+    private void appendMaskedHeaders(final StringBuilder builder) {
+        if (headerGroup == null) {
+            builder.append("null");
+            return;
+        }
+        // Sensitive headers are masked, never dropped — seeing that an Authorization header
+        // was attached (just not its value) is the point of this TRACE output.
+        builder.append(Arrays.stream(headerGroup.getHeaders())
+                .map(header -> header.getName() + ": " + (isSensitive(header) ? "<redacted>" : header.getValue()))
+                .collect(Collectors.joining(", ", "[", "]")));
+    }
+
+    private static boolean isSensitive(final Header header) {
+        return header.getName() != null && SENSITIVE_HEADERS.contains(header.getName().toLowerCase(Locale.ROOT));
     }
 }
