@@ -275,3 +275,11 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   cap and the timeout) and `setResponseDrainTimeout(Duration)` (default 100 ms; must be positive). Both require the
   response body size cap and are rejected at
   `build()` without it. Uncapped behavior is unchanged (full consume on close).
+
+* **`ClientBuilder.setMaxPoolSizePerRoute` now actually caps the routes it names.** The cap was registered as a bare
+  `new HttpRoute(host)`, which never matched the runtime route shape the pool is keyed by: a portless `HttpHost` failed
+  `build()` with Apache's "Target port must not be negative", and an **https host's cap was silently ignored on every
+  HC5 version** (the registered route lacked the secure flag), as was any cap when a proxy was configured (missing proxy
+  hop). Registration now mirrors the runtime route planner: scheme-default port resolved, secure flag derived from the
+  scheme, configured proxy included. Caps under `useDefaultProxy()`
+  or a custom route planner remain build-time-unknowable and are documented as such.
