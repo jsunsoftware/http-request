@@ -104,6 +104,21 @@ class ClientBuilderDefaultsTest {
         }
     }
 
+    @Test
+    void poolSizes_rejectNonPositiveValues() {
+        // Apache HC5's pool builder applies non-positive sizes as "not set" and silently falls
+        // back to its internal defaults (25 total / 5 per route — empirically verified). A
+        // misconfiguration must fail loud at the setter instead.
+        ClientBuilder builder = ClientBuilder.create();
+
+        assertThrows(IllegalArgumentException.class, () -> builder.setMaxPoolSize(0));
+        assertThrows(IllegalArgumentException.class, () -> builder.setMaxPoolSize(-1));
+        assertThrows(IllegalArgumentException.class, () -> builder.setDefaultMaxPoolSizePerRoute(0));
+        assertThrows(IllegalArgumentException.class, () -> builder.setDefaultMaxPoolSizePerRoute(-7));
+        assertThrows(IllegalArgumentException.class, () -> builder.setMaxPoolSizePerRoute(new HttpHost("example.com"), 0));
+        assertThrows(NullPointerException.class, () -> builder.setMaxPoolSizePerRoute(null, 5));
+    }
+
     // ------------------------------------------------------------------------------------------
     // setMaxPoolSizePerRoute must register pool keys shaped exactly like the routes the runtime
     // route planner produces (DefaultRoutePlanner: scheme-default port resolved, secure flag for

@@ -474,7 +474,9 @@ class BasicResponse implements Response {
                     "Can't find body reader for type: " + responseBodyReaderContext.getType() + " and content type: " + responseBodyReaderContext.getContentType()
             );
         } else {
-            LOGGER.warn("Can't find body reader for type: {} when http entity is null.", responseBodyReaderContext.getType());
+            // Returning null for an entity-less response is the documented contract, not an
+            // anomaly worth WARN-level noise (e.g. readEntity on a 204/304).
+            LOGGER.debug("Can't find body reader for type: {} when http entity is null.", responseBodyReaderContext.getType());
         }
 
         return null;

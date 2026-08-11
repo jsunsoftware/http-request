@@ -283,3 +283,18 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   hop). Registration now mirrors the runtime route planner: scheme-default port resolved, secure flag derived from the
   scheme, configured proxy included. Caps under `useDefaultProxy()`
   or a custom route planner remain build-time-unknowable and are documented as such.
+
+* **Pool-size setters validate their input (breaking for misconfigurations).**
+  `ClientBuilder.setMaxPoolSize` / `setDefaultMaxPoolSizePerRoute` / `setMaxPoolSizePerRoute`
+  now throw `IllegalArgumentException` for values `< 1` (and `NullPointerException` for a null host). Previously such
+  values were accepted and then silently ignored by Apache HC5's pool builder, which fell back to its internal defaults
+  (25 total / 5 per route) — a configured
+  `setMaxPoolSize(0)` quietly produced a 25-connection pool.
+* **No more spurious WARN for body-less non-success responses.** A typed request receiving an entity-less non-success
+  response (e.g. a 304 with redirect handling disabled — the default)
+  no longer attempts to read error text: readers are not consulted for a body that isn't there and `getErrorText()` is
+  `null`. The outcome is still traced — the "Unexpected Response …"
+  log line fires for every non-success response (WARN for 400, DEBUG otherwise), with or without a body. The related
+  "Can't find body reader … when http entity is null" log in
+  `readEntity` is demoted from WARN to DEBUG — returning `null` for an entity-less response is the documented contract,
+  not an anomaly.

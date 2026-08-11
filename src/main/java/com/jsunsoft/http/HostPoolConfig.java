@@ -50,12 +50,13 @@ class HostPoolConfig {
     /**
      * Sets the total cap on concurrent open connections across all routes. Default is {@code 128}.
      *
-     * @param maxPoolSize value
+     * @param maxPoolSize value; must be {@code >= 1}
      *
      * @return Builder instance
+     * @throws IllegalArgumentException when {@code maxPoolSize < 1}
      */
     public HostPoolConfig setMaxPoolSize(int maxPoolSize) {
-        this.maxPoolSize = maxPoolSize;
+        this.maxPoolSize = requirePositive(maxPoolSize, "maxPoolSize");
         return this;
     }
 
@@ -66,26 +67,42 @@ class HostPoolConfig {
      * Setting this equal to or greater than {@link #setMaxPoolSize(int)} lets a single hot host
      * starve other routes — only do that if you genuinely talk to a single upstream.
      *
-     * @param defaultMaxPoolSizePerRoute value
+     * @param defaultMaxPoolSizePerRoute value; must be {@code >= 1}
      *
      * @return Builder instance
+     * @throws IllegalArgumentException when {@code defaultMaxPoolSizePerRoute < 1}
      */
     public HostPoolConfig setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
-        this.defaultMaxPoolSizePerRoute = defaultMaxPoolSizePerRoute;
+        this.defaultMaxPoolSizePerRoute = requirePositive(defaultMaxPoolSizePerRoute, "defaultMaxPoolSizePerRoute");
         return this;
     }
 
     /**
      * Set the connection pool default max size of concurrent connections to a specific route.
      *
-     * @param httpHost         httpHost
-     * @param maxRoutePoolSize maxRoutePoolSize
+     * @param httpHost         httpHost; must not be {@code null}
+     * @param maxRoutePoolSize maxRoutePoolSize; must be {@code >= 1}
      *
      * @return HostPoolConfig
+     * @throws NullPointerException     when {@code httpHost} is {@code null}
+     * @throws IllegalArgumentException when {@code maxRoutePoolSize < 1}
      */
     public HostPoolConfig setMaxPoolSizePerRoute(HttpHost httpHost, int maxRoutePoolSize) {
-        httpHostToMaxRoutePoolSize.put(httpHost, maxRoutePoolSize);
+        ArgsCheck.notNull(httpHost, "httpHost");
+        httpHostToMaxRoutePoolSize.put(httpHost, requirePositive(maxRoutePoolSize, "maxRoutePoolSize"));
         return this;
+    }
+
+    /**
+     * Pool sizes must be strictly positive: the underlying Apache HC5 pool builder applies
+     * non-positive values as "not set" and silently falls back to its internal defaults
+     * (25 total / 5 per route) — a misconfiguration must fail loud at the setter instead.
+     */
+    private static int requirePositive(int value, String name) {
+        if (value < 1) {
+            throw new IllegalArgumentException(name + " must be >= 1, got " + value);
+        }
+        return value;
     }
 
     public static HostPoolConfig create() {
