@@ -354,6 +354,7 @@ public class ClientBuilder {
     /**
      * @param maxPoolSize see documentation of {@link com.jsunsoft.http.HostPoolConfig#setMaxPoolSize(int)}
      * @return ClientBuilder instance
+     * @throws IllegalArgumentException when {@code maxPoolSize < 1}
      */
     public ClientBuilder setMaxPoolSize(int maxPoolSize) {
         this.hostPoolConfig.setMaxPoolSize(maxPoolSize);
@@ -363,6 +364,7 @@ public class ClientBuilder {
     /**
      * @param defaultMaxPoolSizePerRoute see documentation of {@link com.jsunsoft.http.HostPoolConfig#setDefaultMaxPoolSizePerRoute(int)}
      * @return ClientBuilder instance
+     * @throws IllegalArgumentException when {@code defaultMaxPoolSizePerRoute < 1}
      */
     public ClientBuilder setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
         this.hostPoolConfig.setDefaultMaxPoolSizePerRoute(defaultMaxPoolSizePerRoute);
@@ -380,9 +382,11 @@ public class ClientBuilder {
      * planner cannot be matched at build time — configure explicit ports/proxy for per-route
      * caps in those setups.
      *
-     * @param httpHost         httpHost
-     * @param maxRoutePoolSize maxRoutePoolSize
+     * @param httpHost         httpHost; must not be {@code null}
+     * @param maxRoutePoolSize maxRoutePoolSize; must be {@code >= 1}
      * @return ClientBuilder instance
+     * @throws NullPointerException     when {@code httpHost} is {@code null}
+     * @throws IllegalArgumentException when {@code maxRoutePoolSize < 1}
      */
     public ClientBuilder setMaxPoolSizePerRoute(HttpHost httpHost, int maxRoutePoolSize) {
         hostPoolConfig.setMaxPoolSizePerRoute(httpHost, maxRoutePoolSize);

@@ -42,6 +42,41 @@ class GetErrorTextTest {
     }
 
     @Test
+    void bodylessNonSuccess_doesNotConsultReaders_andHasNoErrorText() throws IOException {
+        // A 304 (redirect handling is off by default, so it surfaces to the caller) carries no
+        // body by spec — the error-text read must be skipped entirely: no reader consultation,
+        // no "Can't find body reader" noise, errorText null. The probe reader deliberately omits
+        // the hasEntity() guard: if the library consults readers for the entity-less response,
+        // the synthetic value would leak into getErrorText().
+        wireMockRule.stubFor(get(urlEqualTo("/not-modified"))
+                .willReturn(aResponse().withStatus(304)));
+
+        try (org.apache.hc.client5.http.impl.classic.CloseableHttpClient client = new ClientBuilder().build()) {
+            HttpRequest httpRequest = HttpRequestBuilder.create(client)
+                    .addBodyReader(new ResponseBodyReader<String>() {
+                        @Override
+                        public boolean isReadable(ResponseBodyReadableContext context) {
+                            return context.getType() == String.class;   // deliberately no hasEntity() guard
+                        }
+
+                        @Override
+                        public String read(ResponseBodyReaderContext<String> context) {
+                            return "SYNTHETIC";
+                        }
+                    })
+                    .build();
+
+            ResponseHandler<String> rh = httpRequest.target(wireMockRule.getRuntimeInfo().getHttpBaseUrl())
+                    .path("not-modified")
+                    .get(String.class);
+
+            Assertions.assertEquals(304, rh.getCode());
+            Assertions.assertNull(rh.getErrorText(),
+                    "a body-less non-success response must not consult readers or synthesize error text");
+        }
+    }
+
+    @Test
     void getErrorText_returnsErrorText_whenNoErrorCause() {
         BasicResponseHandler<String> rh = newHandler("Bad request", null);
 

@@ -324,8 +324,12 @@ class BasicWebTarget implements WebTarget {
 
                     LOGGER.trace("Result of Uri: [{}] is {}", responseUri, content);
                 } else if (HttpRequestUtils.isNonSuccess(statusCode)) {
-
-                    failedMessage = response.readEntityChecked(String.class);
+                    if (httpEntity != null) {
+                        failedMessage = response.readEntityChecked(String.class);
+                    }
+                    // Entity-less non-success responses (e.g. 304 with redirect handling
+                    // disabled — the default) skip the read: no reader is consulted against a
+                    // body that isn't there. The outcome is still traced below either way.
                     String logMsg = "Unexpected Response. Url: [" + responseUri + "] Status code: " + statusCode + ", Error message: " + failedMessage;
                     if (statusCode == SC_BAD_REQUEST) {
                         LOGGER.warn(logMsg);
