@@ -87,7 +87,7 @@ class SecurityAndLimitsTest {
 
     @Test
     void disallowPrivateAndLoopbackHosts_withAllowListPredicate_letsExceptionAddressesThrough()
-            throws java.io.IOException, java.net.UnknownHostException {
+            throws java.io.IOException {
         // Allow-list overload: predicate returning true for 127.0.0.1 only — that address must
         // pass the guard, while every other private/loopback address remains blocked.
         // We can't round-trip a request to 127.0.0.1 here without a server bound there, so the
@@ -174,6 +174,78 @@ class SecurityAndLimitsTest {
         // Must remain SC_BAD_GATEWAY (502) and not be masked by close() failures.
         assertEquals(502, rh.getCode());
         assertEquals(200, rh.getOriginalCode());
+    }
+
+    @Test
+    void disallowPrivateAndLoopbackHosts_blocksReservedRangesAtResolveTime() {
+        // Ranges beyond loopback/RFC 1918: CGNAT and NAT64-embedded internal addresses must be
+        // rejected by the DNS-resolver guard itself (its message is the proof), not merely fail
+        // later at connect — a connect failure depends on the local network and can even succeed
+        // on a CGNAT'd machine.
+        try (org.apache.hc.client5.http.impl.classic.CloseableHttpClient guardedClient =
+                     ClientBuilder.create()
+                             .disallowPrivateAndLoopbackHosts()
+                             .setConnectionRequestTimeout(500)
+                             .setResponseTimeout(500)
+                             .setConnectTimeout(500)
+                             .build()) {
+            HttpRequest httpRequest = HttpRequestBuilder.create(guardedClient).build();
+
+            ResponseHandler<String> cgnat = httpRequest.target("http://100.64.0.1/").get(String.class);
+            assertFalse(cgnat.isSuccess(), "100.64.0.1 (CGNAT) must not be reachable under SSRF guard");
+            assertTrue(String.valueOf(cgnat.getErrorText()).contains("disallowPrivateAndLoopbackHosts is enabled"),
+                    "100.64.0.1 (CGNAT, RFC 6598) must be rejected by the SSRF guard itself; got: " + cgnat.getErrorText());
+
+            ResponseHandler<String> nat64 = httpRequest.target("http://[64:ff9b::7f00:1]/").get(String.class);
+            assertFalse(nat64.isSuccess(), "NAT64-embedded loopback must not be reachable under SSRF guard");
+            assertTrue(String.valueOf(nat64.getErrorText()).contains("disallowPrivateAndLoopbackHosts is enabled"),
+                    "64:ff9b::7f00:1 (NAT64-embedded 127.0.0.1) must be rejected by the SSRF guard itself; got: " + nat64.getErrorText());
+        } catch (java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Test
+    void disallowPrivateAndLoopbackHosts_takesPrecedenceOverCustomizerDnsResolver() {
+        // BREAKING in 5.0.0: a setDnsResolver(...) inside a connection-manager customizer used
+        // to silently REPLACE the SSRF guard. A security control the caller explicitly enabled
+        // must win over convenience wiring — the guard resolver is installed after customizers.
+        try (org.apache.hc.client5.http.impl.classic.CloseableHttpClient guardedClient =
+                     ClientBuilder.create()
+                             .disallowPrivateAndLoopbackHosts()
+                             .addDefaultConnectionManagerBuilderCustomizer(cm ->
+                                     cm.setDnsResolver(org.apache.hc.client5.http.SystemDefaultDnsResolver.INSTANCE))
+                             .setConnectionRequestTimeout(500)
+                             .setResponseTimeout(500)
+                             .setConnectTimeout(500)
+                             .build()) {
+            HttpRequest httpRequest = HttpRequestBuilder.create(guardedClient).build();
+
+            ResponseHandler<String> rh = httpRequest.target("http://127.0.0.1:1/").get(String.class);
+            assertFalse(rh.isSuccess(), "127.0.0.1 must not be reachable under SSRF guard");
+            assertTrue(String.valueOf(rh.getErrorText()).contains("disallowPrivateAndLoopbackHosts is enabled"),
+                    "the SSRF guard must take precedence over a customizer-installed DnsResolver; got: " + rh.getErrorText());
+        } catch (java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Test
+    void basicAuthCharArray_zeroesPassword_evenWhenValidationFails() {
+        // The documented contract — "the supplied password array is zeroed before this method
+        // returns" — must hold on exceptional returns too: the caller handed the secret over,
+        // and it must not linger in memory because the username happened to be invalid.
+        HttpRequestBuilder builder = HttpRequestBuilder.create(new ClientBuilder().build());
+
+        char[] rejectedByColonCheck = "hunter2".toCharArray();
+        assertThrows(IllegalArgumentException.class, () -> builder.basicAuth("user:name", rejectedByColonCheck));
+        assertArrayEquals(new char[rejectedByColonCheck.length], rejectedByColonCheck,
+                "password must be zeroed when the ':' username validation rejects the call");
+
+        char[] rejectedByNullCheck = "hunter2".toCharArray();
+        assertThrows(NullPointerException.class, () -> builder.basicAuth(null, rejectedByNullCheck));
+        assertArrayEquals(new char[rejectedByNullCheck.length], rejectedByNullCheck,
+                "password must be zeroed when the username null-check rejects the call");
     }
 
     @Test

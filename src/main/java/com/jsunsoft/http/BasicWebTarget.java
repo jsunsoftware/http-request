@@ -23,6 +23,7 @@ import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.routing.RoutingSupport;
 import org.apache.hc.core5.http.*;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.HeaderGroup;
 import org.apache.hc.core5.http.protocol.HttpContext;
@@ -257,7 +258,7 @@ class BasicWebTarget implements WebTarget {
     public <T> ResponseHandler<T> request(HttpMethod method, TypeReference<T> typeReference) {
         CustomArgsCheck.checkIsCorrectTypeForDeserialization(typeReference.getRawType());
 
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
 
         ResponseHandler<T> result;
 
@@ -322,10 +323,17 @@ class BasicWebTarget implements WebTarget {
 
                     content = response.readEntityChecked(typeReference);
 
-                    LOGGER.trace("Result of Uri: [{}] is {}", responseUri, content);
+                    // Type only, never the value: response bodies are payload, and the payload
+                    // redactor guards request payloads — nothing guards a response dump.
+                    LOGGER.trace("Result of Uri: [{}] deserialized to an instance of {}",
+                            responseUri, content != null ? content.getClass().getName() : null);
                 } else if (HttpRequestUtils.isNonSuccess(statusCode)) {
-
-                    failedMessage = response.readEntityChecked(String.class);
+                    if (httpEntity != null) {
+                        failedMessage = response.readEntityChecked(String.class);
+                    }
+                    // Entity-less non-success responses (e.g. 304 with redirect handling
+                    // disabled — the default) skip the read: no reader is consulted against a
+                    // body that isn't there. The outcome is still traced below either way.
                     String logMsg = "Unexpected Response. Url: [" + responseUri + "] Status code: " + statusCode + ", Error message: " + failedMessage;
                     if (statusCode == SC_BAD_REQUEST) {
                         LOGGER.warn(logMsg);
@@ -360,7 +368,7 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public ResponseHandler<?> rawRequest(HttpMethod method, Object body) {
-        return rawRequest(method, parsePayloadBodyToHttpEntity(body));
+        return rawRequest(method, parsePayloadBodyToHttpEntity(method, body));
     }
 
     @Override
@@ -402,7 +410,7 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public WebTarget removeHeader(Header header) {
-        ArgsCheck.notNull(header, "method");
+        ArgsCheck.notNull(header, "header");
 
         httpUriRequestBuilder.removeHeader(header);
         return this;
@@ -466,7 +474,7 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public <T> ResponseHandler<T> request(HttpMethod method, Object body, Class<T> responseType) {
-        return request(method, parsePayloadBodyToHttpEntity(body), responseType);
+        return request(method, parsePayloadBodyToHttpEntity(method, body), responseType);
     }
 
     @Override
@@ -482,7 +490,7 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public <T> ResponseHandler<T> request(HttpMethod method, Object body, TypeReference<T> responseType) {
-        return request(method, parsePayloadBodyToHttpEntity(body), responseType);
+        return request(method, parsePayloadBodyToHttpEntity(method, body), responseType);
     }
 
     @Override
@@ -497,7 +505,7 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public Response request(HttpMethod method, Object body) {
-        return request(method, parsePayloadBodyToHttpEntity(body));
+        return request(method, parsePayloadBodyToHttpEntity(method, body));
     }
 
     @Override
@@ -569,10 +577,14 @@ class BasicWebTarget implements WebTarget {
         return payloadRedactor;
     }
 
-    private HttpEntity parsePayloadBodyToHttpEntity(Object body) {
+    private HttpEntity parsePayloadBodyToHttpEntity(HttpMethod method, Object body) {
 
         ArgsCheck.notNull(body, "body");
 
+        // Raw HttpEntity bodies are deliberately NOT payload-logged (matching the explicit
+        // HttpEntity overloads): an entity may be arbitrarily large (reading a repeatable
+        // FileEntity back for a log line would materialize it on the heap) or binary. Only
+        // entities this method produces by serialization are fed to the redacted payload log.
         if (body instanceof HttpEntity entity) {
             return entity;
         }
@@ -581,10 +593,22 @@ class BasicWebTarget implements WebTarget {
 
         ContentType contentType = contentTypeHeader != null ? ContentType.parse(contentTypeHeader.getValue()) : null;
 
-        LOGGER.trace("Serializing body based on content type: [{}] body object: {}", contentType, body);
+        // Deliberately logs the body's TYPE, not its value — payload content is only ever logged
+        // through the redacted, opt-in payload-logging path below.
+        LOGGER.trace("Serializing body of type [{}] based on content type: [{}]", body.getClass().getName(), contentType);
 
         RequestBodyConverterContext context = new RequestBodyConverterContext(body, contentType, getBodyCharset());
 
+        HttpEntity converted = convertPayloadBody(context);
+        if (converted != null) {
+            logRequestBody(method, converted);
+            return converted;
+        }
+
+        throw new RequestException("Serializer is not found. Now supported only JSON and XML serialization depends on [" + HttpHeaders.CONTENT_TYPE + "]. Founded first content type header is: " + contentType);
+    }
+
+    private HttpEntity convertPayloadBody(RequestBodyConverterContext context) {
         for (RequestBodyConverter converter : requestBodySerializeConfig.getRequestBodyConverters()) {
             if (converter != null && converter.canConvert(context)) {
                 return ArgsCheck.notNull(converter.convert(context), "httpEntity");
@@ -599,7 +623,32 @@ class BasicWebTarget implements WebTarget {
             }
         }
 
-        throw new RequestException("Serializer is not found. Now supported only JSON and XML serialization depends on [" + HttpHeaders.CONTENT_TYPE + "]. Founded first content type header is: " + contentType);
+        return null;
+    }
+
+    /**
+     * Feeds the redacted payload log with the wire form of a converter-produced entity (the
+     * serialization path of the {@code Object} payload overloads — never a caller-supplied raw
+     * {@code HttpEntity}). Repeatable entities are read back — safe, they replay; a
+     * non-repeatable entity must not be consumed before it reaches the wire, so a placeholder is
+     * logged instead.
+     */
+    private void logRequestBody(HttpMethod method, HttpEntity httpEntity) {
+        if (!isRequestPayloadLogging()) {
+            return;
+        }
+        if (!httpEntity.isRepeatable()) {
+            logRequestBody(method, "[non-repeatable request entity - payload not logged]");
+            return;
+        }
+        String payload;
+        try {
+            payload = EntityUtils.toString(httpEntity, getBodyCharset());
+        } catch (IOException | ParseException | RuntimeException e) {
+            LOGGER.warn("Failed to read the request entity for payload logging: {}", e.toString());
+            payload = "[unreadable request entity]";
+        }
+        logRequestBody(method, payload);
     }
 
     private void logRequestBody(HttpMethod method, final String payload) {

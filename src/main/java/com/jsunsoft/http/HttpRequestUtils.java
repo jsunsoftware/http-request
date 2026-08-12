@@ -25,8 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Type;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.*;
 
 class HttpRequestUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpRequestUtils.class);
@@ -35,8 +34,12 @@ class HttpRequestUtils {
         throw new AssertionError("No com.jsunsoft.http.HttpRequestUtils instances for you!");
     }
 
-    static String humanTime(long startTime) {
-        long difference = System.currentTimeMillis() - startTime;
+    /**
+     * Elapsed time since {@code startTimeNanos} (a {@link System#nanoTime()} stamp — monotonic,
+     * immune to wall-clock adjustments), rendered for log lines.
+     */
+    static String humanTime(long startTimeNanos) {
+        long difference = NANOSECONDS.toMillis(System.nanoTime() - startTimeNanos);
         long seconds = MILLISECONDS.toSeconds(difference);
         return "%d sec, %d millis".formatted(seconds, difference - SECONDS.toMillis(seconds));
     }
@@ -84,10 +87,14 @@ class HttpRequestUtils {
         return type == Void.class || Void.TYPE.equals(type);
     }
 
-    static <T> T orDefault(T value, T defaultValue) {
-        return value == null ? defaultValue : value;
-    }
-
+    /**
+     * Deliberately not {@code URIBuilder#appendPath}: HC5's implementation blindly concatenates
+     * a {@code /} between base and appendix, producing double slashes whenever the base path
+     * ends with one ({@code "/api/" + "v1" → "/api//v1"}, {@code "http://host/" + "v1" →
+     * "http://host//v1"}), and it drops an empty appendix where this contract adds a trailing
+     * slash. The full equivalence matrix is pinned in {@code HttpRequestUtilsTest} — re-evaluate
+     * a swap only if those pins pass against the HC5 method.
+     */
     static URIBuilder appendPath(URIBuilder uriBuilder, String path) {
         String newPath;
 

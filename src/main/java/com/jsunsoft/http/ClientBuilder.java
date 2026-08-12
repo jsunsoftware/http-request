@@ -23,6 +23,7 @@ import org.apache.hc.client5.http.SystemDefaultDnsResolver;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
+import org.apache.hc.client5.http.impl.DefaultSchemePortResolver;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory;
@@ -33,6 +34,7 @@ import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
 import org.apache.hc.client5.http.protocol.RedirectStrategy;
 import org.apache.hc.client5.http.routing.HttpRoutePlanner;
+import org.apache.hc.client5.http.routing.RoutingSupport;
 import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
 import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
@@ -40,6 +42,7 @@ import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.URIScheme;
 import org.apache.hc.core5.http.config.Http1Config;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.ssl.SSLContexts;
@@ -51,7 +54,10 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
-import java.net.*;
+import java.net.InetAddress;
+import java.net.ProxySelector;
+import java.net.URI;
+import java.net.UnknownHostException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -303,7 +309,10 @@ public class ClientBuilder {
     }
 
     /**
-     * Note: Can override any config defined in another method which is related to connection manager config
+     * Note: Can override any config defined in another method which is related to connection manager config.
+     * The one exception is the SSRF guard: {@link #disallowPrivateAndLoopbackHosts()} installs
+     * its resolver <em>after</em> customizers run, so a {@code setDnsResolver(...)} in a
+     * customizer is overridden by the guard — a security control cannot be silently replaced.
      *
      * @param defaultConnectionManagerBuilderCustomizer the consumer instance
      *                                                  which provides
@@ -351,6 +360,7 @@ public class ClientBuilder {
     /**
      * @param maxPoolSize see documentation of {@link com.jsunsoft.http.HostPoolConfig#setMaxPoolSize(int)}
      * @return ClientBuilder instance
+     * @throws IllegalArgumentException when {@code maxPoolSize < 1}
      */
     public ClientBuilder setMaxPoolSize(int maxPoolSize) {
         this.hostPoolConfig.setMaxPoolSize(maxPoolSize);
@@ -360,6 +370,7 @@ public class ClientBuilder {
     /**
      * @param defaultMaxPoolSizePerRoute see documentation of {@link com.jsunsoft.http.HostPoolConfig#setDefaultMaxPoolSizePerRoute(int)}
      * @return ClientBuilder instance
+     * @throws IllegalArgumentException when {@code defaultMaxPoolSizePerRoute < 1}
      */
     public ClientBuilder setDefaultMaxPoolSizePerRoute(int defaultMaxPoolSizePerRoute) {
         this.hostPoolConfig.setDefaultMaxPoolSizePerRoute(defaultMaxPoolSizePerRoute);
@@ -367,11 +378,21 @@ public class ClientBuilder {
     }
 
     /**
-     * Set the connection pool default max size of concurrent connections to a specific route
+     * Set the connection pool default max size of concurrent connections to a specific route.
+     * <p>
+     * The host is registered the way the runtime route planner will look it up: a missing port
+     * is resolved to the scheme default ({@code new HttpHost("example.com")} caps
+     * {@code http://example.com:80}), https hosts cap the secure route, and when {@link
+     * #proxy(HttpHost)} is configured the cap lands on the proxied route. Routes decided
+     * per-request by {@link #useDefaultProxy()} (JRE {@code ProxySelector}) or by a custom route
+     * planner cannot be matched at build time — configure explicit ports/proxy for per-route
+     * caps in those setups.
      *
-     * @param httpHost         httpHost
-     * @param maxRoutePoolSize maxRoutePoolSize
+     * @param httpHost         httpHost; must not be {@code null}
+     * @param maxRoutePoolSize maxRoutePoolSize; must be {@code >= 1}
      * @return ClientBuilder instance
+     * @throws NullPointerException     when {@code httpHost} is {@code null}
+     * @throws IllegalArgumentException when {@code maxRoutePoolSize < 1}
      */
     public ClientBuilder setMaxPoolSizePerRoute(HttpHost httpHost, int maxRoutePoolSize) {
         hostPoolConfig.setMaxPoolSizePerRoute(httpHost, maxRoutePoolSize);
@@ -651,17 +672,44 @@ public class ClientBuilder {
 
     /**
      * Opt-in SSRF guard. When enabled, the client's DNS resolver rejects any host that resolves
-     * to a loopback ({@code 127.0.0.0/8}, {@code ::1}), unspecified ({@code 0.0.0.0}, {@code ::}),
-     * link-local ({@code 169.254.0.0/16} — covers AWS / GCP / Azure metadata endpoints —
-     * {@code fe80::/10}), IPv4 site-local / RFC 1918 ({@code 10/8}, {@code 172.16/12},
-     * {@code 192.168/16}), or IPv6 unique-local ({@code fc00::/7}) address.
-     * <p>
+     * to a non-global address:
+     * <ul>
+     *   <li>loopback ({@code 127.0.0.0/8}, {@code ::1}) and unspecified ({@code 0.0.0.0}, {@code ::});</li>
+     *   <li>link-local ({@code 169.254.0.0/16} — covers AWS / GCP / Azure metadata endpoints —
+     *       and {@code fe80::/10});</li>
+     *   <li>private / RFC 1918 ({@code 10/8}, {@code 172.16/12}, {@code 192.168/16}) and IPv6
+     *       unique-local ({@code fc00::/7});</li>
+     *   <li>carrier-grade NAT ({@code 100.64.0.0/10}, RFC 6598);</li>
+     *   <li>IANA special-purpose blocks: {@code 0.0.0.0/8}, {@code 192.0.0.0/24}, the TEST-NETs
+     *       ({@code 192.0.2.0/24}, {@code 198.51.100.0/24}, {@code 203.0.113.0/24}), benchmarking
+     *       ({@code 198.18.0.0/15}), reserved {@code 240.0.0.0/4} (incl. broadcast), multicast;</li>
+     *   <li>IPv6 forms that embed an IPv4 address: NAT64 {@code 64:ff9b::/96} and
+     *       IPv4-mapped/-compatible ({@code ::ffff:0:0/96}, {@code ::/96}) are blocked when the
+     *       <em>embedded</em> IPv4 address is itself non-global; the NAT64 local-use prefix
+     *       {@code 64:ff9b:1::/48} (RFC 8215) is always blocked.</li>
+     * </ul>
      * The check is plumbed through Apache HC5's {@link DnsResolver}, so it fires for every host
-     * the client touches — including hosts reached via 3xx redirects, not only the original
+     * this client resolves — including hosts reached via 3xx redirects, not only the original
      * URL the caller passed to {@code target(...)}. This closes the time-of-check / time-of-use
      * gap that a URL-only check would have: the same DNS lookup that produces the connection IP
      * is the one being filtered.
      * <p>
+     * <b>Precedence.</b> The guard is installed <em>after</em> the
+     * {@link #addDefaultConnectionManagerBuilderCustomizer(Consumer) connection-manager
+     * customizers} run, so it overrides any {@code setDnsResolver(...)} done there: enabling this
+     * guard means DNS resolution goes through the guarded system-default resolver, and a custom
+     * resolver cannot silently disable it. Combining a custom {@code DnsResolver} with the guard
+     * is not supported — use the {@link #disallowPrivateAndLoopbackHosts(Predicate) allow-list
+     * overload} if specific internal endpoints must stay reachable.
+     * <p>
+     * <b>Limitations.</b> The guard is a best-effort deny-list, not a capability boundary:
+     * <ul>
+     *   <li>when a proxy is configured, the target hostname is resolved by the proxy — the guard
+     *       only sees (and filters) addresses this client resolves itself, i.e. the proxy's
+     *       own;</li>
+     *   <li>exotic IPv4-embedding schemes (6to4 {@code 2002::/16}, Teredo {@code 2001::/32})
+     *       are not decoded.</li>
+     * </ul>
      * Use this for any application that constructs request URIs from user-supplied input.
      * Combine with network-layer egress filtering for full defence-in-depth.
      *
@@ -675,9 +723,9 @@ public class ClientBuilder {
 
     /**
      * Variant of {@link #disallowPrivateAndLoopbackHosts()} with an allow-list escape hatch:
-     * the guard rejects private / loopback / link-local addresses <em>except</em> for those the
-     * supplied predicate accepts. Use this when you need to block public-internet SSRF surface
-     * but still talk to specific internal endpoints (e.g. an internal config service on
+     * the guard rejects non-global addresses (see the range list there) <em>except</em> for
+     * those the supplied predicate accepts. Use this when you need to block public-internet SSRF
+     * surface but still talk to specific internal endpoints (e.g. an internal config service on
      * {@code 10.0.7.42} that the guard would otherwise block).
      *
      * <pre>{@code
@@ -823,10 +871,6 @@ public class ClientBuilder {
             cmBuilder.setTlsSocketStrategy(clientTlsStrategyBuilder.buildClassic());
         }
 
-        if (disallowPrivateAndLoopbackHosts) {
-            cmBuilder.setDnsResolver(createSsrfGuardedDnsResolver());
-        }
-
         // Wire HTTP/1.1 head-size limits if either knob was set. Apache HC5 plumbs Http1Config
         // through a ManagedHttpClientConnectionFactory (the connection manager itself doesn't
         // accept Http1Config directly).
@@ -851,14 +895,19 @@ public class ClientBuilder {
                     );
         }
 
+        // Deliberately AFTER the customizers: an explicitly enabled security control must not be
+        // silently replaceable by convenience wiring — a setDnsResolver(...) in a customizer is
+        // overridden by the guard, not the other way around.
+        if (disallowPrivateAndLoopbackHosts) {
+            cmBuilder.setDnsResolver(createSsrfGuardedDnsResolver());
+        }
+
         PoolingHttpClientConnectionManager connectionManager = cmBuilder
                 .build();
 
 
-        hostPoolConfig.getHttpHostToMaxPoolSize().forEach((httpHost, maxPerRoute) -> {
-            HttpRoute httpRoute = new HttpRoute(httpHost);
-            connectionManager.setMaxPerRoute(httpRoute, maxPerRoute);
-        });
+        hostPoolConfig.getHttpHostToMaxPoolSize().forEach((httpHost, maxPerRoute) ->
+                connectionManager.setMaxPerRoute(toRuntimeShapedRoute(httpHost), maxPerRoute));
 
         HttpRoutePlanner routePlanner = null;
 
@@ -913,10 +962,32 @@ public class ClientBuilder {
     }
 
     /**
+     * Builds the pool key for a per-route cap the same way the runtime route planner
+     * ({@code DefaultRoutePlanner} / {@code DefaultProxyRoutePlanner}) will: the scheme-default
+     * port resolved for portless hosts, the secure flag derived from the scheme, and the
+     * configured proxy hop included. {@code PoolingHttpClientConnectionManager} matches routes
+     * by full equality, so any shape mismatch silently disables the cap — a plain
+     * {@code new HttpRoute(host)} would reject portless hosts outright ("Target port must not
+     * be negative") and register https hosts as non-secure routes that never match.
+     * <p>
+     * Not knowable at build time: routes produced by {@link #useDefaultProxy()} (the JRE
+     * {@code ProxySelector} decides per request) or by a custom route planner installed via
+     * {@link #addHttpClientCustomizer(Consumer)} — caps are registered against the
+     * explicitly-configured proxy (or direct) shape only.
+     */
+    private HttpRoute toRuntimeShapedRoute(HttpHost httpHost) {
+        HttpHost normalized = RoutingSupport.normalize(httpHost, DefaultSchemePortResolver.INSTANCE);
+        boolean secure = URIScheme.HTTPS.same(normalized.getSchemeName());
+        return proxy != null
+                ? new HttpRoute(normalized, null, proxy, secure)
+                : new HttpRoute(normalized, null, secure);
+    }
+
+    /**
      * Builds the SSRF-guarded {@link DnsResolver} installed on the connection manager when
      * {@link #disallowPrivateAndLoopbackHosts()} is enabled. Forward lookups go through
-     * {@link SystemDefaultDnsResolver} and are filtered for loopback / unspecified / link-local /
-     * RFC 1918 / IPv6-unique-local addresses; matching results trigger
+     * {@link SystemDefaultDnsResolver} and are filtered through {@link SsrfAddressPolicy};
+     * matching results trigger
      * {@link UnknownHostException}, which Apache HC5 surfaces as an IOException at the request
      * boundary (then wrapped into a {@link ResponseException} by {@code BasicWebTarget}).
      * Reverse lookups (resolveCanonicalHostname) are unaffected by the policy and just delegate.
@@ -930,9 +1001,9 @@ public class ClientBuilder {
             public InetAddress[] resolve(String host) throws UnknownHostException {
                 InetAddress[] addresses = SystemDefaultDnsResolver.INSTANCE.resolve(host);
                 for (InetAddress addr : addresses) {
-                    if (isPrivateLoopbackOrLocal(addr) && !isAllowedException(addr)) {
+                    if (SsrfAddressPolicy.isNonGlobal(addr) && !isAllowedException(addr)) {
                         throw new UnknownHostException(
-                                "Blocked private/loopback/link-local address (" + addr.getHostAddress() +
+                                "Blocked non-global (private/loopback/link-local/reserved) address (" + addr.getHostAddress() +
                                         ") for host '" + host + "' — disallowPrivateAndLoopbackHosts is enabled");
                     }
                 }
@@ -946,19 +1017,6 @@ public class ClientBuilder {
 
             private boolean isAllowedException(InetAddress addr) {
                 return allowException != null && allowException.test(addr);
-            }
-
-            private boolean isPrivateLoopbackOrLocal(InetAddress addr) {
-                if (addr.isLoopbackAddress()) return true;       // 127/8, ::1
-                if (addr.isAnyLocalAddress()) return true;       // 0.0.0.0, ::
-                if (addr.isLinkLocalAddress()) return true;      // 169.254/16, fe80::/10
-                if (addr.isSiteLocalAddress()) return true;      // RFC 1918 — IPv4 only on JDK
-                if (addr instanceof Inet6Address) {
-                    // RFC 4193 unique-local: fc00::/7. Inet6Address has no convenience method for this.
-                    byte[] b = addr.getAddress();
-                    return (b[0] & 0xfe) == 0xfc;
-                }
-                return false;
             }
         };
     }

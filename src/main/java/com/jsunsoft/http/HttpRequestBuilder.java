@@ -370,7 +370,7 @@ public class HttpRequestBuilder {
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addRequestDefaultDateSerializationPattern(Class<?> dateType, String pattern) {
-        requestBodySerializeConfigBuilder.addDateDeserializationPattern(dateType, pattern);
+        requestBodySerializeConfigBuilder.addDateSerializationPattern(dateType, pattern);
         return this;
     }
 
@@ -461,7 +461,7 @@ public class HttpRequestBuilder {
             throw new IllegalArgumentException("Username cannot contain ':' character when using basic authentication");
         }
 
-        LOGGER.warn("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
+        LOGGER.info("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
 
         String auth = username + ":" + password;
         byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8));
@@ -472,8 +472,11 @@ public class HttpRequestBuilder {
     /**
      * Adds preemptive HTTP Basic authentication using a {@code char[]} for the password.
      * <p>
-     * The supplied {@code password} array is zeroed before this method returns; the intermediate
-     * encoding buffers are also zeroed. The <em>final</em> {@code "Basic <base64>"} header value
+     * The supplied {@code password} array is zeroed before this method returns — whether it
+     * completes normally or throws (invalid username, encoding failure); the intermediate
+     * encoding buffers are also zeroed. The only exception: a {@code null} password throws
+     * {@link NullPointerException} with nothing to zero. Callers must therefore not reuse the
+     * array after the call, even a failed one. The <em>final</em> {@code "Basic <base64>"} header value
      * is, however, still stored as a {@link String} in this builder's default-header list for
      * the lifetime of the resulting {@code HttpRequest} — a {@link String} cannot be zeroed in
      * the JVM. So this overload reduces, but does not eliminate, the period during which the
@@ -491,40 +494,49 @@ public class HttpRequestBuilder {
      */
     @Beta
     public HttpRequestBuilder basicAuth(String username, char[] password) {
-        ArgsCheck.notNull(username, "username");
         ArgsCheck.notNull(password, "password");
-        if (username.contains(":")) {
-            throw new IllegalArgumentException("Username cannot contain ':' character when using basic authentication");
-        }
 
-        LOGGER.warn("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
-
-        byte[] userBytes = username.getBytes(StandardCharsets.UTF_8);
-        byte[] separator = ":".getBytes(StandardCharsets.UTF_8);
-
-        ByteBuffer passBuffer = StandardCharsets.UTF_8.encode(CharBuffer.wrap(password));
-        byte[] passBytes = new byte[passBuffer.remaining()];
-        passBuffer.get(passBytes);
-
-        byte[] combined = new byte[userBytes.length + separator.length + passBytes.length];
-        System.arraycopy(userBytes, 0, combined, 0, userBytes.length);
-        System.arraycopy(separator, 0, combined, userBytes.length, separator.length);
-        System.arraycopy(passBytes, 0, combined, userBytes.length + separator.length, passBytes.length);
-
-        byte[] encodedAuth = Base64.getEncoder().encode(combined);
-        String authHeader = "Basic " + new String(encodedAuth, StandardCharsets.UTF_8);
-
-        Arrays.fill(passBytes, (byte) 0);
-        Arrays.fill(combined, (byte) 0);
-        // Clean ByteBuffer content if possible, though it's backed by array often
-        if (passBuffer.hasArray()) {
-            Arrays.fill(passBuffer.array(), (byte) 0);
-        }
-
+        // Everything past the password null-check runs inside try/finally: whatever throws —
+        // argument validation, UTF-8 encoding, Base64 (OOM) — the caller's array and every
+        // intermediate copy of the secret are zeroed before this method returns.
+        ByteBuffer passBuffer = null;
+        byte[] passBytes = null;
+        byte[] combined = null;
         try {
+            ArgsCheck.notNull(username, "username");
+            if (username.contains(":")) {
+                throw new IllegalArgumentException("Username cannot contain ':' character when using basic authentication");
+            }
+
+            LOGGER.info("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
+
+            byte[] userBytes = username.getBytes(StandardCharsets.UTF_8);
+            byte[] separator = ":".getBytes(StandardCharsets.UTF_8);
+
+            passBuffer = StandardCharsets.UTF_8.encode(CharBuffer.wrap(password));
+            passBytes = new byte[passBuffer.remaining()];
+            passBuffer.get(passBytes);
+
+            combined = new byte[userBytes.length + separator.length + passBytes.length];
+            System.arraycopy(userBytes, 0, combined, 0, userBytes.length);
+            System.arraycopy(separator, 0, combined, userBytes.length, separator.length);
+            System.arraycopy(passBytes, 0, combined, userBytes.length + separator.length, passBytes.length);
+
+            byte[] encodedAuth = Base64.getEncoder().encode(combined);
+            String authHeader = "Basic " + new String(encodedAuth, StandardCharsets.UTF_8);
+
             return addDefaultHeader(AUTHORIZATION, authHeader);
         } finally {
             Arrays.fill(password, '\0');
+            if (passBytes != null) {
+                Arrays.fill(passBytes, (byte) 0);
+            }
+            if (combined != null) {
+                Arrays.fill(combined, (byte) 0);
+            }
+            if (passBuffer != null && passBuffer.hasArray()) {
+                Arrays.fill(passBuffer.array(), (byte) 0);
+            }
         }
     }
 
@@ -662,7 +674,16 @@ public class HttpRequestBuilder {
     }
 
     /**
-     * Enables request payload logging.
+     * Enables request payload logging (DEBUG level), routed through the redactors registered via
+     * {@link #addPayloadRedactor(UnaryOperator)}.
+     * <p>
+     * Covers the {@code String} payload overloads and the {@code Object} payload overloads that
+     * serialize the body (the serialized wire form is logged). The serialized entity is read
+     * back for logging when it is repeatable — which briefly holds a second copy of the payload
+     * in memory; a non-repeatable entity is never consumed for logging and a placeholder is
+     * logged instead. Raw {@code HttpEntity} payloads are never logged — neither via the
+     * {@code HttpEntity} overloads (e.g. {@code post(HttpEntity)}) nor when an entity is passed
+     * through an {@code Object} overload — since an entity may be arbitrarily large or binary.
      *
      * @return the current instance of HttpRequestBuilder
      */
@@ -675,7 +696,8 @@ public class HttpRequestBuilder {
     /**
      * Registers a redactor that runs over the request payload before it is logged via
      * {@link #enableRequestPayloadLogging()}. Multiple redactors compose left-to-right (the
-     * output of one feeds the next).
+     * output of one feeds the next). Applies to {@code String} payloads and to the serialized
+     * wire form of {@code Object} payloads alike.
      * <p>
      * Common use cases:
      * <ul>

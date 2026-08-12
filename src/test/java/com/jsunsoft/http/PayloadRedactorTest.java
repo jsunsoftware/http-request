@@ -19,12 +19,16 @@ package com.jsunsoft.http;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.io.entity.InputStreamEntity;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 
@@ -107,6 +111,70 @@ class PayloadRedactorTest {
         // The second redactor sees the OUTPUT of the first — i.e. "BETA-token".
         assertEquals("BETA-token", finalSeen.get(),
                 "Redactors must compose left-to-right (each sees the previous one's output)");
+    }
+
+    @Test
+    void redactor_isInvokedWithSerializedObjectPayload() {
+        // The Object overloads (post(Object) & friends — the main JSON path) must feed the
+        // redacted payload log exactly like the String overloads do: the redactor receives the
+        // SERIALIZED wire form.
+        server.stubFor(post(urlEqualTo("/login-object"))
+                .willReturn(aResponse().withStatus(200).withBody("ok")));
+
+        AtomicReference<String> seen = new AtomicReference<>();
+        HttpRequest httpRequest = HttpRequestBuilder.create(client)
+                .enableRequestPayloadLogging()
+                .addPayloadRedactor(s -> {
+                    seen.set(s);
+                    return s;
+                })
+                .build();
+
+        httpRequest.target(httpUri("/login-object"))
+                .addContentType(ContentType.APPLICATION_JSON)
+                .rawPost(new Credentials("alice", "hunter2"));
+
+        assertNotNull(seen.get(), "Object payloads must reach the redacted payload log");
+        assertTrue(seen.get().contains("hunter2"),
+                "the redactor must receive the serialized wire form of the Object payload, got: " + seen.get());
+    }
+
+    @Test
+    void rawHttpEntityPayload_isNeverLoggedNorConsumedByPayloadLogging() {
+        // Raw HttpEntity payloads are excluded from payload logging even via the Object
+        // overloads: reading one back could consume a non-repeatable body before it reaches
+        // the wire, or materialize an arbitrarily large/binary entity just for a log line.
+        server.stubFor(post(urlEqualTo("/streamed"))
+                .withRequestBody(equalTo("STREAMED-ONCE"))
+                .willReturn(aResponse().withStatus(200)));
+
+        AtomicReference<String> seen = new AtomicReference<>();
+        HttpRequest httpRequest = HttpRequestBuilder.create(client)
+                .enableRequestPayloadLogging()
+                .addPayloadRedactor(s -> {
+                    seen.set(s);
+                    return s;
+                })
+                .build();
+
+        InputStreamEntity nonRepeatable = new InputStreamEntity(
+                new ByteArrayInputStream("STREAMED-ONCE".getBytes(StandardCharsets.UTF_8)),
+                ContentType.TEXT_PLAIN);
+
+        int code = httpRequest.target(httpUri("/streamed")).rawPost((Object) nonRepeatable).getCode();
+
+        assertEquals(200, code, "the non-repeatable body must arrive on the wire intact");
+        assertNull(seen.get(), "raw HttpEntity payloads must never reach the payload log, got: " + seen.get());
+    }
+
+    static class Credentials {
+        public final String user;
+        public final String password;
+
+        Credentials(String user, String password) {
+            this.user = user;
+            this.password = password;
+        }
     }
 
     @Test

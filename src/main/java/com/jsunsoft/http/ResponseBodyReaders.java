@@ -36,20 +36,6 @@ import static org.apache.hc.core5.http.ContentType.*;
 class ResponseBodyReaders {
     private static final ResponseBodyReader<String> STRING_READER = new StringReader();
 
-    private static final ResponseBodyReader<String> WHEN_NON_SUCCESS_STRING_READER = new StringReader() {
-        @Override
-        public boolean isReadable(ResponseBodyReadableContext bodyReadableContext) {
-            return super.isReadable(bodyReadableContext) && bodyReadableContext.isNonSuccess();
-        }
-    };
-
-    private static final ResponseBodyReader<String> WHEN_SUCCESS_STRING_READER = new StringReader() {
-        @Override
-        public boolean isReadable(ResponseBodyReadableContext bodyReadableContext) {
-            return super.isReadable(bodyReadableContext) && bodyReadableContext.isSuccess();
-        }
-    };
-
     private static final ResponseBodyReader<byte[]> BYTE_READER = new ByteReader();
 
     private ResponseBodyReaders() {
@@ -57,14 +43,6 @@ class ResponseBodyReaders {
 
     static ResponseBodyReader<String> stringReader() {
         return STRING_READER;
-    }
-
-    static ResponseBodyReader<String> whenNonSuccessStringReader() {
-        return WHEN_NON_SUCCESS_STRING_READER;
-    }
-
-    static ResponseBodyReader<String> whenSuccessStringReader() {
-        return WHEN_SUCCESS_STRING_READER;
     }
 
     static ResponseBodyReader<byte[]> byteReader() {
@@ -90,7 +68,7 @@ class ResponseBodyReaders {
         @Override
         public String read(ResponseBodyReaderContext<String> bodyReaderContext) throws IOException {
 
-            long startTime = System.currentTimeMillis();
+            long startTime = System.nanoTime();
 
             ContentType contentType = bodyReaderContext.getContentType();
 
@@ -118,8 +96,6 @@ class ResponseBodyReaders {
                 LOGGER.warn("No content to read. Content length is: {}", bodyReaderContext.getContentLength());
                 return null;
             }
-
-            LOGGER.trace("Content is: {}", result);
 
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Executed response body as string. Time: {}, length of response body: {}", HttpRequestUtils.humanTime(startTime), result.length());
@@ -206,7 +182,7 @@ class ResponseBodyReaders {
 
         logger.debug("Starting deserialization to type: [{}]", type);
 
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
         JavaType javaType = objectMapper.constructType(type);
         T result;
         try {

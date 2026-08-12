@@ -275,3 +275,82 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   cap and the timeout) and `setResponseDrainTimeout(Duration)` (default 100 ms; must be positive). Both require the
   response body size cap and are rejected at
   `build()` without it. Uncapped behavior is unchanged (full consume on close).
+
+* **`ClientBuilder.setMaxPoolSizePerRoute` now actually caps the routes it names.** The cap was registered as a bare
+  `new HttpRoute(host)`, which never matched the runtime route shape the pool is keyed by: a portless `HttpHost` failed
+  `build()` with Apache's "Target port must not be negative", and an **https host's cap was silently ignored on every
+  HC5 version** (the registered route lacked the secure flag), as was any cap when a proxy was configured (missing proxy
+  hop). Registration now mirrors the runtime route planner: scheme-default port resolved, secure flag derived from the
+  scheme, configured proxy included. Caps under `useDefaultProxy()`
+  or a custom route planner remain build-time-unknowable and are documented as such.
+
+* **Pool-size setters validate their input (breaking for misconfigurations).**
+  `ClientBuilder.setMaxPoolSize` / `setDefaultMaxPoolSizePerRoute` / `setMaxPoolSizePerRoute`
+  now throw `IllegalArgumentException` for values `< 1` (and `NullPointerException` for a null host). Previously such
+  values were accepted and then silently ignored by Apache HC5's pool builder, which fell back to its internal defaults
+  (25 total / 5 per route) — a configured
+  `setMaxPoolSize(0)` quietly produced a 25-connection pool.
+* **No more spurious WARN for body-less non-success responses.** A typed request receiving an entity-less non-success
+  response (e.g. a 304 with redirect handling disabled — the default)
+  no longer attempts to read error text: readers are not consulted for a body that isn't there and `getErrorText()` is
+  `null`. The outcome is still traced — the "Unexpected Response …"
+  log line fires for every non-success response (WARN for 400, DEBUG otherwise), with or without a body. The related
+  "Can't find body reader … when http entity is null" log in
+  `readEntity` is demoted from WARN to DEBUG — returning `null` for an entity-less response is the documented contract,
+  not an anomaly.
+* **Verbose logging no longer leaks credentials or payloads (security).** With TRACE enabled on
+  `com.jsunsoft.http`, several log points printed secrets verbatim, bypassing the configured payload redactor. All are
+  closed: `HttpUriRequestBuilder.toString()` (the "Executing request: …" TRACE) masks `Authorization`,
+  `Proxy-Authorization`, `Cookie` and `Set-Cookie` header values as `<redacted>` and prints the entity's class instead
+  of its content; `ResponseHandler.toString()` (the "Executed result: …" TRACE) reports the content's presence/type and
+  a header count instead of dumping the body and every header value; the request-serialization and response-result
+  traces log types, not values; and the response reader's whole-body "Content is: …" TRACE is removed. Non-success error
+  text (the `getErrorText()` diagnostic channel) and request URIs/query parameters are still logged — don't put secrets
+  in query strings.
+* **`enableRequestPayloadLogging` now covers `Object` payloads.** The `post(Object)` / `rawRequest(method, Object)`
+  family — the main JSON path — previously never produced the redacted payload log; only the `String` overloads did. The
+  serialized wire form is now routed through the composed redactors, exactly like `String` payloads. A repeatable
+  serialized entity is read back for logging (briefly holding a second in-memory copy); a non-repeatable one is never
+  consumed — a placeholder is logged instead. Raw `HttpEntity` bodies remain excluded from payload logging (also when
+  passed through the `Object` overloads): an entity may be arbitrarily large or binary, and reading it back for a log
+  line could materialize it on the heap.
+* **SSRF guard covers the full IANA non-global address space (security).** `disallowPrivateAndLoopbackHosts()`
+  previously rejected only loopback / unspecified / link-local / RFC 1918 / IPv6 unique-local addresses — a request to
+  e.g. `100.64.0.1` (carrier-grade NAT space) sailed past the guard and attempted a real connection. The resolver now
+  also blocks `0.0.0.0/8`, CGNAT `100.64.0.0/10`, `192.0.0.0/24`, the TEST-NETs (`192.0.2.0/24`, `198.51.100.0/24`,
+  `203.0.113.0/24`), benchmarking `198.18.0.0/15`, reserved `240.0.0.0/4` (incl. broadcast), multicast, the NAT64
+  local-use prefix `64:ff9b:1::/48`, and IPv6 forms embedding an IPv4 address (NAT64 `64:ff9b::/96`,
+  IPv4-mapped/-compatible) when the embedded IPv4 is itself non-global — `64:ff9b::<public v4>` still resolves, so
+  legitimate NAT64 clients keep working. The allow-list predicate overload applies to the new ranges too. The javadoc
+  now documents the guard's limitations: a `setDnsResolver(...)` call inside a connection-manager customizer replaces
+  the guard, and with a proxy configured the proxy — not the guarded resolver — resolves the target host.
+* **`basicAuth(String, char[])` zeroes the password on every path (security).** The zeroing `finally` wrapped only the
+  final header registration: a username rejected for containing `':'` (or any encoding failure) returned with the
+  caller's password array — and every intermediate secret buffer — intact. The whole body now runs in `try/finally`; the
+  array and all intermediate copies are zeroed whether the method completes normally or throws. Only a `null`
+  password (NPE, nothing to zero) is exempt. Callers must not reuse the array after the call, even a failed one — which
+  the documented contract ("zeroed before this method returns") always implied.
+* **The SSRF guard can no longer be silently replaced by a customizer (breaking).** `disallowPrivateAndLoopbackHosts()`
+  used to install its guarded DNS resolver before the connection-manager customizers ran, so a `setDnsResolver(...)`
+  inside `addDefaultConnectionManagerBuilderCustomizer(...)` silently disabled the guard. The guard is now installed
+  after customizers and takes precedence: enabling it means resolution goes through the guarded system-default resolver,
+  full stop. Anyone who relied on a customizer-supplied resolver alongside the guard was running without SSRF protection
+  without knowing it — if specific internal endpoints must stay reachable, use the
+  `disallowPrivateAndLoopbackHosts(Predicate)` allow-list overload; a custom resolver combined with the guard is not
+  supported.
+* **`getDuration()` is now measured with the monotonic clock.** Request duration was computed from
+  `System.currentTimeMillis()`, so an NTP wall-clock step mid-request skewed it (even negative). The entire timing
+  path — request start stamp, `ResponseHandler.getDuration()`, and the elapsed-time debug logs — now uses
+  `System.nanoTime()`.
+* **Dead and unfulfillable API removed (breaking).** Removed the never-thrown `InvalidMimeTypeException` and the three
+  deprecated `ResponseBodyReader` statics (`stringReader()`, `whenNonSuccessStringReader()`,
+  `whenSuccessStringReader()`) together with the two readers only they exposed. `UnexpectedResponseException` is no
+  longer `@Deprecated`: it is the superclass of its two designated replacements (`UnexpectedStatusCodeException`,
+  `MissingResponseBodyException`), so the advertised removal could never happen — it is now documented as the permanent
+  base type; catch it to handle both.
+* **Documentation now matches behavior.** `getErrorText()` javadoc describes what is actually returned (non-success
+  body, failure exception messages, or both; `null` when none) instead of a stale "connection failed but server sent
+  useful data" description with a bogus `@throws UnsupportedOperationException`; `ifHasContent` documents
+  `NullPointerException` for a null consumer (what `ArgsCheck.notNull` actually throws); `removeHeader`'s
+  null-validation message names the right parameter; `WebTarget` javadoc typos fixed. The "Basic authentication is being
+  used" log is demoted from WARN to INFO — it fired unconditionally even for HTTPS-only clients.

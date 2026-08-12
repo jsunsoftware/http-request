@@ -59,15 +59,15 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         this(content, statusCode, originalStatusCode, headerGroup, errorText, errorCause, type, contentType, uri, BasicConnectionFailureType.NONE, startTime);
     }
 
-    BasicResponseHandler(T content, int statusCode, int originalStatusCode, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
-        this(content, statusCode, originalStatusCode, new HeaderGroup(), errorCause.getMessage(), errorCause, type, contentType, uri, connectionFailureType, startTime);
+    BasicResponseHandler(T content, int statusCode, int originalStatusCode, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTimeNanos) {
+        this(content, statusCode, originalStatusCode, new HeaderGroup(), errorCause.getMessage(), errorCause, type, contentType, uri, connectionFailureType, startTimeNanos);
     }
 
-    BasicResponseHandler(T content, int statusCode, int originalStatusCode, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
-        this(content, statusCode, originalStatusCode, new HeaderGroup(), errorText, errorCause, type, contentType, uri, connectionFailureType, startTime);
+    BasicResponseHandler(T content, int statusCode, int originalStatusCode, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTimeNanos) {
+        this(content, statusCode, originalStatusCode, new HeaderGroup(), errorText, errorCause, type, contentType, uri, connectionFailureType, startTimeNanos);
     }
 
-    private BasicResponseHandler(T content, int statusCode, int originalStatusCode, HeaderGroup headerGroup, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTime) {
+    private BasicResponseHandler(T content, int statusCode, int originalStatusCode, HeaderGroup headerGroup, String errorText, Exception errorCause, Type type, ContentType contentType, URI uri, ConnectionFailureType connectionFailureType, long startTimeNanos) {
         this.statusCode = statusCode;
         this.originalStatusCode = originalStatusCode;
         this.content = content;
@@ -78,7 +78,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         this.uri = ArgsCheck.notNull(uri, "uri");
         this.success = HttpRequestUtils.isSuccess(statusCode);
         this.connectionFailureType = ArgsCheck.notNull(connectionFailureType, "connectionFailureType");
-        this.duration = Duration.ofMillis(System.currentTimeMillis() - startTime);
+        this.duration = Duration.ofNanos(System.nanoTime() - startTimeNanos);
         this.errorCause = errorCause;
     }
 
@@ -296,8 +296,9 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
     }
 
     /**
-     * @return Returns error text (for non-success responses) if available; may be {@code null} if the server did not
-     * send an error body.
+     * @return Returns the error text — the non-success response body, the failure exception's
+     * message chain, or both combined; {@code null} when the request succeeded or no error
+     * detail is available.
      */
     @Override
     public String getErrorText() {
@@ -348,7 +349,7 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
      * If has a content, invoke the specified consumer with the content, otherwise do nothing.
      *
      * @param consumer block to be executed if has a content
-     * @throws IllegalArgumentException if {@code consumer} is null
+     * @throws NullPointerException if {@code consumer} is null
      */
     @Override
     public void ifHasContent(Consumer<? super T> consumer) {
@@ -438,18 +439,23 @@ final class BasicResponseHandler<T> implements ResponseHandler<T> {
         return connectionFailureType;
     }
 
+    /**
+     * Diagnostic summary. Deliberately does NOT dump the deserialized content or header values —
+     * handlers routinely end up in log statements (including the library's own TRACE line), and
+     * response bodies / {@code Set-Cookie} values are payload, not diagnostics.
+     */
     @Override
     public String toString() {
         return "ResponseHandler{" +
                 "statusCode=" + statusCode +
                 ", originalStatusCode=" + originalStatusCode +
-                ", content=" + content +
+                ", content=" + (content != null ? "<present: " + content.getClass().getSimpleName() + ">" : "null") +
                 ", errorText='" + getErrorText() + '\'' +
                 ", uri=" + uri +
                 ", connectionFailureType=" + connectionFailureType +
                 ", duration=" + duration +
                 ", contentType=" + contentType +
-                ", headerGroup=" + headerGroup +
+                ", headerCount=" + headerGroup.getHeaders().length +
                 '}';
     }
 
