@@ -314,3 +314,27 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   consumed — a placeholder is logged instead. Raw `HttpEntity` bodies remain excluded from payload logging (also when
   passed through the `Object` overloads): an entity may be arbitrarily large or binary, and reading it back for a log
   line could materialize it on the heap.
+* **SSRF guard covers the full IANA non-global address space (security).** `disallowPrivateAndLoopbackHosts()`
+  previously rejected only loopback / unspecified / link-local / RFC 1918 / IPv6 unique-local addresses — a request to
+  e.g. `100.64.0.1` (carrier-grade NAT space) sailed past the guard and attempted a real connection. The resolver now
+  also blocks `0.0.0.0/8`, CGNAT `100.64.0.0/10`, `192.0.0.0/24`, the TEST-NETs (`192.0.2.0/24`, `198.51.100.0/24`,
+  `203.0.113.0/24`), benchmarking `198.18.0.0/15`, reserved `240.0.0.0/4` (incl. broadcast), multicast, the NAT64
+  local-use prefix `64:ff9b:1::/48`, and IPv6 forms embedding an IPv4 address (NAT64 `64:ff9b::/96`,
+  IPv4-mapped/-compatible) when the embedded IPv4 is itself non-global — `64:ff9b::<public v4>` still resolves, so
+  legitimate NAT64 clients keep working. The allow-list predicate overload applies to the new ranges too. The javadoc
+  now documents the guard's limitations: a `setDnsResolver(...)` call inside a connection-manager customizer replaces
+  the guard, and with a proxy configured the proxy — not the guarded resolver — resolves the target host.
+* **`basicAuth(String, char[])` zeroes the password on every path (security).** The zeroing `finally` wrapped only the
+  final header registration: a username rejected for containing `':'` (or any encoding failure) returned with the
+  caller's password array — and every intermediate secret buffer — intact. The whole body now runs in `try/finally`; the
+  array and all intermediate copies are zeroed whether the method completes normally or throws. Only a `null`
+  password (NPE, nothing to zero) is exempt. Callers must not reuse the array after the call, even a failed one — which
+  the documented contract ("zeroed before this method returns") always implied.
+* **The SSRF guard can no longer be silently replaced by a customizer (breaking).** `disallowPrivateAndLoopbackHosts()`
+  used to install its guarded DNS resolver before the connection-manager customizers ran, so a `setDnsResolver(...)`
+  inside `addDefaultConnectionManagerBuilderCustomizer(...)` silently disabled the guard. The guard is now installed
+  after customizers and takes precedence: enabling it means resolution goes through the guarded system-default resolver,
+  full stop. Anyone who relied on a customizer-supplied resolver alongside the guard was running without SSRF protection
+  without knowing it — if specific internal endpoints must stay reachable, use the
+  `disallowPrivateAndLoopbackHosts(Predicate)` allow-list overload; a custom resolver combined with the guard is not
+  supported.

@@ -472,8 +472,11 @@ public class HttpRequestBuilder {
     /**
      * Adds preemptive HTTP Basic authentication using a {@code char[]} for the password.
      * <p>
-     * The supplied {@code password} array is zeroed before this method returns; the intermediate
-     * encoding buffers are also zeroed. The <em>final</em> {@code "Basic <base64>"} header value
+     * The supplied {@code password} array is zeroed before this method returns — whether it
+     * completes normally or throws (invalid username, encoding failure); the intermediate
+     * encoding buffers are also zeroed. The only exception: a {@code null} password throws
+     * {@link NullPointerException} with nothing to zero. Callers must therefore not reuse the
+     * array after the call, even a failed one. The <em>final</em> {@code "Basic <base64>"} header value
      * is, however, still stored as a {@link String} in this builder's default-header list for
      * the lifetime of the resulting {@code HttpRequest} — a {@link String} cannot be zeroed in
      * the JVM. So this overload reduces, but does not eliminate, the period during which the
@@ -491,40 +494,49 @@ public class HttpRequestBuilder {
      */
     @Beta
     public HttpRequestBuilder basicAuth(String username, char[] password) {
-        ArgsCheck.notNull(username, "username");
         ArgsCheck.notNull(password, "password");
-        if (username.contains(":")) {
-            throw new IllegalArgumentException("Username cannot contain ':' character when using basic authentication");
-        }
 
-        LOGGER.warn("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
-
-        byte[] userBytes = username.getBytes(StandardCharsets.UTF_8);
-        byte[] separator = ":".getBytes(StandardCharsets.UTF_8);
-
-        ByteBuffer passBuffer = StandardCharsets.UTF_8.encode(CharBuffer.wrap(password));
-        byte[] passBytes = new byte[passBuffer.remaining()];
-        passBuffer.get(passBytes);
-
-        byte[] combined = new byte[userBytes.length + separator.length + passBytes.length];
-        System.arraycopy(userBytes, 0, combined, 0, userBytes.length);
-        System.arraycopy(separator, 0, combined, userBytes.length, separator.length);
-        System.arraycopy(passBytes, 0, combined, userBytes.length + separator.length, passBytes.length);
-
-        byte[] encodedAuth = Base64.getEncoder().encode(combined);
-        String authHeader = "Basic " + new String(encodedAuth, StandardCharsets.UTF_8);
-
-        Arrays.fill(passBytes, (byte) 0);
-        Arrays.fill(combined, (byte) 0);
-        // Clean ByteBuffer content if possible, though it's backed by array often
-        if (passBuffer.hasArray()) {
-            Arrays.fill(passBuffer.array(), (byte) 0);
-        }
-
+        // Everything past the password null-check runs inside try/finally: whatever throws —
+        // argument validation, UTF-8 encoding, Base64 (OOM) — the caller's array and every
+        // intermediate copy of the secret are zeroed before this method returns.
+        ByteBuffer passBuffer = null;
+        byte[] passBytes = null;
+        byte[] combined = null;
         try {
+            ArgsCheck.notNull(username, "username");
+            if (username.contains(":")) {
+                throw new IllegalArgumentException("Username cannot contain ':' character when using basic authentication");
+            }
+
+            LOGGER.warn("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
+
+            byte[] userBytes = username.getBytes(StandardCharsets.UTF_8);
+            byte[] separator = ":".getBytes(StandardCharsets.UTF_8);
+
+            passBuffer = StandardCharsets.UTF_8.encode(CharBuffer.wrap(password));
+            passBytes = new byte[passBuffer.remaining()];
+            passBuffer.get(passBytes);
+
+            combined = new byte[userBytes.length + separator.length + passBytes.length];
+            System.arraycopy(userBytes, 0, combined, 0, userBytes.length);
+            System.arraycopy(separator, 0, combined, userBytes.length, separator.length);
+            System.arraycopy(passBytes, 0, combined, userBytes.length + separator.length, passBytes.length);
+
+            byte[] encodedAuth = Base64.getEncoder().encode(combined);
+            String authHeader = "Basic " + new String(encodedAuth, StandardCharsets.UTF_8);
+
             return addDefaultHeader(AUTHORIZATION, authHeader);
         } finally {
             Arrays.fill(password, '\0');
+            if (passBytes != null) {
+                Arrays.fill(passBytes, (byte) 0);
+            }
+            if (combined != null) {
+                Arrays.fill(combined, (byte) 0);
+            }
+            if (passBuffer != null && passBuffer.hasArray()) {
+                Arrays.fill(passBuffer.array(), (byte) 0);
+            }
         }
     }
 
