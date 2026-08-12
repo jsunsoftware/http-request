@@ -25,8 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Type;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.*;
 
 class HttpRequestUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpRequestUtils.class);
@@ -36,13 +35,11 @@ class HttpRequestUtils {
     }
 
     /**
-     * Deliberately not commons-lang3's {@code DurationFormatUtils.formatDuration}: that method
-     * throws {@code IllegalArgumentException} for negative durations, while a wall-clock
-     * step-back mid-request (NTP) makes the difference here legitimately negative — a log
-     * helper must render that gracefully, not throw.
+     * Elapsed time since {@code startTimeNanos} (a {@link System#nanoTime()} stamp — monotonic,
+     * immune to wall-clock adjustments), rendered for log lines.
      */
-    static String humanTime(long startTime) {
-        long difference = System.currentTimeMillis() - startTime;
+    static String humanTime(long startTimeNanos) {
+        long difference = NANOSECONDS.toMillis(System.nanoTime() - startTimeNanos);
         long seconds = MILLISECONDS.toSeconds(difference);
         return "%d sec, %d millis".formatted(seconds, difference - SECONDS.toMillis(seconds));
     }

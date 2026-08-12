@@ -338,3 +338,19 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   without knowing it — if specific internal endpoints must stay reachable, use the
   `disallowPrivateAndLoopbackHosts(Predicate)` allow-list overload; a custom resolver combined with the guard is not
   supported.
+* **`getDuration()` is now measured with the monotonic clock.** Request duration was computed from
+  `System.currentTimeMillis()`, so an NTP wall-clock step mid-request skewed it (even negative). The entire timing
+  path — request start stamp, `ResponseHandler.getDuration()`, and the elapsed-time debug logs — now uses
+  `System.nanoTime()`.
+* **Dead and unfulfillable API removed (breaking).** Removed the never-thrown `InvalidMimeTypeException` and the three
+  deprecated `ResponseBodyReader` statics (`stringReader()`, `whenNonSuccessStringReader()`,
+  `whenSuccessStringReader()`) together with the two readers only they exposed. `UnexpectedResponseException` is no
+  longer `@Deprecated`: it is the superclass of its two designated replacements (`UnexpectedStatusCodeException`,
+  `MissingResponseBodyException`), so the advertised removal could never happen — it is now documented as the permanent
+  base type; catch it to handle both.
+* **Documentation now matches behavior.** `getErrorText()` javadoc describes what is actually returned (non-success
+  body, failure exception messages, or both; `null` when none) instead of a stale "connection failed but server sent
+  useful data" description with a bogus `@throws UnsupportedOperationException`; `ifHasContent` documents
+  `NullPointerException` for a null consumer (what `ArgsCheck.notNull` actually throws); `removeHeader`'s
+  null-validation message names the right parameter; `WebTarget` javadoc typos fixed. The "Basic authentication is being
+  used" log is demoted from WARN to INFO — it fired unconditionally even for HTTPS-only clients.

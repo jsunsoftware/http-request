@@ -258,7 +258,7 @@ class BasicWebTarget implements WebTarget {
     public <T> ResponseHandler<T> request(HttpMethod method, TypeReference<T> typeReference) {
         CustomArgsCheck.checkIsCorrectTypeForDeserialization(typeReference.getRawType());
 
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
 
         ResponseHandler<T> result;
 
@@ -410,7 +410,7 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public WebTarget removeHeader(Header header) {
-        ArgsCheck.notNull(header, "method");
+        ArgsCheck.notNull(header, "header");
 
         httpUriRequestBuilder.removeHeader(header);
         return this;

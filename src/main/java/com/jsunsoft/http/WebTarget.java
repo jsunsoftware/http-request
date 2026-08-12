@@ -134,7 +134,7 @@ public interface WebTarget {
      *
      * @param method       the http method.
      * @param httpEntity   httpEntity
-     * @param responseType representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          response entity type.
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
@@ -164,7 +164,7 @@ public interface WebTarget {
      * Invoke an arbitrary method for the current request.
      *
      * @param method       the http method.
-     * @param responseType epresentation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType representation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          response entity type.
      * @return the ResponseHandler instance to the request and pass converted response in ResponseHandler instance.
      * or handled automatically depends on the implementation and configuration of this client.
@@ -178,7 +178,7 @@ public interface WebTarget {
     /**
      * Invoke an arbitrary method for the current request.
      * <p>
-     * Mainly designed to use in case when response body aren't interested.
+     * Mainly designed for the case when the response body is not of interest.
      * </p>
      * Any attempt to get content from {@code ResponseHandler} will be thrown exception
      *
@@ -197,7 +197,7 @@ public interface WebTarget {
     /**
      * Invoke an arbitrary method for the current request.
      * <p>
-     * Mainly designed to use in case when response body aren't interested.
+     * Mainly designed for the case when the response body is not of interest.
      * </p>
      * Any attempt to get content from {@code ResponseHandler} will be thrown exception
      *
@@ -217,7 +217,7 @@ public interface WebTarget {
     /**
      * Invoke an arbitrary method for the current request.
      * <p>
-     * Mainly designed to use in case when response body aren't interested.
+     * Mainly designed for the case when the response body is not of interest.
      * </p>
      * Any attempt to get content from {@code ResponseHandler} will be thrown exception
      *
@@ -237,7 +237,7 @@ public interface WebTarget {
     /**
      * Invoke an arbitrary method for the current request with serializing body depends on a Content-type.
      * <p>
-     * Mainly designed to use in case when response body aren't interested.
+     * Mainly designed for the case when the response body is not of interest.
      * </p>
      * Any attempt to get content from {@code ResponseHandler} will be thrown exception
      *
@@ -270,7 +270,7 @@ public interface WebTarget {
     WebTarget removeHeaders(final String name);
 
     /**
-     * Replaces the first occurence of the header with the same name. If no header with
+     * Replaces the first occurrence of the header with the same name. If no header with
      * the same name is found the given header is added to the end of the list.
      *
      * @param header the new header that should replace the first header with the same
@@ -367,7 +367,7 @@ public interface WebTarget {
      *
      * @param method       the http method.
      * @param payload      payload
-     * @param responseType representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          response entity type
      * @return ResponseHandler instance
      */
@@ -378,7 +378,7 @@ public interface WebTarget {
      *
      * @param method       the http method.
      * @param body         payload
-     * @param responseType representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          response entity type
      * @return ResponseHandler instance
      */
@@ -434,7 +434,7 @@ public interface WebTarget {
     }
 
     /**
-     * Replaces the first occurence of the header with the same name by the value. If no header with
+     * Replaces the first occurrence of the header with the same name by the value. If no header with
      * the same name is found the given header is added to the end of the list.
      *
      * @param name  name of header. Can't be null
@@ -682,7 +682,7 @@ public interface WebTarget {
      * Invoke HTTP GET method for the current request and return a ResponseHandler instance.
      *
      * @param <T>          the response entity type.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, TypeReference)
      */
@@ -773,7 +773,7 @@ public interface WebTarget {
      * Invoke HTTP PUT method for the current request with the given HttpEntity and response type.
      *
      * @param httpEntity   the HttpEntity to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, HttpEntity, TypeReference)
@@ -812,7 +812,7 @@ public interface WebTarget {
      * Invoke HTTP PUT method for the current request with the given payload and response type.
      *
      * @param payload      the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, String, TypeReference)
@@ -825,7 +825,7 @@ public interface WebTarget {
      * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
      *
      * @param body         the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, Object, TypeReference)
@@ -872,7 +872,7 @@ public interface WebTarget {
      * Invoke HTTP PUT method for the current request and return a ResponseHandler instance.
      *
      * @param <T>          the response entity type.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, TypeReference)
      */
@@ -963,7 +963,7 @@ public interface WebTarget {
      * Invoke HTTP POST method for the current request with the given HttpEntity and response type.
      *
      * @param httpEntity   the HttpEntity to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, HttpEntity, TypeReference)
@@ -1002,7 +1002,7 @@ public interface WebTarget {
      * Invoke HTTP POST method for the current request with the given payload and response type.
      *
      * @param payload      the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, String, TypeReference)
@@ -1015,7 +1015,7 @@ public interface WebTarget {
      * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
      *
      * @param body         the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, Object, TypeReference)
@@ -1062,7 +1062,7 @@ public interface WebTarget {
      * Invoke HTTP POST method for the current request and return a ResponseHandler instance.
      *
      * @param <T>          the response entity type.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, TypeReference)
      */
@@ -1175,7 +1175,7 @@ public interface WebTarget {
      * Invoke HTTP DELETE method for the current request with the given HttpEntity and response type.
      *
      * @param httpEntity   the HttpEntity to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, HttpEntity, TypeReference)
@@ -1214,7 +1214,7 @@ public interface WebTarget {
      * Invoke HTTP DELETE method for the current request with the given payload and response type.
      *
      * @param payload      the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, String, TypeReference)
@@ -1227,7 +1227,7 @@ public interface WebTarget {
      * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
      *
      * @param body         the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, Object, TypeReference)
@@ -1274,7 +1274,7 @@ public interface WebTarget {
      * Invoke HTTP DELETE method for the current request and return a ResponseHandler instance.
      *
      * @param <T>          the response entity type.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, TypeReference)
      */
@@ -1365,7 +1365,7 @@ public interface WebTarget {
      * Invoke HTTP OPTIONS method for the current request with the given HttpEntity and response type.
      *
      * @param httpEntity   the HttpEntity to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, HttpEntity, TypeReference)
@@ -1404,7 +1404,7 @@ public interface WebTarget {
      * Invoke HTTP OPTIONS method for the current request with the given payload and response type.
      *
      * @param payload      the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, String, TypeReference)
@@ -1417,7 +1417,7 @@ public interface WebTarget {
      * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
      *
      * @param body         the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, Object, TypeReference)
@@ -1464,7 +1464,7 @@ public interface WebTarget {
      * Invoke HTTP OPTIONS method for the current request and return a ResponseHandler instance.
      *
      * @param <T>          the response entity type.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, TypeReference)
      */
@@ -1555,7 +1555,7 @@ public interface WebTarget {
      * Invoke HTTP PATCH method for the current request with the given HttpEntity and response type.
      *
      * @param httpEntity   the HttpEntity to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, HttpEntity, TypeReference)
@@ -1594,7 +1594,7 @@ public interface WebTarget {
      * Invoke HTTP PATCH method for the current request with the given payload and response type.
      *
      * @param payload      the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, String, TypeReference)
@@ -1607,7 +1607,7 @@ public interface WebTarget {
      * The same as {@link #request(HttpMethod, String, TypeReference)} with serializing body depends on a Content-type into String {@code payload}
      *
      * @param body         the payload to be sent with the request.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, Object, TypeReference)
@@ -1654,7 +1654,7 @@ public interface WebTarget {
      * Invoke HTTP PATCH method for the current request and return a ResponseHandler instance.
      *
      * @param <T>          the response entity type.
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @return the ResponseHandler instance to the request.
      * @see #request(HttpMethod, TypeReference)
      */
@@ -1699,7 +1699,7 @@ public interface WebTarget {
     /**
      * Invoke HTTP TRACE method for the current request
      *
-     * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
+     * @param responseType the rrepresentation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
      * @see #rawRequest(HttpMethod, String)

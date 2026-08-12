@@ -370,7 +370,7 @@ public class HttpRequestBuilder {
      * @return the current instance of HttpRequestBuilder
      */
     public HttpRequestBuilder addRequestDefaultDateSerializationPattern(Class<?> dateType, String pattern) {
-        requestBodySerializeConfigBuilder.addDateDeserializationPattern(dateType, pattern);
+        requestBodySerializeConfigBuilder.addDateSerializationPattern(dateType, pattern);
         return this;
     }
 
@@ -461,7 +461,7 @@ public class HttpRequestBuilder {
             throw new IllegalArgumentException("Username cannot contain ':' character when using basic authentication");
         }
 
-        LOGGER.warn("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
+        LOGGER.info("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
 
         String auth = username + ":" + password;
         byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(StandardCharsets.UTF_8));
@@ -508,7 +508,7 @@ public class HttpRequestBuilder {
                 throw new IllegalArgumentException("Username cannot contain ':' character when using basic authentication");
             }
 
-            LOGGER.warn("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
+            LOGGER.info("Basic authentication is being used. Ensure HTTPS is used to protect credentials in transit.");
 
             byte[] userBytes = username.getBytes(StandardCharsets.UTF_8);
             byte[] separator = ":".getBytes(StandardCharsets.UTF_8);
