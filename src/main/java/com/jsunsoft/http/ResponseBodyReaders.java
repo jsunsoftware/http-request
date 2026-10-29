@@ -16,14 +16,13 @@
 
 package com.jsunsoft.http;
 
-import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.io.input.ProxyInputStream;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.core.JacksonException;
-import tools.jackson.core.exc.JacksonIOException;
 import tools.jackson.databind.JavaType;
 import tools.jackson.databind.ObjectMapper;
 
@@ -184,24 +183,23 @@ class ResponseBodyReaders {
 
         long startTime = System.nanoTime();
         JavaType javaType = objectMapper.constructType(type);
+        FailureRecordingInputStream source = new FailureRecordingInputStream(inputStreamToDeserialize);
         T result;
         try {
-            result = objectMapper.readValue(inputStreamToDeserialize, javaType);
-        } catch (JacksonIOException e) {
-            // Jackson 3 wraps stream-side IO failures in an unchecked JacksonIOException, including
-            // our own InvalidContentLengthException (extends ResponseBodyReaderException extends
-            // IOException). Recover the original IOException from anywhere in the cause chain so
-            // the downstream handler in BasicWebTarget routes by runtime type — an
-            // InvalidContentLengthException naturally takes the ResponseBodyReaderException branch
-            // and is reported as 502 BAD_GATEWAY, while a plain transport IOException is reported
-            // as 503 SERVICE_UNAVAILABLE. ExceptionUtils handles cycle detection and the (rare)
-            // double-wrapped case for us.
-            IOException unwrapped = ExceptionUtils.throwableOfType(e, IOException.class);
-            if (unwrapped != null) {
-                throw unwrapped;
-            }
-            throw new IOException("Deserialization stream error: " + e.getMessage(), e);
+            result = objectMapper.readValue(source, javaType);
         } catch (JacksonException e) {
+            // Route by where the failure happened, not by how Jackson wrapped it: JSON wraps a
+            // failing source in JacksonIOException but XML in a plain StreamReadException (re-rooted
+            // at the original cause, so a tagging wrapper would be lost), and JacksonIOException
+            // also carries decoding errors of Jackson's own readers (e.g. CharConversionException
+            // for invalid UTF-32). Rethrowing the source's own exception lets BasicWebTarget route by
+            // runtime type — a transport IOException as 503 SERVICE_UNAVAILABLE, our
+            // InvalidContentLengthException (a ResponseBodyReaderException) as 502 BAD_GATEWAY with
+            // its type intact. Anything else means the payload itself is unusable: 502.
+            IOException sourceFailure = source.getFailure();
+            if (sourceFailure != null) {
+                throw sourceFailure;
+            }
             throw new ResponseBodyReaderException("Deserialization failed: " + e.getMessage(), e);
         }
 
@@ -210,5 +208,37 @@ class ResponseBodyReaders {
         }
 
         return result;
+    }
+
+    /**
+     * Remembers the first {@link IOException} thrown while reading the wrapped stream.
+     */
+    private static final class FailureRecordingInputStream extends ProxyInputStream {
+        private IOException failure;
+        private boolean closing;
+
+        FailureRecordingInputStream(InputStream source) {
+            super(source);
+        }
+
+        IOException getFailure() {
+            return failure;
+        }
+
+        @Override
+        protected void handleIOException(IOException e) throws IOException {
+            if (failure == null && !closing) {
+                failure = e;
+            }
+            throw e;
+        }
+
+        @Override
+        public void close() throws IOException {
+            // Jackson closes its source after a failed parse too (AUTO_CLOSE_SOURCE): a failure
+            // disposing of the rest is not why the parse failed, so it isn't recorded.
+            closing = true;
+            super.close();
+        }
     }
 }

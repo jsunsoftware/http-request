@@ -65,6 +65,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -400,6 +401,14 @@ public class ClientBuilder {
     }
 
     /**
+     * Follows redirects with Apache HC5's {@link DefaultRedirectStrategy}.
+     * <p>
+     * A redirect to a different origin (scheme, host or port) is not followed when the request
+     * carries {@code Authorization}, {@code Cookie} or a header flagged
+     * {@linkplain Header#isSensitive() sensitive} — e.g. after
+     * {@link HttpRequestBuilder#basicAuth(String, String)}; the 3xx response is returned instead.
+     * Default headers of this builder are not covered (see {@link #addDefaultHeader(Header)}).
+     *
      * @return ClientBuilder instance
      * @see org.apache.hc.client5.http.impl.DefaultRedirectStrategy
      */
@@ -422,6 +431,8 @@ public class ClientBuilder {
 
     /**
      * Header needs to be the same for all requests which go through the built CloseableHttpClient
+     * <p>
+     * See {@link #addDefaultHeader(Header)} before adding credentials.
      *
      * @param name  name of header. Can't be null
      * @param value value of header
@@ -435,6 +446,12 @@ public class ClientBuilder {
 
     /**
      * Header needs to be the same for all requests which go through the built CloseableHttpClient
+     * <p>
+     * Default headers are sent with every request, including every redirect hop — also to a
+     * different host, because Apache HC5 adds them after its redirect check. Keep credentials out
+     * of them: set them per request (e.g. {@link HttpRequestBuilder#basicAuth(String, String)}),
+     * which HC5's {@link DefaultRedirectStrategy} doesn't carry to another origin, or use HC5's own
+     * authentication (a {@code CredentialsProvider} via {@link #addHttpClientCustomizer(Consumer)}).
      *
      * @param header header instance. Can't be null
      * @return ClientBuilder instance
@@ -935,7 +952,9 @@ public class ClientBuilder {
         }
 
         if (defaultHeaders != null && !defaultHeaders.isEmpty()) {
-            clientBuilder.setDefaultHeaders(defaultHeaders);
+            // A snapshot: HC5 keeps the list it is given, so handing over the builder's own list
+            // would let a later addDefaultHeader(...) reach clients already built.
+            clientBuilder.setDefaultHeaders(List.copyOf(defaultHeaders));
         }
 
         if (redirectStrategy == null) {

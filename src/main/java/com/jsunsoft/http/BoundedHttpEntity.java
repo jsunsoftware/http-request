@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import org.apache.commons.io.input.AutoCloseInputStream;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.HttpEntityWrapper;
@@ -84,6 +85,11 @@ final class BoundedHttpEntity extends HttpEntityWrapper {
      * size {@code > maxSize} throw. <b>Do not "simplify" this to {@code setMaxCount(maxSize)}</b>
      * — that would reject responses the contract says are acceptable. The boundary is regression-
      * tested in {@code SizeLimitTest}.
+     * <p>
+     * <b>Closing the returned stream leaves the unread remainder in place.</b> It does not close
+     * the underlying response stream: {@link Response#close()} disposes of the remainder under
+     * its drain bounds. Reading the body to its end closes the underlying stream, releasing the
+     * connection.
      */
     @Override
     public InputStream getContent() throws IOException {
@@ -94,13 +100,21 @@ final class BoundedHttpEntity extends HttpEntityWrapper {
         }
         if (boundedContent == null) {
             boundedContent = BoundedInputStream.builder()
-                    .setInputStream(super.getContent())
+                    // Closes the response stream once its end is read, releasing the connection
+                    // even though closing this stream doesn't (below). HC5 releases a plain body at
+                    // EOF by itself, but not a decompressed one: its decoder stops at the end of the
+                    // compressed data without reading the raw stream's EOF.
+                    .setInputStream(AutoCloseInputStream.builder().setInputStream(super.getContent()).get())
                     .setMaxCount(maxSize + 1L)
                     .setOnMaxCount((max, count) -> {
                         throw new InvalidContentLengthException(count,
                                 "Response body exceeds maximum allowed size: " + maxSize + " bytes");
                     })
-                    .setPropagateClose(true)
+                    // Readers close this stream when they stop — EntityUtils in a finally block,
+                    // Jackson via AUTO_CLOSE_SOURCE, writeTo below. Propagating that close makes
+                    // Apache HC5 drain the raw remainder beneath this bound, so a cap violation or
+                    // a failed parse would still read an arbitrarily large or slow body to its end.
+                    .setPropagateClose(false)
                     .get();
         }
         return boundedContent;
