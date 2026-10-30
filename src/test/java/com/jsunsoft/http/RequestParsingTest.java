@@ -177,6 +177,17 @@ class RequestParsingTest {
         // ContentType.parse(...) is permissive, but since it's not JSON/XML the library can't pick a serializer.
         assertThrows(RequestException.class, () -> target.rawRequest(HttpMethod.POST, new Object()));
     }
+
+    @Test
+    void traceRequest_withBody_throwsIllegalStateException() {
+        HttpRequest httpRequest = HttpRequestBuilder.create(new ClientBuilder().build()).build();
+
+        // TRACE may not carry a body — a programming error, reported like Apache HC5's
+        // ClassicRequestBuilder does, while building the request and before any network I/O.
+        WebTarget target = httpRequest.target("http://localhost:1/does-not-matter");
+
+        assertThrows(IllegalStateException.class, () -> target.rawRequest(HttpMethod.TRACE, "body"));
+    }
 }
 
 

@@ -1668,6 +1668,7 @@ public interface WebTarget {
      * @return the response to the request.
      *
      * <p><b>Note:</b> caller must close the returned {@link Response}.
+     * @throws IllegalStateException if the target carries a request body — TRACE requests may not include one
      * @see #request(HttpMethod)
      */
     default Response trace() {
@@ -1678,6 +1679,7 @@ public interface WebTarget {
      * Invoke HTTP TRACE method for the current request
      *
      * @return the ResponseHandler instance to the request.
+     * @throws IllegalStateException if the target carries a request body — TRACE requests may not include one
      * @see #rawRequest(HttpMethod)
      */
     default ResponseHandler<?> rawTrace() {
@@ -1690,6 +1692,7 @@ public interface WebTarget {
      * @param responseType the Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
+     * @throws IllegalStateException if the target carries a request body — TRACE requests may not include one
      * @see #rawRequest(HttpMethod, HttpEntity)
      */
     default <T> ResponseHandler<T> trace(Class<T> responseType) {
@@ -1702,6 +1705,7 @@ public interface WebTarget {
      * @param responseType the representation of a TypeReference Java type the response entity will be converted to.
      * @param <T>          the response entity type.
      * @return the ResponseHandler instance to the request.
+     * @throws IllegalStateException if the target carries a request body — TRACE requests may not include one
      * @see #rawRequest(HttpMethod, String)
      */
     default <T> ResponseHandler<T> trace(TypeReference<T> responseType) {

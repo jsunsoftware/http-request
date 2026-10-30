@@ -344,16 +344,19 @@ System.out.println("Request took: "+duration.toMillis() +"ms");
 
 // Status codes: mapped vs original (ResponseHandler only)
 int code = handler.getCode(); // May be mapped for failures (e.g., 503/502)
-int originalCode = handler.getOriginalCode(); // -1 if no response was received
+int originalCode = handler.getOriginalCode(); // same as getCode() if no response was received
 ```
 
 ### Error Handling
 
 The library wraps exceptions and provides convenient ways to handle errors.
 
-- **Connection failures** → `RequestException` (often with status code 503)
+- **Connection failures** → `ResponseException` (often with status code 503)
 - **Deserialization failures** → `ResponseBodyProcessingException` (often with status code 502)
 - **Non-2xx status codes** → `UnexpectedStatusCodeException`
+- **Interrupted calls** — the calling thread was interrupted, e.g. while waiting for a pooled connection, between
+  retries, or (on a virtual thread) while reading the response body → `RequestException`; the thread's interrupt flag
+  stays set
 
 ```java
 try{
