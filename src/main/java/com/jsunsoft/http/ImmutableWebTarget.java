@@ -46,6 +46,8 @@ class ImmutableWebTarget extends BasicWebTarget {
 
     @Override
     public WebTarget path(String path) {
+        ArgsCheck.notNull(path, "path");
+
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 HttpRequestUtils.appendPath(getUriBuilder(), path),
@@ -60,6 +62,8 @@ class ImmutableWebTarget extends BasicWebTarget {
 
     @Override
     public WebTarget setPath(String path) {
+        ArgsCheck.notNull(path, "path");
+
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder().setPath(path),
@@ -74,6 +78,8 @@ class ImmutableWebTarget extends BasicWebTarget {
 
     @Override
     public WebTarget removeHeader(Header header) {
+        ArgsCheck.notNull(header, "header");
+
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder(),
@@ -88,6 +94,8 @@ class ImmutableWebTarget extends BasicWebTarget {
 
     @Override
     public WebTarget removeHeaders(String name) {
+        ArgsCheck.notNull(name, "name");
+
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder(),
@@ -102,6 +110,8 @@ class ImmutableWebTarget extends BasicWebTarget {
 
     @Override
     public WebTarget updateHeader(Header header) {
+        ArgsCheck.notNull(header, "header");
+
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder(),
@@ -116,6 +126,8 @@ class ImmutableWebTarget extends BasicWebTarget {
 
     @Override
     public WebTarget addHeader(Header header) {
+        ArgsCheck.notNull(header, "header");
+
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder(),
@@ -130,15 +142,16 @@ class ImmutableWebTarget extends BasicWebTarget {
 
     @Override
     public WebTarget setCharset(Charset charset) {
+        Charset effectiveCharset = charset != null ? charset : StandardCharsets.UTF_8;
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder(),
-                getHttpUriRequestBuilder().setCharset(charset),
+                getHttpUriRequestBuilder().setCharset(effectiveCharset),
                 getResponseBodyReaderConfig(),
                 getRequestBodySerializeConfig(),
                 isRequestPayloadLogging(),
                 getPayloadRedactor(),
-                charset != null ? charset : StandardCharsets.UTF_8
+                effectiveCharset
         );
     }
 
@@ -147,7 +160,7 @@ class ImmutableWebTarget extends BasicWebTarget {
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder(),
-                getHttpUriRequestBuilder().setCharset(charset),
+                getHttpUriRequestBuilder().setCharset(charset != null ? charset : StandardCharsets.UTF_8),
                 getResponseBodyReaderConfig(),
                 getRequestBodySerializeConfig(),
                 isRequestPayloadLogging(),
@@ -186,6 +199,8 @@ class ImmutableWebTarget extends BasicWebTarget {
 
     @Override
     public WebTarget addParameter(NameValuePair nameValuePair) {
+        ArgsCheck.notNull(nameValuePair, "nameValuePair");
+
         return new ImmutableWebTarget(
                 getCloseableHttpClient(),
                 getUriBuilder(),

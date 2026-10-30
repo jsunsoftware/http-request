@@ -87,6 +87,9 @@ public interface RetryContext {
      * header when it carries an integer number of seconds, otherwise falls back to 5 seconds.
      * RFC 7231 also allows {@code Retry-After} to carry an HTTP-date — the date form is not
      * parsed by the default; override this method if you need to honor it.
+     * <p>
+     * If the thread is interrupted while waiting, retrying stops: the interrupt flag is restored
+     * and a {@link RequestException} is thrown.
      *
      * @param attempt describes the attempt that just completed
      * @return the delay before the next attempt

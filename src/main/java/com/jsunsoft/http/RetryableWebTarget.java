@@ -82,8 +82,10 @@ class RetryableWebTarget extends BasicWebTarget {
             }
             completed = true;
         } catch (InterruptedException e) {
+            // The caller cancelled its own work: nothing failed on the server or the network, so
+            // no ResponseException with a synthetic status.
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("Thread was interrupted.", e);
+            throw new RequestException("Interrupted while waiting to retry", e);
         } finally {
             // RetryContext callbacks are user code — whatever aborts the loop, the live response
             // must be closed before propagating: the caller can never reach it once we throw.
