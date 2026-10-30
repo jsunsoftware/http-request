@@ -167,6 +167,24 @@ class SizeLimitTest {
     }
 
     @Test
+    void throwsExceptionWhenXmlResponseExceedsLimit() {
+        // XML parity with the JSON case above: Woodstox reports the cap-enforcing stream's failure
+        // wrapped in a plain StreamReadException rather than JacksonIOException, so the cause must
+        // still be the InvalidContentLengthException itself, not a deserialization failure.
+        String oversizedXml = "<DummyData><data>" + "a".repeat(2048) + "</data></DummyData>";
+        server.stubFor(get(urlEqualTo("/large-xml"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/xml").withBody(oversizedXml)));
+
+        ResponseException exception = assertThrows(ResponseException.class, () ->
+                httpRequest.target(httpUri("/large-xml")).get(DummyData.class).orElseThrow()
+        );
+
+        assertNotNull(exception.getCause(), "Exception cause should not be null");
+        assertTrue(exception.getCause() instanceof InvalidContentLengthException,
+                "Expected cause to be InvalidContentLengthException, but was: " + exception.getCause().getClass().getName());
+    }
+
+    @Test
     void malformedJsonResponseRoutesTo502_andCauseIsResponseBodyReaderException() {
         // Pins the Jackson 3 migration semantic correction: parse / mapping failures must surface
         // as a ResponseBodyReaderException — i.e. the same 502 BAD_GATEWAY bucket as the

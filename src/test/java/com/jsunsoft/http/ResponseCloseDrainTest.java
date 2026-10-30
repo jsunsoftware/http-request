@@ -48,8 +48,20 @@ class ResponseCloseDrainTest {
             .options(WireMockConfiguration.wireMockConfig().dynamicPort())
             .build();
 
+    // Without gzip on purpose: a compressed body shrinks to a few bytes that the dribble then
+    // spreads over the whole delay, so the read itself would wait out the slow chunks and mask
+    // whether a close drains the remainder.
+    @RegisterExtension
+    static WireMockExtension identityWm = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().dynamicPort().gzipDisabled(true))
+            .build();
+
     private String uri(String path) {
         return wm.getRuntimeInfo().getHttpBaseUrl() + path;
+    }
+
+    private String identityUri(String path) {
+        return identityWm.getRuntimeInfo().getHttpBaseUrl() + path;
     }
 
     private static long available(ClientBuilder.HttpClientWithResourcesWrapper resources) {
@@ -325,5 +337,110 @@ class ResponseCloseDrainTest {
             assertEquals(0, available(resources),
                     "a remainder beyond the drain allowance must not be read further — the connection is discarded");
         }
+    }
+
+    @Test
+    void failedDeserialization_slowRemainder_isAbandonedAtDeadline() throws IOException {
+        // Jackson closes its source when the parse fails. That close must not drain the slow
+        // remainder (~3 s) behind the drain bounds' back — Response#close() abandons it at the
+        // ~100 ms deadline instead.
+        identityWm.stubFor(get(urlEqualTo("/bad-json-slow"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{this-is-not-valid-json" + " ".repeat(16 * 1024))
+                        .withChunkedDribbleDelay(20, 3000)));
+
+        try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create().buildWithResources()) {
+            HttpRequest httpRequest = HttpRequestBuilder.create(resources.getClient())
+                    .setMaxResponseBodySizeBytes(1024 * 1024)
+                    .build();
+
+            long start = System.nanoTime();
+            ResponseHandler<DummyData> rh = httpRequest.target(identityUri("/bad-json-slow")).get(DummyData.class);
+            long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+
+            assertEquals(502, rh.getCode());
+            assertTrue(millis < 1500,
+                    "a failed parse must not wait out the slow remainder, took " + millis + " ms");
+            assertEquals(0, available(resources),
+                    "the abandoned remainder must leave the connection discarded, not reused");
+        }
+    }
+
+    @Test
+    void bodyOverCap_slowRemainder_isNotReadToTheEnd() throws IOException {
+        // The String reader closes the stream when the cap trips; that close must not read the
+        // rest of the oversized body (16 KiB over ~3 s against a 1 KiB cap).
+        identityWm.stubFor(get(urlEqualTo("/over-cap-slow"))
+                .willReturn(aResponse().withStatus(200)
+                        .withBody("x".repeat(16 * 1024))
+                        .withChunkedDribbleDelay(20, 3000)));
+
+        try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create().buildWithResources()) {
+            HttpRequest httpRequest = HttpRequestBuilder.create(resources.getClient())
+                    .setMaxResponseBodySizeBytes(1024)
+                    .build();
+
+            long start = System.nanoTime();
+            ResponseHandler<String> rh = httpRequest.target(identityUri("/over-cap-slow")).get(String.class);
+            long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+
+            ResponseException exception = assertThrows(ResponseException.class, rh::orElseThrow);
+            assertInstanceOf(InvalidContentLengthException.class, exception.getCause());
+            assertTrue(millis < 1500,
+                    "the cap must stop reading the oversized body, took " + millis + " ms");
+            assertEquals(0, available(resources),
+                    "an over-cap body must leave the connection discarded, not reused");
+        }
+    }
+
+    @Test
+    void fullyReadCompressedJson_releasesConnectionBeforeClose() throws IOException {
+        // WireMock gzips this body. HC5's decoder stops at the end of the compressed data without
+        // reading the raw stream's EOF, so reaching the end of the decoded body must release the
+        // connection by itself — a caller that never closes the Response must not hold it.
+        wm.stubFor(get(urlEqualTo("/gzip-json"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"data\":\"" + "x".repeat(4096) + "\"}")));
+
+        for (long cap : new long[]{0, 1024 * 1024}) {
+            try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create().buildWithResources()) {
+                HttpRequestBuilder builder = HttpRequestBuilder.create(resources.getClient());
+                if (cap > 0) {
+                    builder.setMaxResponseBodySizeBytes(cap);
+                }
+                Response response = builder.build().target(uri("/gzip-json")).get();
+
+                assertEquals(4096, response.readEntity(DummyData.class).data.length());
+                assertEquals(0, leased(resources), "cap=" + cap + ": a fully read body must release its connection");
+                response.close();
+            }
+        }
+    }
+
+    @Test
+    void fullyReadCompressedString_releasesConnectionBeforeClose() throws IOException {
+        wm.stubFor(get(urlEqualTo("/gzip-text"))
+                .willReturn(aResponse().withStatus(200).withBody("x".repeat(4096))));
+
+        try (ClientBuilder.HttpClientWithResourcesWrapper resources = ClientBuilder.create().buildWithResources()) {
+            HttpRequest httpRequest = HttpRequestBuilder.create(resources.getClient())
+                    .setMaxResponseBodySizeBytes(1024 * 1024)
+                    .build();
+            Response response = httpRequest.target(uri("/gzip-text")).get();
+
+            assertEquals(4096, response.readEntity(String.class).length());
+            assertEquals(0, leased(resources), "a fully read body must release its connection");
+            response.close();
+        }
+    }
+
+    private static long leased(ClientBuilder.HttpClientWithResourcesWrapper resources) {
+        return ((PoolingHttpClientConnectionManager) resources.getConnectionManager()).getTotalStats().getLeased();
+    }
+
+    static class DummyData {
+        public String data;
     }
 }

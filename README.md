@@ -344,16 +344,19 @@ System.out.println("Request took: "+duration.toMillis() +"ms");
 
 // Status codes: mapped vs original (ResponseHandler only)
 int code = handler.getCode(); // May be mapped for failures (e.g., 503/502)
-int originalCode = handler.getOriginalCode(); // -1 if no response was received
+int originalCode = handler.getOriginalCode(); // same as getCode() if no response was received
 ```
 
 ### Error Handling
 
 The library wraps exceptions and provides convenient ways to handle errors.
 
-- **Connection failures** → `RequestException` (often with status code 503)
+- **Connection failures** → `ResponseException` (often with status code 503)
 - **Deserialization failures** → `ResponseBodyProcessingException` (often with status code 502)
 - **Non-2xx status codes** → `UnexpectedStatusCodeException`
+- **Interrupted calls** — the calling thread was interrupted, e.g. while waiting for a pooled connection, between
+  retries, or (on a virtual thread) while reading the response body → `RequestException`; the thread's interrupt flag
+  stays set
 
 ```java
 try{
@@ -560,16 +563,24 @@ CloseableHttpClient httpClient = ClientBuilder.create()
                 .enableDefaultRedirectStrategy()
                 .build();
 
-// Enable lax redirect strategy
+// Enable Apache HttpClient's lax redirect strategy
 CloseableHttpClient httpClient = ClientBuilder.create()
-        .enableLaxRedirectStrategy()
+        .redirectStrategy(LaxRedirectStrategy.INSTANCE)
         .build();
 
 // Set a custom redirect strategy
 CloseableHttpClient httpClient = ClientBuilder.create()
-        .setRedirectStrategy(customRedirectStrategy)
+        .redirectStrategy(customRedirectStrategy)
         .build();
 ```
+
+With `enableDefaultRedirectStrategy()`, per-request credentials don't follow a redirect to a
+different origin (scheme, host or port): when the request carries `Authorization`, `Cookie` or a
+header flagged sensitive — e.g. after `basicAuth` — the redirect is not followed and the 3xx response
+is returned instead. `LaxRedirectStrategy` skips this check, and a custom strategy decides for
+itself. `ClientBuilder` default headers are never covered: Apache HttpClient adds them to every
+request after the redirect check, so they reach every redirect target — keep credentials out of
+them.
 
 ### Retry Mechanism
 
@@ -743,6 +754,10 @@ The timeout is **hard**: the drain runs on a shared background daemon thread and
 time, so a slow or completely silent server cannot hold your `close()` hostage — an abandoned drain dies together with
 the discarded connection. `close()` never throws the size-cap exception; a failed drain only downgrades connection
 reuse.
+
+**Compressed responses.** Apache HttpClient decodes `Content-Encoding: gzip`/`deflate` bodies transparently, so the
+size limit and both drain bounds count *decoded* bytes. Bytes a server sends after the end of the compressed data are
+not limited: HttpClient reads and discards them once the decoded body has ended.
 
 Both bounds are configurable on the `HttpRequestBuilder` (`@Beta`). They require
 `setMaxResponseBodySizeBytes(...)` with a positive value — `build()` rejects drain options without the cap they belong

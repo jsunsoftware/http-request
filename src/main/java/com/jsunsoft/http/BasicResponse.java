@@ -30,6 +30,7 @@ import java.net.URI;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.concurrent.*;
+import java.util.zip.ZipException;
 
 class BasicResponse implements Response {
 
@@ -457,14 +458,14 @@ class BasicResponse implements Response {
 
         for (ResponseBodyReader<?> reader : responseBodyReaderConfig.getResponseBodyReaders()) {
             if (reader.isReadable(responseBodyReaderContext)) {
-                return ((ResponseBodyReader<T>) reader).read(responseBodyReaderContext);
+                return read((ResponseBodyReader<T>) reader, responseBodyReaderContext);
             }
         }
 
         if (responseBodyReaderConfig.isUseDefaultReader()) {
             for (ResponseBodyReader<?> reader : responseBodyReaderConfig.getDefaultResponseBodyReaders()) {
                 if (reader.isReadable(responseBodyReaderContext)) {
-                    return ((ResponseBodyReader<T>) reader).read(responseBodyReaderContext);
+                    return read((ResponseBodyReader<T>) reader, responseBodyReaderContext);
                 }
             }
         }
@@ -480,6 +481,23 @@ class BasicResponse implements Response {
         }
 
         return null;
+    }
+
+    private <T> T read(ResponseBodyReader<T> reader, ResponseBodyReaderContext<T> context) throws IOException {
+        try {
+            return reader.read(context);
+        } catch (ZipException e) {
+            // Thrown by Apache HC5's gzip/deflate decoding of the body: the bytes don't match the
+            // declared Content-Encoding — an unusable payload, not a broken stream.
+            throw new ResponseBodyReaderException("Response body doesn't match its Content-Encoding: " + e.getMessage(), e);
+        } catch (IOException e) {
+            if (Thread.currentThread().isInterrupted() && !(e instanceof ResponseBodyReaderException)) {
+                // The caller interrupted the read — e.g. a virtual thread blocked on the socket, which
+                // the JDK closes with the interrupt flag set: a cancellation, not a broken stream.
+                throw new RequestException("Reading the response body was interrupted. URI: [" + uri + "]", e);
+            }
+            throw e;
+        }
     }
 
     @Override

@@ -38,6 +38,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.function.UnaryOperator;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
@@ -228,9 +229,24 @@ class BasicWebTarget implements WebTarget {
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Failed to connect to server. Potential reasons: The target server may be down, unreachable, or there are network connectivity issues", uri, SERVICE_UNREACHABLE, e);
         } catch (ClientProtocolException e) {
             throw new RequestException("Error in the HTTP protocol. URI: [" + uri + "]", e);
+        } catch (CancellationException e) {
+            // HC5 cancels the connection lease when the thread is already interrupted as it asks for
+            // a pooled connection.
+            throw interrupted(uri, e);
         } catch (IOException e) {
+            if (Thread.currentThread().isInterrupted()) {
+                // E.g. interrupted while waiting for a pooled connection: HC5 restores the flag and
+                // throws RequestFailedException.
+                throw interrupted(uri, e);
+            }
             throw new ResponseException(SC_SERVICE_UNAVAILABLE, "Connection was aborted", uri, IO, e);
         }
+    }
+
+    // The caller cancelled its own request: nothing failed on the server or the network, so no
+    // ResponseException with a synthetic status.
+    private static RequestException interrupted(URI uri, Exception cause) {
+        return new RequestException("Request was interrupted. URI: [" + uri + "]", cause);
     }
 
     private ClassicHttpRequest resolveRequest(HttpMethod method) {

@@ -551,6 +551,11 @@ public class HttpRequestBuilder {
      * With a cap enabled, how much of an <em>unread</em> body {@link Response#close()} may
      * consume to keep the pooled connection reusable is governed by
      * {@link #setMaxResponseDrainSizeBytes(long)} / {@link #setResponseDrainTimeout(Duration)}.
+     * <p>
+     * For a compressed response ({@code Content-Encoding: gzip} or {@code deflate}, decoded
+     * transparently by Apache HC5) the cap and the drain bounds count decoded bytes. Bytes the
+     * server sends after the end of the compressed data are not limited: HC5 reads and discards
+     * them once the decoded body has ended.
      *
      * @param maxResponseBodySizeBytes positive byte cap, or {@code <= 0} to disable.
      * @return the current instance of HttpRequestBuilder
