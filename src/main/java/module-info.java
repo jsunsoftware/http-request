@@ -13,7 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/**
+ * A fluent HTTP client for calling REST APIs, built on Apache HttpClient 5.
+ * <p>
+ * Build the underlying client with {@link com.jsunsoft.http.ClientBuilder}, then create an
+ * {@link com.jsunsoft.http.HttpRequest} from it with {@link com.jsunsoft.http.HttpRequestBuilder}.
+ */
+@SuppressWarnings({"requires-automatic", "requires-transitive-automatic"})
 module com.jsunsoft.http {
+    // HttpClient 5 ships no module descriptor, so these are automatic modules; their types are
+    // part of this module's API, so they are required transitively (hence the lint suppression).
     requires transitive org.apache.httpcomponents.client5.httpclient5;
     requires transitive org.apache.httpcomponents.core5.httpcore5;
 

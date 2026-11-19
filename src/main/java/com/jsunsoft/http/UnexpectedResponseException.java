@@ -16,6 +16,7 @@
 
 package com.jsunsoft.http;
 
+import java.io.Serial;
 import java.net.URI;
 
 /**
@@ -24,6 +25,9 @@ import java.net.URI;
  * throws the specific subclasses; prefer them when constructing or handling a particular case.
  */
 public class UnexpectedResponseException extends ResponseException {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     /**
      * Creates an exception with a status code and message.
