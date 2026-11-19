@@ -18,6 +18,7 @@ package com.jsunsoft.http;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.io.input.ProxyInputStream;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
@@ -203,12 +204,62 @@ class ResponseBodyReaders {
 
         long startTime = System.nanoTime();
         JavaType javaType = objectMapper.constructType(type);
-        T result = objectMapper.readValue(inputStreamToDeserialize, javaType);
+        FailureRecordingInputStream source = new FailureRecordingInputStream(inputStreamToDeserialize);
+        T result;
+        try {
+            result = objectMapper.readValue(source, javaType);
+        } catch (IOException e) {
+            // Route by where the failure happened, not by the exception type: Jackson 2 reports its
+            // parse and mapping errors (JsonProcessingException) and its own decoding errors (e.g.
+            // CharConversionException for invalid UTF-32) as IOExceptions, just like a failing
+            // source, and XML wraps a failing source in a Jackson exception. Rethrowing the source's
+            // own exception lets BasicWebTarget route by runtime type — a transport IOException as
+            // 503 SERVICE_UNAVAILABLE, our InvalidContentLengthException (a
+            // ResponseBodyReaderException) as 502 BAD_GATEWAY with its type intact. Anything else
+            // means the payload itself is unusable: 502.
+            IOException sourceFailure = source.getFailure();
+            if (sourceFailure != null) {
+                throw sourceFailure;
+            }
+            throw new ResponseBodyReaderException("Deserialization failed: " + e.getMessage(), e);
+        }
 
         if (logger.isDebugEnabled()) {
             logger.debug("Deserialization to type: [{}] completed in {}", type, HttpRequestUtils.humanTime(startTime));
         }
 
         return result;
+    }
+
+    /**
+     * Remembers the first {@link IOException} thrown while reading the wrapped stream.
+     */
+    private static final class FailureRecordingInputStream extends ProxyInputStream {
+        private IOException failure;
+        private boolean closing;
+
+        FailureRecordingInputStream(InputStream source) {
+            super(source);
+        }
+
+        IOException getFailure() {
+            return failure;
+        }
+
+        @Override
+        protected void handleIOException(IOException e) throws IOException {
+            if (failure == null && !closing) {
+                failure = e;
+            }
+            throw e;
+        }
+
+        @Override
+        public void close() throws IOException {
+            // Jackson closes its source after a failed parse too (AUTO_CLOSE_SOURCE): a failure
+            // disposing of the rest is not why the parse failed, so it isn't recorded.
+            closing = true;
+            super.close();
+        }
     }
 }

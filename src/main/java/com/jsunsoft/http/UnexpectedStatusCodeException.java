@@ -21,7 +21,6 @@ import java.net.URI;
 /**
  * Signals a non 2xx HTTP response.
  */
-@SuppressWarnings("deprecation")
 public class UnexpectedStatusCodeException extends UnexpectedResponseException {
 
     private static final long serialVersionUID = 1L;
