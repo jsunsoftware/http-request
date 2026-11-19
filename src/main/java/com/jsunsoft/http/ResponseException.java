@@ -32,7 +32,7 @@ public class ResponseException extends RuntimeException {
 
     /** Response status code. */
     private final int statusCode;
-    /** Original status code if mapped or transformed; otherwise {@code -1}. */
+    /** Status code the server returned; {@code -1} if no response was received. */
     private final int originalStatusCode;
     /** Request URI associated with the failure. */
     private final URI uri;
@@ -40,7 +40,7 @@ public class ResponseException extends RuntimeException {
     private final ConnectionFailureType connectionFailureType;
 
     /**
-     * Creates an exception with a status code and message.
+     * Creates an exception with a status code and message. The original status code is {@code statusCode}.
      *
      * @param statusCode response status code
      * @param message error message
@@ -51,7 +51,8 @@ public class ResponseException extends RuntimeException {
     }
 
     /**
-     * Creates an exception with a status code and cause.
+     * Creates an exception with a status code and cause. The original status code is {@code -1}
+     * (no response received).
      *
      * @param statusCode response status code
      * @param uri request URI
@@ -62,7 +63,8 @@ public class ResponseException extends RuntimeException {
     }
 
     /**
-     * Creates an exception with a status code, message, and cause.
+     * Creates an exception with a status code, message, and cause. The original status code is {@code -1}
+     * (no response received).
      *
      * @param statusCode response status code
      * @param msg error message
@@ -122,7 +124,7 @@ public class ResponseException extends RuntimeException {
     }
 
     /**
-     * @return original status code if available
+     * @return the status code the server returned, or {@code -1} if no response was received
      */
     @Beta
     public int getOriginalStatusCode() {
