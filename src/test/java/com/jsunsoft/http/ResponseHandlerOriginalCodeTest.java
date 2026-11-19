@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.apache.hc.core5.http.HttpStatus.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Pins the {@link ResponseHandler#getOriginalCode()} contract:
@@ -31,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  *     <li>when the library synthesizes a client-side status (deserialization failure → 502),
  *         the original server code is preserved;</li>
  *     <li>when the request failed before any response was received (transport failure), it
- *         returns {@link ResponseHandler#getCode()} — never a sentinel like {@code -1}.</li>
+ *         returns {@code -1}, as does the {@link ResponseException} the same handler throws.</li>
  * </ul>
  */
 class ResponseHandlerOriginalCodeTest {
@@ -42,16 +43,19 @@ class ResponseHandlerOriginalCodeTest {
             .build();
 
     @Test
-    void transportFailure_originalCodeEqualsCode() {
+    void transportFailure_originalCodeIsMinusOne() {
         HttpRequest httpRequest = HttpRequestBuilder.create(
                 new ClientBuilder().setConnectTimeout(200).build()).build();
 
         // Nothing listens on port 1 — connection is refused before any response exists.
-        ResponseHandler<?> rh = httpRequest.target("http://127.0.0.1:1/unreachable").rawGet();
+        ResponseHandler<String> rh = httpRequest.target("http://127.0.0.1:1/unreachable").get(String.class);
 
         assertEquals(SC_SERVICE_UNAVAILABLE, rh.getCode());
-        assertEquals(rh.getCode(), rh.getOriginalCode(),
-                "without a received response, getOriginalCode() must return getCode(), not a sentinel");
+        assertEquals(-1, rh.getOriginalCode(),
+                "the server sent no status, so the synthesized 503 must not be reported as original");
+
+        ResponseException thrown = assertThrows(ResponseException.class, rh::orElseThrow);
+        assertEquals(-1, thrown.getOriginalStatusCode(), "the handler and the exception it throws must agree");
     }
 
     @Test

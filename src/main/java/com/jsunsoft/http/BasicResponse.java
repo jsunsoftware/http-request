@@ -18,11 +18,14 @@ package com.jsunsoft.http;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.BoundedInputStream;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.core.JacksonException;
 
+import java.io.CharConversionException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
@@ -439,8 +442,8 @@ class BasicResponse implements Response {
     /**
      * Read the entity input stream as an instance of specified Java type using a {@link ResponseBodyReader}.
      * <p>
-     * <p>
-     * Note: method will throw any unchecked exception which will occurred in specified {@link ResponseBodyReader}.
+     * Unchecked exceptions thrown by the reader propagate, except a Jackson {@code JacksonException}, which is
+     * reported as a {@link ResponseBodyReaderException} — or as the I/O error that caused it.
      *
      * @param type        Java type the response entity will be converted to.
      * @param genericType Java type the response entity will be converted to.
@@ -486,18 +489,37 @@ class BasicResponse implements Response {
     private <T> T read(ResponseBodyReader<T> reader, ResponseBodyReaderContext<T> context) throws IOException {
         try {
             return reader.read(context);
-        } catch (ZipException e) {
+        } catch (JacksonException e) {
+            // A custom reader calling Jackson directly: Jackson 3 exceptions are unchecked. Jackson keeps a
+            // failure of the stream it reads as the cause (JacksonIOException for JSON, a re-rooted
+            // StreamReadException for XML) — classify that failure. Anything else, including Jackson's own
+            // CharConversionException for undecodable bytes, means the payload is unusable.
+            IOException streamFailure = ExceptionUtils.throwableOfType(e, IOException.class);
+            if (streamFailure == null || streamFailure instanceof CharConversionException) {
+                throw new ResponseBodyReaderException("Deserialization failed: " + e.getMessage(), e);
+            }
+            throw classifyReadFailure(streamFailure);
+        } catch (IOException e) {
+            throw classifyReadFailure(e);
+        }
+    }
+
+    /**
+     * @return the exception to report for a failed body read
+     * @throws RequestException if the caller interrupted the read
+     */
+    private IOException classifyReadFailure(IOException e) {
+        if (e instanceof ZipException) {
             // Thrown by Apache HC5's gzip/deflate decoding of the body: the bytes don't match the
             // declared Content-Encoding — an unusable payload, not a broken stream.
-            throw new ResponseBodyReaderException("Response body doesn't match its Content-Encoding: " + e.getMessage(), e);
-        } catch (IOException e) {
-            if (Thread.currentThread().isInterrupted() && !(e instanceof ResponseBodyReaderException)) {
-                // The caller interrupted the read — e.g. a virtual thread blocked on the socket, which
-                // the JDK closes with the interrupt flag set: a cancellation, not a broken stream.
-                throw new RequestException("Reading the response body was interrupted. URI: [" + uri + "]", e);
-            }
-            throw e;
+            return new ResponseBodyReaderException("Response body doesn't match its Content-Encoding: " + e.getMessage(), e);
         }
+        if (Thread.currentThread().isInterrupted() && !(e instanceof ResponseBodyReaderException)) {
+            // The caller interrupted the read — e.g. a virtual thread blocked on the socket, which
+            // the JDK closes with the interrupt flag set: a cancellation, not a broken stream.
+            throw new RequestException("Reading the response body was interrupted. URI: [" + uri + "]", e);
+        }
+        return e;
     }
 
     @Override

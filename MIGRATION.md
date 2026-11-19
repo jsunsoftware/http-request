@@ -142,7 +142,7 @@ Before 3.5.0 any retryable request that had its `HttpEntity` initialized would f
 the generic message *"After initializing the httpEntity builder can't be copied."*
 
 In 3.5.0 the retry transport replays requests whose entity is
-{@link org.apache.hc.core5.http.HttpEntity#isRepeatable() repeatable} — which covers all built-in
+repeatable (`HttpEntity#isRepeatable()`) — which covers all built-in
 body paths: `rawRequest(POST, String)` and `request(POST, String)` (wrap in `StringEntity`),
 `post(Object)` (wrap in a `StringEntity` via Jackson), plus any `ByteArrayEntity` / `FileEntity`
 the caller constructs directly. No action needed for these cases; retries just work.
@@ -171,12 +171,8 @@ restore the old behavior with:
 
 ```java
 HttpRequestBuilder.create(httpClient)
-        .
-
-setDefaultResponseCharset(StandardCharsets.ISO_8859_1)
-        .
-
-build();
+        .setDefaultResponseCharset(StandardCharsets.ISO_8859_1)
+        .build();
 ```
 
 ### Connection pool default (`defaultMaxPoolSizePerRoute`)
@@ -201,9 +197,12 @@ Or use the per-route override for hot hosts only:
 
 ```java
 CloseableHttpClient client = ClientBuilder.create()
-        .setMaxPoolSizePerRoute(new HttpHost("hot.example.com"), 96)
+        .setMaxPoolSizePerRoute(new HttpHost("https", "hot.example.com", 443), 96)
         .build();
 ```
+
+Before 5.0.0 a per-route cap only took effect for a plain `http` host with an explicit port and no proxy — see
+[Connection pool](#connection-pool) under 5.0.0.
 
 # 4.0.0
 
@@ -236,13 +235,15 @@ framework on POJOs that you own, the same `opens` rules that apply to all JPMS m
 your consumer module too — that is unchanged by this release and has nothing to do with this
 library. You typically need `opens your.app.dto;` in your own `module-info.java`.
 
-# 5.0.0-rc1
+# 5.0.0
 
 ## Jackson 2.x → 3.x upgrade
 
-`http-request 5.0.0-rc1` depends on **Jackson 3.1.x** (`tools.jackson.*`). The `jackson-databind`
-and `jackson-dataformat-xml` Maven groupIds change from `com.fasterxml.jackson.{core,dataformat}`
-to `tools.jackson.{core,dataformat}`; the JPMS module names change correspondingly
+`http-request 5.0.0` depends on **Jackson 3.1.x** (`tools.jackson.*`, 3.1.8). Consumers that must stay on Jackson 2
+should stay on the `4.0.x` line — that branch remains the supported Jackson 2 baseline.
+
+The `jackson-databind` and `jackson-dataformat-xml` Maven groupIds change from
+`com.fasterxml.jackson.{core,dataformat}` to `tools.jackson.{core,dataformat}`; the JPMS module names change correspondingly
 (`tools.jackson.databind`, `tools.jackson.core`, `tools.jackson.dataformat.xml`). `jackson-annotations`
 stays on `com.fasterxml.jackson.core:jackson-annotations` (2.21) — the annotations artifact is
 intentionally shared between Jackson 2.x and 3.x consumers.
@@ -255,6 +256,14 @@ rewrite applies to features (`SerializationFeature`, `DeserializationFeature`, �
 core (`JsonParser`, `JsonFactory`, …), and the type-token (`tools.jackson.core.type.TypeReference`).
 Annotations (`@JsonProperty`, `@JsonInclude`, `@JsonFormat`, `@JsonRootName`, …) keep their old
 package and require no source change.
+
+### Keep Jackson versions aligned
+
+If your build manages Jackson versions itself, use Jackson 3.1.8 or newer and import the matching
+`tools.jackson:jackson-bom` instead of pinning `jackson-databind` alone. The BOM also manages
+`com.fasterxml.jackson.core:jackson-annotations`, whose version must match the Jackson 3 minor (2.21 for 3.1, the
+version this library declares). Without it, Maven can resolve this library's annotations 2.21 next to a newer
+`jackson-databind`, which can fail at runtime.
 
 ### Built-in modules — drop your own registrations
 
@@ -282,21 +291,31 @@ reconfigured. Practical consequences if you pass a custom mapper into the librar
 
 ### Exceptions are unchecked
 
-Jackson 3 made `JacksonException` extend `RuntimeException` (it was `IOException` in 2.x). The
-library's body reader continues to surface deserialization failures the same way callers always
-saw them: parse / mapping failures land as `ResponseBodyReaderException` (→ HTTP 502 Bad
-Gateway on `ResponseHandler`), and stream-level IO failures (including the library's own
-`InvalidContentLengthException`) propagate as `IOException` and end up on the same routing path
-they did pre-5.0.0. If you've written a custom `ResponseBodyReader<T>` that calls Jackson
-directly, you may now have unreachable `catch (JsonProcessingException e)` blocks — those
-exceptions are unchecked in Jackson 3 and the `throws` clauses can be removed.
+Jackson 3 made `JacksonException` extend `RuntimeException` (it was `IOException` in 2.x), and
+`JsonProcessingException` is gone — its Jackson 3 counterpart is `tools.jackson.core.JacksonException`. This matters
+mostly for custom `ResponseBodyReader<T>` implementations that call Jackson directly:
+
+- `catch (JsonProcessingException e)` must become `catch (JacksonException e)`. If Jackson 2 is still on your
+  classpath through another dependency, the old catch keeps compiling but never fires.
+- A `catch (IOException e)` around `readValue(...)` no longer sees parse errors.
+- You don't need to catch Jackson's exceptions to report a bad payload: the library reports a `JacksonException`
+  thrown by your reader like a built-in reader's failure — a 502 `ResponseHandler`, or a
+  `ResponseBodyProcessingException` from `Response#readEntity`. (In 4.0.0 the same parse failure arrived as an
+  `IOException` and became a 503.) A failure of the stream underneath (a broken connection, the size cap, an
+  interrupt) is still reported as that failure, not as a bad payload.
+
+The built-in readers' own failures are reported differently too — see
+[Failure classification](#failure-classification).
 
 ### Default-toggle changes you may notice
 
 Jackson 3 silently flipped several feature defaults. The library deliberately accepts the 3.x
 baseline rather than restoring the old 2.x toggles via `builderWithJackson2Defaults()` —
 absorbing the new defaults is the principled move for a major-version bump, and most of the
-changes are strict/safe wins. The user-visible deltas:
+changes are strict/safe wins. To change one, configure your own mapper through its builder (e.g.
+`JsonMapper.builder().disable(...)`) and pass it via `setDefaultJsonMapper(...)`. The enum toggles now live in
+`tools.jackson.databind.cfg.EnumFeature`, and `WRITE_DATES_AS_TIMESTAMPS` in `tools.jackson.databind.cfg.DateTimeFeature`
+(no longer `DeserializationFeature` / `SerializationFeature`). The user-visible deltas:
 
 - **`FAIL_ON_TRAILING_TOKENS`** — now ON. The parser throws on content after the parsed value
   instead of silently ignoring it. If you've been deserializing concatenated JSON documents
@@ -373,31 +392,118 @@ formats:
 | `java.time.LocalDate`     | `dd/MM/yyyy`             |
 | `java.time.LocalDateTime` | `dd/MM/yyyy HH:mm:ss`    |
 
-Starting with 5.0.0-rc1 these implicit defaults are **gone**: the default mappers use Jackson 3's standard `java.time`
+Starting with 5.0.0 these implicit defaults are **gone**: the default mappers use Jackson 3's standard `java.time`
 handling, i.e. ISO-8601 (`2025-07-14`, `10:15:30`, `2025-07-14T10:15:30`). A response carrying `"14/07/2025"` that
-deserialized fine on 3.6.x / 4.0.0 fails on 5.0.0-rc1 with a deserialization error (surfaced as 502 Bad Gateway on the
-`ResponseHandler`).
+deserialized fine on 3.6.x / 4.0.0 fails on 5.0.0 with a deserialization error (surfaced as 502 Bad Gateway on the
+`ResponseHandler`). Requests change the same way: a `LocalDate` in a request body is now sent as `"2025-07-14"`, not
+`"14/07/2025"`.
 
-Restore the old behaviour per type when your upstream still emits the legacy formats:
+Restore the old behaviour per type when your upstream still emits or expects the legacy formats:
 
 ```java
 HttpRequestBuilder.create(client)
-        .
-
-addResponseDefaultDateDeserializationPattern(LocalTime .class, "HH:mm:ss")
-        .
-
-addResponseDefaultDateDeserializationPattern(LocalDate .class, "dd/MM/yyyy")
-        .
-
-addResponseDefaultDateDeserializationPattern(LocalDateTime .class, "dd/MM/yyyy HH:mm:ss")
-        .
-
-build();
+        .addResponseDefaultDateDeserializationPattern(LocalTime.class, "HH:mm:ss")
+        .addResponseDefaultDateDeserializationPattern(LocalDate.class, "dd/MM/yyyy")
+        .addResponseDefaultDateDeserializationPattern(LocalDateTime.class, "dd/MM/yyyy HH:mm:ss")
+        .build();
 ```
 
 The request-serialization side has the mirror `addRequestDefaultDateSerializationPattern`.
 
 With the implicit defaults gone, the `DateDeserializeContext` type (and its two bundled implementations) no longer
-participates in mapper construction; it is `@Deprecated(forRemoval =
-true)` and will be dropped in a later release.
+participates in mapper construction; it is `@Deprecated(forRemoval = true)` and will be dropped in a later release.
+
+## Failure classification
+
+A few failures are reported differently. The codes are `ResponseHandler#getCode()` values:
+
+| Failure                                                         | 4.0.0                                                   | 5.0.0                           |
+|-----------------------------------------------------------------|---------------------------------------------------------|---------------------------------|
+| Malformed or type-mismatched JSON / XML body                    | 503                                                     | 502                             |
+| Jackson parse error in a custom `ResponseBodyReader`            | 503                                                     | 502                             |
+| Body doesn't match its `Content-Encoding` (e.g. corrupt gzip)   | 503                                                     | 502                             |
+| Connection breaks while the body is read                        | 503                                                     | 503 (unchanged)                 |
+| Body exceeds `setMaxResponseBodySizeBytes`                      | 502                                                     | 502 (unchanged)                 |
+| Calling thread interrupted                                      | 503, `IllegalStateException` or `CancellationException` | `RequestException` thrown       |
+| `IOException` while closing the response                        | 500, read result discarded                              | read result kept, WARN logged   |
+
+So a 503 the library synthesizes now always means the connection failed, and a synthesized 502 means the upstream
+answered with something unusable. If you alert or branch on these codes, review that logic. To tell a status the library synthesized from one
+the server sent, compare `getOriginalCode()` with `getCode()`: they differ when the library replaced the server's
+status, and `getOriginalCode()` is `-1` when no response was received at all (a refused connection, a timeout).
+
+## Interrupted calls throw `RequestException`
+
+When the calling thread is interrupted — while waiting for a pooled connection, between retries, or (on a virtual
+thread) while reading the response body — both APIs now throw `RequestException` and leave the interrupt flag set.
+`RequestException` is not a `ResponseException`, so an interrupt now escapes `catch (ResponseException e)`, and the
+eager `get(User.class)` throws instead of returning a 503 handler. Treat it as the signal to stop the work, or catch
+`RequestException` next to `ResponseException`.
+
+## Removed APIs
+
+| Removed                                                                         | Instead                                               |
+|---------------------------------------------------------------------------------|-------------------------------------------------------|
+| `InvalidMimeTypeException` (never thrown)                                       | Delete the `catch` clauses.                           |
+| `ResponseBodyReader.stringReader()`                                             | Nothing — the default readers already read `String`.  |
+| `ResponseBodyReader.whenSuccessStringReader()` / `whenNonSuccessStringReader()` | Nothing — the default readers already read `String`.  |
+
+If you disabled the default readers and registered one of these, register a reader of your own whose `read` returns
+`EntityUtils.toString(ctx.getHttpEntity(), ctx.getDefaultResponseCharset())`; for the success / non-success variants,
+also check `ctx.isSuccess()` / `ctx.isNonSuccess()` in `isReadable`.
+
+`UnexpectedResponseException` is no longer deprecated: it is the common base type of `UnexpectedStatusCodeException`
+and `MissingResponseBodyException`, so keep catching it to handle both.
+
+## Connection pool
+
+- `setMaxPoolSize`, `setDefaultMaxPoolSizePerRoute` and `setMaxPoolSizePerRoute` reject values below 1 with
+  `IllegalArgumentException`, and a `null` host with `NullPointerException`. Such values used to be ignored silently
+  in favor of Apache HC5's defaults (25 total / 5 per route), so a `build()` that now fails points at a setting that
+  never had an effect.
+- `setMaxPoolSizePerRoute` caps now take effect for https hosts and behind a configured proxy, where they used to be
+  ignored silently. Review caps you set earlier: they may limit traffic for the first time. The scheme matters — an
+  `HttpHost` without a scheme means `http`, so cap an https host with `new HttpHost("https", "api.example.com", 443)`
+  (a port of `-1` means the scheme's default port).
+
+## SSRF guard
+
+- `disallowPrivateAndLoopbackHosts()` now blocks the whole IANA non-global address space, not only loopback,
+  link-local, RFC 1918 and IPv6 unique-local addresses — among others carrier-grade NAT `100.64.0.0/10` (used by
+  Tailscale, for example), `0.0.0.0/8`, `198.18.0.0/15`, the TEST-NETs, `240.0.0.0/4` and multicast. If an internal
+  endpoint you call lives in one of these ranges, allow it with the `disallowPrivateAndLoopbackHosts(Predicate)`
+  overload.
+- The guard now takes precedence over a `setDnsResolver(...)` call in a
+  `addDefaultConnectionManagerBuilderCustomizer(...)`; such a customizer used to disable the guard silently. A custom
+  resolver combined with the guard is not supported — use the allow-list overload.
+
+## Request payload logging
+
+With `enableRequestPayloadLogging()`, `Object` payloads (`post(Object)`, `rawRequest(method, Object)`, …) are now
+logged too, in their serialized form, after your `addPayloadRedactor(...)` redactors; before 5.0.0 only `String`
+payloads were. If you turned payload logging on relying on that gap, register a redactor or turn it off.
+
+## Request body charset
+
+A `charset` declared on the request's `Content-Type` header now decides how `String` and `Object` payloads are
+encoded; `setBodyCharset`, `setCharset` and the builder's `setDefaultBodyCharset` apply only when the header declares
+none. If your code sets both and they disagree, the body bytes change with this release — they now match the header.
+
+## Size-capped responses
+
+With `setMaxResponseBodySizeBytes(...)` set, closing a response whose body wasn't read to the end no longer reads the
+whole remainder: it drains at most 64 KiB within 100 ms and otherwise discards the connection. Expect a few more new
+connections if you often stop reading capped responses early; `setMaxResponseDrainSizeBytes` and
+`setResponseDrainTimeout` tune this (see the README). A response whose declared `Content-Length` exceeds the cap now
+fails before any byte is read. Without a cap nothing changes.
+
+## Smaller behavior changes
+
+- `WebTarget#getURI()` / `getURIString()` now include the parameters added with `addParameter(s)`. Code that appended
+  them itself (for logging or request signing, say) now gets them twice.
+- `FilterSupport.ifNotPassed(...).otherwise(...)` now runs the `otherwise` action only when every filter passed (it
+  used to run together with the `ifNotPassed` action). Remove workarounds for the old behavior.
+- `ImmutableWebTarget` mutators reject `null` with `NullPointerException`, like `target(...)`, and a `null` charset
+  means UTF-8.
+- A `RetryContext#beforeRetry` that returns `null` now fails with `NullPointerException`.
+- Headers added to a `ClientBuilder` after `build()` no longer reach clients built earlier.
