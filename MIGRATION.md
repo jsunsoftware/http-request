@@ -52,37 +52,6 @@ Rename `addDefaultDateDeserializationPattern` of `HttpRequestBuilder` has been r
 Removed support default deserialization of joda.time module. To achieve that, provide custom Json or Xml mapper e.g(
 `HttpRequestBuilder.setDefaultJsonMapper(mapper)`) or use custom response reader.
 
-# 4.0.0
-
-## Java baseline raised to Java 17
-
-The library now targets Java 17 bytecode at both compile time and runtime; the build enforcer
-rejects JDKs below 17. Consumers still on Java 8 must stay on the `3.6.x` line — that branch
-remains the supported Java 8 baseline.
-
-No public API was renamed, removed, or re-typed in this release: source built against `3.6.x`
-recompiles unchanged against `4.0.0` once the JDK requirement is met.
-
-## Published as a JPMS module
-
-The artifact is now a named JPMS module `com.jsunsoft.http`. Consumers on the **classpath** see
-no difference — the JAR works exactly as before. Consumers using the **modulepath** can now
-write `requires com.jsunsoft.http;` in their own `module-info.java` instead of relying on the
-automatic module name derived from the artifact id.
-
-Public packages: `com.jsunsoft.http` and `com.jsunsoft.http.annotations`. Apache HttpClient 5
-(client + core) and Jackson `databind` / `dataformat-xml` are declared `requires transitive`,
-so consumers automatically see the public-API types from those modules (`CloseableHttpClient`,
-`Header`, `ObjectMapper`, `XmlMapper`, etc.) without restating the requires themselves.
-
-## Reflective frameworks and your own POJOs
-
-Strong encapsulation does **not** apply to consumer code on the classpath. If you run on the
-modulepath and your consumer code uses Jackson, Gson, JAXB, Hibernate, or another reflective
-framework on POJOs that you own, the same `opens` rules that apply to all JPMS modules apply to
-your consumer module too — that is unchanged by this release and has nothing to do with this
-library. You typically need `opens your.app.dto;` in your own `module-info.java`.
-
 # 3.5.x
 
 ## Removed
@@ -173,7 +142,7 @@ Before 3.5.0 any retryable request that had its `HttpEntity` initialized would f
 the generic message *"After initializing the httpEntity builder can't be copied."*
 
 In 3.5.0 the retry transport replays requests whose entity is
-{@link org.apache.hc.core5.http.HttpEntity#isRepeatable() repeatable} — which covers all built-in
+repeatable (`HttpEntity#isRepeatable()`) — which covers all built-in
 body paths: `rawRequest(POST, String)` and `request(POST, String)` (wrap in `StringEntity`),
 `post(Object)` (wrap in a `StringEntity` via Jackson), plus any `ByteArrayEntity` / `FileEntity`
 the caller constructs directly. No action needed for these cases; retries just work.
@@ -202,12 +171,8 @@ restore the old behavior with:
 
 ```java
 HttpRequestBuilder.create(httpClient)
-        .
-
-setDefaultResponseCharset(StandardCharsets.ISO_8859_1)
-        .
-
-build();
+        .setDefaultResponseCharset(StandardCharsets.ISO_8859_1)
+        .build();
 ```
 
 ### Connection pool default (`defaultMaxPoolSizePerRoute`)
@@ -232,6 +197,138 @@ Or use the per-route override for hot hosts only:
 
 ```java
 CloseableHttpClient client = ClientBuilder.create()
-        .setMaxPoolSizePerRoute(new HttpHost("hot.example.com"), 96)
+        .setMaxPoolSizePerRoute(new HttpHost("https", "hot.example.com", 443), 96)
         .build();
 ```
+
+Before 4.1.0 a per-route cap only took effect for a plain `http` host with an explicit port and no proxy — see
+[Connection pool](#connection-pool) under 4.1.0.
+
+# 4.0.0
+
+## Java baseline raised to Java 17
+
+The library now targets Java 17 bytecode at both compile time and runtime; the build enforcer
+rejects JDKs below 17. Consumers still on Java 8 must stay on the `3.6.x` line — that branch
+remains the supported Java 8 baseline.
+
+No public API was renamed, removed, or re-typed in this release: source built against `3.6.x`
+recompiles unchanged against `4.0.0` once the JDK requirement is met.
+
+## Published as a JPMS module
+
+The artifact is now a named JPMS module `com.jsunsoft.http`. Consumers on the **classpath** see
+no difference — the JAR works exactly as before. Consumers using the **modulepath** can now
+write `requires com.jsunsoft.http;` in their own `module-info.java` instead of relying on the
+automatic module name derived from the artifact id.
+
+Public packages: `com.jsunsoft.http` and `com.jsunsoft.http.annotations`. Apache HttpClient 5
+(client + core) and Jackson `databind` / `dataformat-xml` are declared `requires transitive`,
+so consumers automatically see the public-API types from those modules (`CloseableHttpClient`,
+`Header`, `ObjectMapper`, `XmlMapper`, etc.) without restating the requires themselves.
+
+## Reflective frameworks and your own POJOs
+
+Strong encapsulation does **not** apply to consumer code on the classpath. If you run on the
+modulepath and your consumer code uses Jackson, Gson, JAXB, Hibernate, or another reflective
+framework on POJOs that you own, the same `opens` rules that apply to all JPMS modules apply to
+your consumer module too — that is unchanged by this release and has nothing to do with this
+library. You typically need `opens your.app.dto;` in your own `module-info.java`.
+
+
+# 4.1.0
+
+4.1.0 backports the fixes of 5.0.0 to the Jackson 2 line. No API was removed, but several fixes change behavior you
+may depend on.
+
+## Failure classification
+
+A few failures are reported differently. The codes are `ResponseHandler#getCode()` values:
+
+| Failure                                                         | 4.0.0                                                   | 4.1.0                           |
+|-----------------------------------------------------------------|---------------------------------------------------------|---------------------------------|
+| Malformed or type-mismatched JSON / XML body                    | 503                                                     | 502                             |
+| Jackson parse error in a custom `ResponseBodyReader`            | 503                                                     | 502                             |
+| Body doesn't match its `Content-Encoding` (e.g. corrupt gzip)   | 503                                                     | 502                             |
+| Connection breaks while the body is read                        | 503                                                     | 503 (unchanged)                 |
+| Body exceeds `setMaxResponseBodySizeBytes`                      | 502                                                     | 502 (unchanged)                 |
+| Calling thread interrupted                                      | 503, `IllegalStateException` or `CancellationException` | `RequestException` thrown       |
+| `IOException` while closing the response                        | 500, read result discarded                              | read result kept, WARN logged   |
+
+So a 503 the library synthesizes now always means the connection failed, and a synthesized 502 means the upstream
+answered with something unusable. If you alert or branch on these codes, review that logic. To tell a status the
+library synthesized from one the server sent, compare `getOriginalCode()` with `getCode()`: they differ when the
+library replaced the server's status, and `getOriginalCode()` is `-1` when no response was received at all (a
+refused connection, a timeout).
+
+Your own `ResponseBodyReader` gets the same treatment: a `JsonProcessingException` or `CharConversionException` it
+throws now becomes a 502 `ResponseHandler`, or a `ResponseBodyProcessingException` from `Response#readEntity`, unless
+it was caused by a failure of the stream (a broken connection, the size cap, an interrupt), which keeps its own
+classification.
+
+## Interrupted calls throw `RequestException`
+
+When the calling thread is interrupted — while waiting for a pooled connection, between retries, or (on a virtual
+thread) while reading the response body — both APIs now throw `RequestException` and leave the interrupt flag set.
+`RequestException` is not a `ResponseException`, so an interrupt now escapes `catch (ResponseException e)`, and the
+eager `get(User.class)` throws instead of returning a 503 handler. Treat it as the signal to stop the work, or catch
+`RequestException` next to `ResponseException`.
+
+## Connection pool
+
+- `setMaxPoolSize`, `setDefaultMaxPoolSizePerRoute` and `setMaxPoolSizePerRoute` reject values below 1 with
+  `IllegalArgumentException`, and a `null` host with `NullPointerException`. Such values used to be ignored silently
+  in favor of Apache HC5's defaults (25 total / 5 per route), so a `build()` that now fails points at a setting that
+  never had an effect.
+- `setMaxPoolSizePerRoute` caps now take effect for https hosts and behind a configured proxy, where they used to be
+  ignored silently. Review caps you set earlier: they may limit traffic for the first time. The scheme matters — an
+  `HttpHost` without a scheme means `http`, so cap an https host with `new HttpHost("https", "api.example.com", 443)`
+  (a port of `-1` means the scheme's default port).
+
+## SSRF guard
+
+- `disallowPrivateAndLoopbackHosts()` now blocks the whole IANA non-global address space, not only loopback,
+  link-local, RFC 1918 and IPv6 unique-local addresses — among others carrier-grade NAT `100.64.0.0/10` (used by
+  Tailscale, for example), `0.0.0.0/8`, `198.18.0.0/15`, the TEST-NETs, `240.0.0.0/4` and multicast. If an internal
+  endpoint you call lives in one of these ranges, allow it with the `disallowPrivateAndLoopbackHosts(Predicate)`
+  overload.
+- The guard now takes precedence over a `setDnsResolver(...)` call in a
+  `addDefaultConnectionManagerBuilderCustomizer(...)`; such a customizer used to disable the guard silently. A custom
+  resolver combined with the guard is not supported — use the allow-list overload.
+
+## Request payload logging
+
+With `enableRequestPayloadLogging()`, `Object` payloads (`post(Object)`, `rawRequest(method, Object)`, …) are now
+logged too, in their serialized form, after your `addPayloadRedactor(...)` redactors; before 4.1.0 only `String`
+payloads were. If you turned payload logging on relying on that gap, register a redactor or turn it off.
+
+## Request body charset
+
+A `charset` declared on the request's `Content-Type` header now decides how `String` and `Object` payloads are
+encoded; `setBodyCharset`, `setCharset` and the builder's `setDefaultBodyCharset` apply only when the header declares
+none. If your code sets both and they disagree, the body bytes change with this release — they now match the header.
+
+## Size-capped responses
+
+With `setMaxResponseBodySizeBytes(...)` set, closing a response whose body wasn't read to the end no longer reads the
+whole remainder: it drains at most 64 KiB within 100 ms and otherwise discards the connection. Expect a few more new
+connections if you often stop reading capped responses early; `setMaxResponseDrainSizeBytes` and
+`setResponseDrainTimeout` tune this (see the README). A response whose declared `Content-Length` exceeds the cap now
+fails before any byte is read. Without a cap nothing changes.
+
+Jackson 2 stops reading a JSON body at the end of its value. With a cap, closing the stream no longer reaches the
+connection, so a JSON body read through `Response#readEntity` releases its connection when the `Response` is
+closed, not as soon as it is parsed — keep closing every `Response`, ideally with try-with-resources.
+
+## Smaller behavior changes
+
+- `WebTarget#getURI()` / `getURIString()` now include the parameters added with `addParameter(s)`. Code that appended
+  them itself (for logging or request signing, say) now gets them twice.
+- `FilterSupport.ifNotPassed(...).otherwise(...)` now runs the `otherwise` action only when every filter passed (it
+  used to run together with the `ifNotPassed` action). Remove workarounds for the old behavior.
+- `ImmutableWebTarget` mutators reject `null` with `NullPointerException`, like `target(...)`, and a `null` charset
+  means UTF-8.
+- A `RetryContext#beforeRetry` that returns `null` now fails with `NullPointerException`.
+- Headers added to a `ClientBuilder` after `build()` no longer reach clients built earlier.
+- `UnexpectedResponseException` is no longer deprecated: it is the common base type of
+  `UnexpectedStatusCodeException` and `MissingResponseBodyException`, so keep catching it to handle both.

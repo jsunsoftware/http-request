@@ -19,8 +19,8 @@ Renamed `ignorableDeserializer` of `ResponseDeserializer` to `toStringDeserializ
 ### 2.0.0
 
 Due to the fact that old implementation was designed only for one predefined `URI` and wasn't much flexible the 2.x.x
-version don't have back compatibility with version 1.x.x. The 1.x.x versions will be supported in branch `1.x.x_support`
-.
+version don't have back compatibility with version 1.x.x. The 1.x.x versions will be supported in branch
+`1.x.x_support`.
 
 # 2.0.1
 
@@ -48,7 +48,7 @@ Headers are available from `ResponseHandler`
   and `application/xml`
 
 
-* Added `ResponseHandler.recuiredGet()` method.
+* Added `ResponseHandler.requiredGet()` method.
 
 # 3.4.1
 
@@ -184,14 +184,14 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   predicate is equivalent to the no-arg overload.
 * New `HttpRequestBuilder.setDefaultQueryCharset(Charset)` and
   `HttpRequestBuilder.setDefaultBodyCharset(Charset)`. Set the initial value that every
-  {@code WebTarget} produced from the resulting {@code HttpRequest} starts with — applied to
-  targets returned by {@code target(...)}, {@code immutableTarget(...)}, and
-  {@code retryableTarget(...)}. Per-target {@code setQueryCharset} / {@code setBodyCharset}
-  still overrides; passing {@code null} at builder level keeps the library default (UTF-8).
+  `WebTarget` produced from the resulting `HttpRequest` starts with — applied to
+  targets returned by `target(...)`, `immutableTarget(...)`, and
+  `retryableTarget(...)`. Per-target `setQueryCharset` / `setBodyCharset`
+  still overrides; passing `null` at builder level keeps the library default (UTF-8).
   Closes the gap where consumers wanting a non-UTF-8 default had to override on every
-  per-call target. {@code setCharset(Charset)} combo on the builder is intentionally not
+  per-call target. A `setCharset(Charset)` combo on the builder is intentionally not
   added — explicit per-axis is the only entry point at the builder level, mirroring the
-  pre-existing {@code setDefaultResponseCharset} pattern.
+  pre-existing `setDefaultResponseCharset` pattern.
 
 # 3.6.0
 
@@ -222,3 +222,155 @@ Added methods `ClientBuilder.addDefaultConnectionManagerBuilderCustomizer`.
   (previously a dual main/test execution); added an explicit `maven-surefire-plugin` with
   `<useModulePath>false</useModulePath>` so tests run on the classpath without forcing the
   production module to `opens` its package to reflective frameworks.
+
+
+# 4.1.0
+
+Backports the fixes and hardening of 5.0.0 to the Jackson 2 line — everything except the move to Jackson 3, the removed
+default date patterns and the API removals. The `4.x` line remains the supported Jackson 2 baseline. Several fixes
+change behavior; see [MIGRATION.md](MIGRATION.md).
+
+* **Dependency upgrades.** Jackson `2.21.3` → `2.21.8`, Apache HttpClient 5 `5.6.1` → `5.6.5`, `commons-lang3` `3.20.0`
+  → `3.21.0`, `slf4j-api` `2.0.17` → `2.0.20`.
+* **Body-read failures are classified by where they happen (502 vs. 503).** An unusable payload — malformed or
+  type-mismatched JSON or XML, undecodable bytes, or a body that doesn't match its `Content-Encoding` (e.g. corrupt
+  gzip) — now surfaces as `ResponseBodyReaderException` (→ HTTP 502 Bad Gateway on the `ResponseHandler`), consistent
+  with the size cap's `InvalidContentLengthException`. In 4.0.0 these surfaced as 503 Service Unavailable, the code for
+  a broken connection, because they arrived as `IOException`s (Jackson's `JsonProcessingException` extends
+  `IOException`). The JSON, XML and text readers now classify a failure identically, by where it happened rather than by
+  how Jackson wrapped it: a connection that breaks while the body is read still maps to 503, and the size cap still maps
+  to 502.
+* **Jackson exceptions from a custom `ResponseBodyReader` are reported like a built-in reader's failure.** A custom
+  reader calling Jackson directly reports a parse or mapping error as `JsonProcessingException` and undecodable bytes as
+  `CharConversionException`; both are `IOException`s, so they surfaced as a 503 like a broken connection. They are now a
+  `ResponseBodyReaderException` — 502 on a `ResponseHandler`, `ResponseBodyProcessingException` from `readEntity` —
+  unless caused by a failure of the stream (a broken connection, the size cap, an interrupt), which keeps its own
+  classification.
+* **An interrupted caller gets `RequestException` (behavior change).** When the calling thread is interrupted, both the
+  `ResponseHandler` and the `Response` API now throw `RequestException` and leave the thread's interrupt flag set.
+  Previously the outcome depended on where the interrupt hit: before the request was sent (a raw `CancellationException`
+  from HttpCore's cancelled connection lease), while waiting for a pooled connection (a synthetic 503), between retries
+  (`IllegalStateException`), or while reading the body on a virtual thread (a synthetic 503).
+  `ResponseHandler`-returning methods such as `get(User.class)` now throw in this case instead of returning a handler.
+* **A failure while closing a response no longer discards the result.** On the `ResponseHandler` API, an `IOException`
+  from closing the response replaced the already-read result with a synthetic 500 handler. The result now stands, and
+  the close failure is logged at WARN.
+* **Bounded close-drain for size-capped responses (fixes an unbounded cap-bypassing read).**
+  With `setMaxResponseBodySizeBytes` configured, `Response.close()` previously ended up reading the entire unread
+  remainder (Apache HC5's own `response.close()` self-exhausts the raw entity stream, bypassing the cap) — a hostile
+  oversized body was read to the end on close. `close()` now drains through the cap-enforcing stream under a dual
+  bound — at most a configurable byte allowance within a hard wall-clock timeout (the drain runs on a shared daemon
+  thread, JDK `KeepAliveStreamCleaner`-style) — and otherwise detaches the entity and discards the connection instead
+  of reading further. New `@Beta` knobs on `HttpRequestBuilder`: `setMaxResponseDrainSizeBytes(long)` (default
+  `65536`; `0` = never drain; negative = unlimited, bounded only by the cap and the timeout) and
+  `setResponseDrainTimeout(Duration)` (default 100 ms; must be positive). Both require the response body size cap and
+  are rejected at `build()` without it. Uncapped behavior is unchanged (full consume on close).
+* **Remaining size-cap bypasses closed.** A reader that closes the body stream early (Jackson after a parse error,
+  `EntityUtils` after a cap violation) no longer makes Apache HC5 read the rest of the body beneath the cap: the
+  remainder is left to the bounded drain above, and a body read to its end still releases its connection (Jackson 2
+  stops reading a JSON body at the end of its value, so with a size cap that connection is released when the `Response`
+  is closed). A declared `Content-Length` above the cap fails with `InvalidContentLengthException` before a single byte
+  is read, and repeated `getContent()` calls on a capped entity share one byte budget instead of starting a fresh one
+  each. For `Content-Encoding: gzip` / `deflate` bodies the cap counts decoded bytes. **Known limitation** (present
+  since the cap was introduced in 3.5.0): bytes a server sends after the end of the compressed data are not bounded in
+  size or time — Apache HC5 reads and discards them when the decoded stream is closed.
+* **`ClientBuilder.setMaxPoolSizePerRoute` now actually caps the routes it names.** The cap was registered as a bare
+  `new HttpRoute(host)`, which never matched the runtime route shape the pool is keyed by: a portless `HttpHost` failed
+  `build()` with Apache's "Target port must not be negative", and an **https host's cap was silently ignored on every
+  HC5 version** (the registered route lacked the secure flag), as was any cap when a proxy was configured (missing proxy
+  hop). Registration now mirrors the runtime route planner: scheme-default port resolved, secure flag derived from the
+  scheme, configured proxy included. An `HttpHost` without a scheme means `http`. Caps under `useDefaultProxy()` or a
+  custom route planner remain build-time-unknowable and are documented as such.
+* **Pool-size setters validate their input (behavior change for misconfigurations).** `ClientBuilder.setMaxPoolSize` /
+  `setDefaultMaxPoolSizePerRoute` / `setMaxPoolSizePerRoute` now throw `IllegalArgumentException` for values `< 1` (and
+  `NullPointerException` for a null host). Previously such values were accepted and then silently ignored by Apache
+  HC5's pool builder, which fell back to its internal defaults (25 total / 5 per route) — a configured
+  `setMaxPoolSize(0)` quietly produced a 25-connection pool.
+* **No more spurious WARN for body-less non-success responses.** A typed request receiving an entity-less non-success
+  response (e.g. a 304 with redirect handling disabled — the default) no longer attempts to read error text: readers
+  are not consulted for a body that isn't there and `getErrorText()` is `null`. The outcome is still traced — the
+  "Unexpected Response …" log line fires for every non-success response (WARN for 400, DEBUG otherwise), with or
+  without a body. The related "Can't find body reader … when http entity is null" log in `readEntity` is demoted from
+  WARN to DEBUG — returning `null` for an entity-less response is the documented contract, not an anomaly.
+* **Verbose logging no longer leaks credentials or payloads (security).** With TRACE enabled on
+  `com.jsunsoft.http`, several log points printed secrets verbatim, bypassing the configured payload redactor. All are
+  closed: `HttpUriRequestBuilder.toString()` (the "Executing request: …" TRACE) masks `Authorization`,
+  `Proxy-Authorization`, `Cookie` and `Set-Cookie` header values as `<redacted>` and prints the entity's class instead
+  of its content; `ResponseHandler.toString()` (the "Executed result: …" TRACE) reports the content's presence/type and
+  a header count instead of dumping the body and every header value; the request-serialization and response-result
+  traces log types, not values; and the response reader's whole-body "Content is: …" TRACE is removed. Non-success error
+  text (the `getErrorText()` diagnostic channel) and request URIs/query parameters are still logged — don't put secrets
+  in query strings.
+* **`enableRequestPayloadLogging` now covers `Object` payloads.** The `post(Object)` / `rawRequest(method, Object)`
+  family — the main JSON path — previously never produced the redacted payload log; only the `String` overloads did. The
+  serialized wire form is now routed through the composed redactors, exactly like `String` payloads. A repeatable
+  serialized entity is read back for logging (briefly holding a second in-memory copy); a non-repeatable one is never
+  consumed — a placeholder is logged instead. Raw `HttpEntity` bodies remain excluded from payload logging (also when
+  passed through the `Object` overloads): an entity may be arbitrarily large or binary, and reading it back for a log
+  line could materialize it on the heap.
+* **SSRF guard covers the full IANA non-global address space (security).** `disallowPrivateAndLoopbackHosts()`
+  previously rejected only loopback / unspecified / link-local / RFC 1918 / IPv6 unique-local addresses — a request to
+  e.g. `100.64.0.1` (carrier-grade NAT space) sailed past the guard and attempted a real connection. The resolver now
+  also blocks `0.0.0.0/8`, CGNAT `100.64.0.0/10`, `192.0.0.0/24`, the TEST-NETs (`192.0.2.0/24`, `198.51.100.0/24`,
+  `203.0.113.0/24`), benchmarking `198.18.0.0/15`, reserved `240.0.0.0/4` (incl. broadcast), multicast, the NAT64
+  local-use prefix `64:ff9b:1::/48`, and IPv6 forms embedding an IPv4 address (NAT64 `64:ff9b::/96`,
+  IPv4-mapped/-compatible) when the embedded IPv4 is itself non-global — `64:ff9b::<public v4>` still resolves, so
+  legitimate NAT64 clients keep working. The allow-list predicate overload applies to the new ranges too. The javadoc
+  now documents the guard's limitations: with a proxy configured, the proxy — not the guarded resolver — resolves the
+  target host, and the IPv4 address embedded in 6to4 (`2002::/16`) and Teredo (`2001::/32`) addresses is not decoded.
+* **`basicAuth(String, char[])` zeroes the password on every path (security).** The zeroing `finally` wrapped only the
+  final header registration: a username rejected for containing `':'` (or any encoding failure) returned with the
+  caller's password array — and every intermediate secret buffer — intact. The whole body now runs in `try/finally`; the
+  array and all intermediate copies are zeroed whether the method completes normally or throws. Only a `null`
+  password (NPE, nothing to zero) is exempt. Callers must not reuse the array after the call, even a failed one — which
+  the documented contract ("zeroed before this method returns") always implied.
+* **The SSRF guard can no longer be silently replaced by a customizer (behavior change).**
+  `disallowPrivateAndLoopbackHosts()` used to install its guarded DNS resolver before the connection-manager customizers
+  ran, so a `setDnsResolver(...)` inside `addDefaultConnectionManagerBuilderCustomizer(...)` silently disabled the
+  guard. The guard is now installed after customizers and takes precedence: enabling it means resolution goes through
+  the guarded system-default resolver, full stop. Anyone who relied on a customizer-supplied resolver alongside the
+  guard was running without SSRF protection without knowing it — if specific internal endpoints must stay reachable, use
+  the `disallowPrivateAndLoopbackHosts(Predicate)` allow-list overload; a custom resolver combined with the guard is not
+  supported.
+* **`getDuration()` is now measured with the monotonic clock.** Request duration was computed from
+  `System.currentTimeMillis()`, so an NTP wall-clock step mid-request skewed it (even negative). The entire timing
+  path — request start stamp, `ResponseHandler.getDuration()`, and the elapsed-time debug logs — now uses
+  `System.nanoTime()`.
+* **A `charset` on the request's `Content-Type` header now decides the body encoding.** `String` and `Object`
+  payloads were always encoded with the body charset (`setBodyCharset` / `setCharset`, the builder's
+  `setDefaultBodyCharset`, or UTF-8), so a request whose header declared `charset=ISO-8859-1` went out with UTF-8 bytes.
+  A charset declared on the header now wins; the body charset applies when the header declares none. An unparseable
+  `Content-Type` value is ignored with a WARN.
+* **`getURI()` / `getURIString()` include the parameters added with `addParameter(s)`.** They returned the URI
+  without them, unlike the request actually sent. (An entity-less POST/PUT sends its parameters as a form body, so its
+  URI on the wire doesn't carry them.)
+* **`FilterSupport.ifNotPassed(...).otherwise(...)` runs the right branch.** The `otherwise` action ran together with
+  the `ifNotPassed` action when a filter failed, and never ran when every filter passed. It now runs only when every
+  filter passed.
+* **`HttpRequestBuilder` can be reused after `build()`.** `addDefaultHeader(s)`, `addDefaultRequestParameter` and
+  `addRequestBodyConverter` threw `UnsupportedOperationException` when first called after a `build()`; the documented
+  build → mutate → build reuse now works.
+* **`RetryableWebTarget` closes the response when a `RetryContext` callback throws.** An exception from
+  `mustBeRetried`, `getRetryDelay` or `beforeRetry` propagated with the last response still open, leaking its pooled
+  connection. A `null` returned by `beforeRetry` now fails fast with a `NullPointerException` naming it.
+* **`ClientBuilder` hands HttpClient a snapshot of its default headers.** Headers added with `addDefaultHeader(s)`
+  after `build()` no longer reach clients built earlier.
+* **`ImmutableWebTarget` handles `null` like `target(...)`.** `path`, `setPath` and the header and parameter mutators
+  reject `null` with `NullPointerException`, and a `null` passed to its charset setters falls back to UTF-8 instead of
+  encoding form bodies as ISO-8859-1.
+* **`UnexpectedResponseException` is no longer `@Deprecated`.** It is the superclass of its two designated replacements
+  (`UnexpectedStatusCodeException`, `MissingResponseBodyException`), so the advertised removal could never happen — it
+  is now documented as the permanent base type; catch it to handle both. 5.0.0 also removes the never-thrown
+  `InvalidMimeTypeException` and the deprecated `ResponseBodyReader` statics; 4.x keeps them.
+* **Documentation now matches behavior.** `ResponseHandler#getOriginalCode()` and
+  `ResponseException#getOriginalStatusCode()` document the `-1` they return when no response was received (the
+  `getOriginalCode()` javadoc claimed `getCode()`). `getErrorText()` javadoc describes what is actually returned
+  (non-success body, failure exception messages, or both; `null` when none) instead of a stale "connection failed but
+  server sent useful data" description with a bogus `@throws UnsupportedOperationException`; `ifHasContent` documents
+  `NullPointerException` for a null consumer (what `ArgsCheck.notNull` actually throws); `removeHeader`'s
+  null-validation message names the right parameter; `WebTarget` javadoc typos fixed. The `WebTarget` javadoc now states
+  that a `target(...)` instance serves a single request (a body, header or parameter set on it is re-sent by a later
+  call), that `addParameter` on an entity-less POST/PUT sends a form body instead of a query string, and that
+  `trace(...)` with a body throws `IllegalStateException`; `ClientBuilder` documents that its default headers follow
+  every redirect. The "Basic authentication is being used" log is demoted from WARN to INFO — it fired unconditionally
+  even for HTTPS-only clients.
