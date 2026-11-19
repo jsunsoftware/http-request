@@ -161,6 +161,6 @@ class GetErrorTextTest {
 
     private static BasicResponseHandler<String> newHandler(String errorText, Exception errorCause) {
         return new BasicResponseHandler<>(null, 500, 500, new HeaderGroup(), errorCause, errorText, String.class, null,
-                URI.create("http://localhost"), System.currentTimeMillis());
+                URI.create("http://localhost"), System.nanoTime());
     }
 }

@@ -56,7 +56,7 @@ class SensitiveLogMaskingTest {
 
         BasicResponseHandler<String> handler = new BasicResponseHandler<>(
                 "TOP-SECRET-BODY", 200, 200, headers, null, null, String.class, null,
-                URI.create("http://localhost/masking"), System.currentTimeMillis());
+                URI.create("http://localhost/masking"), System.nanoTime());
 
         String rendered = handler.toString();
 

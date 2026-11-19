@@ -87,7 +87,7 @@ class ResponseBodyReaders {
         @Override
         public String read(ResponseBodyReaderContext<String> bodyReaderContext) throws IOException {
 
-            long startTime = System.currentTimeMillis();
+            long startTime = System.nanoTime();
 
             ContentType contentType = bodyReaderContext.getContentType();
 
@@ -201,7 +201,7 @@ class ResponseBodyReaders {
 
         logger.debug("Starting deserialization to type: [{}]", type);
 
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
         JavaType javaType = objectMapper.constructType(type);
         T result = objectMapper.readValue(inputStreamToDeserialize, javaType);
 

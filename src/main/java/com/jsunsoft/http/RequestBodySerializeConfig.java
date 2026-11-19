@@ -76,7 +76,7 @@ class RequestBodySerializeConfig {
         private Builder() {
         }
 
-        Builder addDateDeserializationPattern(Class<?> dateType, String pattern) {
+        Builder addDateSerializationPattern(Class<?> dateType, String pattern) {
             if (dateTypeToPattern == null) {
                 dateTypeToPattern = new HashMap<>();
             }

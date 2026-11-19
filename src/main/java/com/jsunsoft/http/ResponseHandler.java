@@ -264,10 +264,13 @@ public interface ResponseHandler<T> {
     void throwIfNotSuccess() throws UnexpectedStatusCodeException;
 
     /**
-     * Gets the error text if the connection failed, but the server sent useful data nonetheless.
+     * Gets the error text of a failed request: for a non-success response, the response body read
+     * as a string; when the failure came from an exception (transport error, deserialization
+     * failure), the exception's message chain — or both combined when a non-success body and an
+     * exception are present.
      *
-     * @return Returns the error text if the connection failed, but the server sent useful data nonetheless.
-     * @throws UnsupportedOperationException if generic type is a Void
+     * @return the error text, or {@code null} when the request succeeded or no error detail is
+     * available (e.g. a body-less non-success response)
      */
     String getErrorText();
 
@@ -305,7 +308,7 @@ public interface ResponseHandler<T> {
      * If content is present, invokes the specified consumer with the content, otherwise does nothing.
      *
      * @param consumer block to be executed if has a content
-     * @throws IllegalArgumentException if {@code consumer} is null
+     * @throws NullPointerException if {@code consumer} is null
      */
     void ifHasContent(Consumer<? super T> consumer);
 
@@ -397,7 +400,8 @@ public interface ResponseHandler<T> {
     }
 
     /**
-     * Gets the duration from the call request to the parsed response.
+     * Gets the duration from the call request to the parsed response, measured with the JVM's
+     * monotonic clock ({@link System#nanoTime()}) — immune to wall-clock (NTP) adjustments.
      *
      * @return Duration from the call request to the parsed response
      */

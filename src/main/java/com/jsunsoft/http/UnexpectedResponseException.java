@@ -19,12 +19,10 @@ package com.jsunsoft.http;
 import java.net.URI;
 
 /**
- * Signals an unexpected HTTP response
- *
- * @deprecated Use {@link UnexpectedStatusCodeException} or {@link MissingResponseBodyException} for specific cases or {@link ResponseException} in common.
+ * Signals an unexpected HTTP response. Base type of {@link UnexpectedStatusCodeException} and
+ * {@link MissingResponseBodyException} — catch this type to handle both. The library only ever
+ * throws the specific subclasses; prefer them when constructing or handling a particular case.
  */
-
-@Deprecated
 public class UnexpectedResponseException extends ResponseException {
 
     /**
