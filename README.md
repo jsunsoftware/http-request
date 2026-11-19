@@ -45,7 +45,8 @@ responses, managing connections, and processing data, building on top of the rob
 
 - **Fluent API**: Build and execute HTTP requests with a clean, chainable API.
 - **Thread-safe**: `HttpRequest` objects are immutable and thread-safe after building.
-- **Simplified Error Handling**: All exceptions are wrapped with meaningful status codes.
+- **Simplified Error Handling**: Connection failures, timeouts and unreadable bodies surface as status codes
+  (503, 504, 502) instead of raw `IOException`s.
 - **Simplified Resource Management**: Automatic closing of responses with `ResponseHandler` and `AutoCloseable` client
   resources.
 - **Flexible Response Processing**:
@@ -68,7 +69,8 @@ responses, managing connections, and processing data, building on top of the rob
   should pin to the `3.6.x` line)
 - Dependencies (automatically managed by build tools):
   - Apache HttpClient 5.x
-  - Jackson (for JSON/XML processing)
+  - Jackson 3.x (`tools.jackson`, for JSON/XML processing) starting with **5.0.0**; Jackson 2 consumers should pin to
+    the `4.0.x` line
   - SLF4J (for logging)
 
 ### Transport: HTTP/1.1 only
@@ -90,7 +92,7 @@ Add this dependency to your `pom.xml`:
 <dependency>
   <groupId>com.jsunsoft.http</groupId>
   <artifactId>http-request</artifactId>
-  <version>5.0.0-rc1</version>
+  <version>5.0.0</version>
 </dependency>
 ```
 
@@ -99,7 +101,7 @@ Add this dependency to your `pom.xml`:
 Add this dependency to your `build.gradle`:
 
 ```groovy
-implementation 'com.jsunsoft.http:http-request:5.0.0-rc1'
+implementation 'com.jsunsoft.http:http-request:5.0.0'
 ```
 
 ## Quick Start
@@ -144,7 +146,9 @@ This library simplifies resource management to prevent connection leaks.
 - **HttpRequest**: immutable and thread-safe after building; reuse it across threads.
 - **WebTarget from `target(...)`**: mutable and **not** thread-safe. Build it, configure it, and
   fire its request from the *same* thread — typically all in one fluent expression. Do not store
-  a configured `target(...)` instance in a field that multiple threads write to.
+  a configured `target(...)` instance in a field that multiple threads write to. Use it for **one
+  request**: everything set on it persists, so a body sent by `post(...)` is sent again by a later
+  `get()` on the same instance.
 - **WebTarget from `immutableTarget(...)`**: safe to share and reuse across threads. Each
   fluent call returns a *new* instance, so concurrent threads each see their own snapshot.
 
@@ -165,8 +169,8 @@ A simple rule covers ~99% of cases:
 ```java
 // Request-scoped: each call builds and discards.
 ResponseHandler<User> rh = httpRequest.target("https://api.example.com/users/1")
-                .addHeader("X-Tenant", currentTenantId())
-                .get(User.class);
+        .addHeader("X-Tenant", currentTenantId())
+        .get(User.class);
 
 // Shared / multi-threaded: every fluent call returns a *new* WebTarget,
 // so two threads adding different headers don't trample each other.
@@ -188,8 +192,8 @@ automatically. This is the most convenient and safest way to handle responses.
 ```java
 // The response is closed automatically after the operation.
 User user = httpRequest.target("https://api.example.com/users/1")
-                .get(User.class)
-                .orElseThrow();
+        .get(User.class)
+        .orElseThrow();
 ```
 
 ### 2. Using `Response` with try-with-resources
@@ -198,7 +202,7 @@ When you need direct access to the `Response` object, always use a try-with-reso
 even if exceptions occur.
 
 ```java
-try(Response response = httpRequest.target(uri).get()){
+try (Response response = httpRequest.target(uri).get()) {
     int statusCode = response.getCode();
     SomeType body = response.readEntity(SomeType.class);
 } // response.close() is called automatically
@@ -211,8 +215,8 @@ object. It's crucial to close it when your application shuts down.
 
 ```java
 // Use try-with-resources to manage the client lifecycle
-try(CloseableHttpClient httpClient = ClientBuilder.create().build()){
-        // ... use the client
+try (CloseableHttpClient httpClient = ClientBuilder.create().build()) {
+    // ... use the client
 }
 ```
 
@@ -259,9 +263,8 @@ ResponseHandler<String> postHandler = httpRequest.target("https://api.example.co
 System.out.println("Response: " + postHandler.get());
 
 // Lazy PUT: Get the Response object and handle it manually
-try(
-    Response putResponse = httpRequest.target("https://api.example.com/users/1").put(jsonPayload)){
-            System.out.println("Status code: " + putResponse.getCode());
+try (Response putResponse = httpRequest.target("https://api.example.com/users/1").put(jsonPayload)) {
+    System.out.println("Status code: " + putResponse.getCode());
 }
 ```
 
@@ -272,14 +275,14 @@ You can add query parameters to your requests easily.
 ```java
 // Add parameters
 Response response = httpRequest.target("https://api.example.com/users")
-                .addParameter("page", "1")
-                .addParameter("limit", "10")
-                .get();
+        .addParameter("page", "1")
+        .addParameter("limit", "10")
+        .get();
 
 // Add multiple parameters from a map
 Map<String, String> params = new HashMap<>();
-params.put("limit","10");
-params.put("sort","name");
+params.put("limit", "10");
+params.put("sort", "name");
 
 Response response = httpRequest.target("https://api.example.com/users")
         .addParameters(params)
@@ -298,8 +301,8 @@ You can add headers to individual requests or set default headers on the `HttpRe
 ```java
 // Add a header to a single request
 Response response = httpRequest.target("https://api.example.com/users")
-                .addHeader("X-API-Key", "your-api-key")
-                .get();
+        .addHeader("X-API-Key", "your-api-key")
+        .get();
 
 // Add multiple headers
 Response response = httpRequest.target("https://api.example.com/users")
@@ -311,7 +314,7 @@ Response response = httpRequest.target("https://api.example.com/users")
 Response response = httpRequest.target("https://api.example.com/users")
         .addHeader("Accept", "application/json")
         .updateHeader("Accept", "application/xml")
-        .removeHeader("X-Temporary")
+        .removeHeaders("X-Temporary")
         .get();
 
 // Set a default header for all requests made with this httpRequest instance
@@ -328,49 +331,67 @@ The `ResponseHandler` provides a powerful and fluent way to process responses.
 ResponseHandler<User> handler = httpRequest.target("https://api.example.com/users/123").get(User.class);
 
 // Chain success and error handling
-handler.ifSuccess(h ->System.out.println("User: "+h.get().getName()))
-        .otherwise(h ->System.err.println("Error: "+h.getErrorText()));
+handler.ifSuccess(h -> System.out.println("User: " + h.get().getName()))
+        .otherwise(h -> System.err.println("Error: " + h.getErrorText()));
 
 // Using filter and conditional processing
-handler.filter(ResponseHandler::hasContent).ifPassed(h ->System.out.println("User: "+h.get().getName()))
-        .otherwise(h ->System.out.println("No content"));
+handler.filter(ResponseHandler::hasContent)
+        .ifPassed(h -> System.out.println("User: " + h.get().getName()))
+        .otherwise(h -> System.out.println("No content"));
 
 // Get the result or a default value
 User user = handler.orElse(new User("Default"));
 
 // Get the request duration
 Duration duration = handler.getDuration();
-System.out.println("Request took: "+duration.toMillis() +"ms");
+System.out.println("Request took: " + duration.toMillis() + "ms");
 
-// Status codes: mapped vs original (ResponseHandler only)
-int code = handler.getCode(); // May be mapped for failures (e.g., 503/502)
-int originalCode = handler.getOriginalCode(); // same as getCode() if no response was received
+// Status codes: synthesized vs original (ResponseHandler only)
+int code = handler.getCode();                 // may be synthesized for failures (502/503/504)
+int originalCode = handler.getOriginalCode(); // the server's code; -1 if no response was received
 ```
 
 ### Error Handling
 
-The library wraps exceptions and provides convenient ways to handle errors.
+How a failure reaches you depends on the API you use.
 
-- **Connection failures** → `ResponseException` (often with status code 503)
-- **Deserialization failures** → `ResponseBodyProcessingException` (often with status code 502)
-- **Non-2xx status codes** → `UnexpectedStatusCodeException`
-- **Interrupted calls** — the calling thread was interrupted, e.g. while waiting for a pooled connection, between
-  retries, or (on a virtual thread) while reading the response body → `RequestException`; the thread's interrupt flag
-  stays set
+**`ResponseHandler` API** (`get(User.class)`, `post(body, User.class)`, …): connection failures, timeouts and
+body-read failures don't throw. They return a handler whose `getCode()` the library synthesized:
+
+| Failure                                                                          | `getCode()` |
+|----------------------------------------------------------------------------------|-------------|
+| Connection refused, unknown or unreachable host, no pooled connection in time    | 503         |
+| Connect or response timeout                                                      | 504         |
+| Connection broke while the body was read                                         | 503         |
+| Unusable body: malformed JSON/XML, wrong `Content-Encoding`, over the size limit | 502         |
+
+`getOriginalCode()` keeps the server's status (`-1` when no response was received), and `getErrorText()` describes
+the failure. `orElseThrow()` and `requiredGet()` turn a failed handler into an exception:
+
+- a non-2xx response → `UnexpectedStatusCodeException`
+- a 2xx response without a body, on `requiredGet()` → `MissingResponseBodyException`
+- any other failure → `ResponseException`, with the underlying exception as its cause
+
+`UnexpectedResponseException` is the common base type of the first two; all three are `ResponseException`s.
+
+**`Response` API** (`get()`, `post(body)`, …): a connection failure or timeout throws `ResponseException` with the
+same 503/504 status code, and `readEntity(...)` throws `ResponseBodyProcessingException` when the body can't be read.
+
+**Both APIs** throw `RequestException`, which is not a `ResponseException`, on an HTTP protocol error (e.g. a circular
+redirect) and when the calling thread is interrupted — e.g. while waiting for a pooled connection, between retries,
+or (on a virtual thread) while reading the response body. After an interrupt the thread's interrupt flag stays set.
 
 ```java
-try{
-// Throws UnexpectedStatusCodeException for non-2xx responses
-// Throws MissingResponseBodyException if the body is empty but required
-User user = httpRequest.target("https://api.example.com/users/999")
-        .get(User.class)
-        .requiredGet();
-}catch(ResponseException e){
-        System.err.println("Response failed: " + e.getMessage());
-        
-        if(e instanceof UnexpectedStatusCodeException){
-            System.err.println("Status code: " + ((UnexpectedStatusCodeException) e).getStatusCode());
-        }
+try {
+    // Throws UnexpectedStatusCodeException for non-2xx responses,
+    // MissingResponseBodyException if the body is empty but required
+    User user = httpRequest.target("https://api.example.com/users/999")
+            .get(User.class)
+            .requiredGet();
+} catch (UnexpectedStatusCodeException e) {
+    System.err.println("Server answered " + e.getStatusCode());
+} catch (ResponseException e) {
+    System.err.println("Request failed with " + e.getStatusCode() + ": " + e.getMessage());
 }
 ```
 
@@ -397,6 +418,10 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .addRequestDefaultDateSerializationPattern(LocalDateTime.class, "yyyy-MM-dd'T'HH:mm:ss")
         .build();
 ```
+
+Without registered patterns, `java.time` types are read and written as ISO-8601 (`2025-07-14`, `10:15:30`,
+`2025-07-14T10:15:30`) — Jackson 3's default since 5.0.0. Earlier versions defaulted to `dd/MM/yyyy`-style patterns;
+see [MIGRATION.md](MIGRATION.md) to restore them.
 
 Date patterns also compose cleanly with a user-supplied `ObjectMapper`:
 
@@ -437,8 +462,6 @@ The library never re-applies its own defaults to a user-supplied mapper, so your
 `FAIL_ON_UNKNOWN_PROPERTIES`, `FAIL_ON_NULL_FOR_PRIMITIVES`, registered modules, etc. flow
 through unchanged.
 
-```
-
 ## Advanced Features
 
 ### Connection Pooling
@@ -447,18 +470,23 @@ Configure the connection pool using `ClientBuilder`.
 
 ```java
 CloseableHttpClient httpClient = ClientBuilder.create()
-        .setMaxPoolSize(200) // Total connections
-        .setDefaultMaxPoolSizePerRoute(50) // Connections per host
-        .setMaxPoolSizePerRoute("api.example.com", 100) // Specific host
+        .setMaxPoolSize(200)                // Total connections
+        .setDefaultMaxPoolSizePerRoute(50)  // Connections per host
+        .setMaxPoolSizePerRoute(new HttpHost("https", "api.example.com", 443), 100) // Specific host
         .build();
 ```
 
-By default, raw Apache HttpClient uses small pool limits (for example, 2 per route). `ClientBuilder` raises
+By default, raw Apache HttpClient 5 uses small pool limits (25 total / 5 per route). `ClientBuilder` raises
 these to **128 total / 32 per route** — sized for typical microservice workloads that talk to a handful of
 upstream hosts. The `total / perRoute` ratio of roughly 4× preserves multi-host fairness: a hot route can't
 saturate the entire pool and starve traffic to other hosts. Override either knob based on your traffic
 pattern (a high-throughput aggregator hitting many hosts at once will want a higher total; a service that
-talks to a single upstream may want to raise per-route to match).
+talks to a single upstream may want to raise per-route to match). The setters reject values below 1.
+
+A per-route cap applies to the route the host's scheme implies: an `HttpHost` without a scheme means `http`, so
+an `https` host needs its scheme (a port of `-1` means the scheme's default). Caps also apply behind a proxy
+configured with `proxy(...)`, but not with `useDefaultProxy()` or a custom route planner, whose routes aren't known
+when the client is built.
 
 You can also configure a proxy:
 
@@ -514,9 +542,9 @@ Easily configure SSL settings.
 ```java
 // Trust all certificates (INSECURE: for testing only)
 CloseableHttpClient httpClient = ClientBuilder.create()
-                .trustAllCertificates()
-                .trustAllHosts()
-                .build();
+        .trustAllCertificates()
+        .trustAllHosts()
+        .build();
 ```
 
 #### TLS version and cipher pinning
@@ -549,8 +577,8 @@ The library supports basic authentication securely.
 ```java
 // Securely provide password as a char array (will be cleared after use)
 HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
-                .basicAuth("user", new char[]{'s', 'e', 'c', 'r', 'e', 't'})
-                .build();
+        .basicAuth("user", new char[]{'s', 'e', 'c', 'r', 'e', 't'})
+        .build();
 ```
 
 ### Redirects
@@ -560,8 +588,8 @@ Configure how redirects are handled. By default, they are disabled.
 ```java
 // Enable a standard redirect strategy
 CloseableHttpClient httpClient = ClientBuilder.create()
-                .enableDefaultRedirectStrategy()
-                .build();
+        .enableDefaultRedirectStrategy()
+        .build();
 
 // Enable Apache HttpClient's lax redirect strategy
 CloseableHttpClient httpClient = ClientBuilder.create()
@@ -665,42 +693,47 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
 You can also implement a `ResponseBodyReader` directly and (optionally) disable default readers:
 
 ```java
+// Jackson 3 mappers are immutable and thread-safe: build one and reuse it.
+// FAIL_ON_UNKNOWN_PROPERTIES is already off by default in Jackson 3.
+JsonMapper mapper = JsonMapper.builder().build();
+
 HttpRequest httpRequest = HttpRequestBuilder.create(closeableHttpClient)
         // .disableDefaultBodyReader() // Disable defaults if needed
         .addBodyReader(new ResponseBodyReader<Map<String, String>>() {
             @Override
             public boolean isReadable(ResponseBodyReadableContext ctx) {
-                return ctx.getType() == Map.class;
+                return ctx.getType() == Map.class && ctx.hasEntity();
             }
 
             @Override
-            public ResponseData read(ResponseBodyReaderContext<Map<String, String>> ctx)
+            public Map<String, String> read(ResponseBodyReaderContext<Map<String, String>> ctx)
                     throws IOException, ResponseBodyReaderException {
-              // Jackson 3 mappers are immutable — configure via the builder, then call readValue.
-              // FAIL_ON_UNKNOWN_PROPERTIES is already off by default in Jackson 3, so the bare
-              // JsonMapper.builder().build() matches the library's lenient default behaviour.
-              return JsonMapper.builder()
-                      .build()
-                        .readValue(ctx.getContent(), ctx.getGenericType());
+                return mapper.readValue(ctx.getContent(), mapper.constructType(ctx.getGenericType()));
             }
         })
         .build();
 ```
 
+A `JacksonException` thrown by your reader is reported like a built-in reader's failure: a 502 for an unusable
+payload, while a failure of the stream underneath it (a broken connection, the size limit, an interrupt) is still
+reported as that failure.
+
 ### Limiting Response Body Size
 
 To protect your application from OutOfMemoryErrors caused by unexpectedly large HTTP responses, you can set a maximum
-size for the response body. This feature is now consistently applied to all response types (String, JSON/XML objects,
-etc.).
+size for the response body. The limit applies to every way of reading the body: `String`, `byte[]`, JSON/XML objects,
+custom readers and `HttpEntity#writeTo`.
 
 By default, the response body size is **unlimited**. You can configure a limit on the `HttpRequestBuilder`.
 
-The limit is enforced by wrapping the response entity as soon as the response is received. If the response size exceeds
-this limit during reading, an `InvalidContentLengthException` is thrown. This exception is then wrapped and propagated
-to you.
+The limit is enforced by wrapping the response entity as soon as the response is received. A response whose declared
+`Content-Length` exceeds the limit fails before any byte is read; otherwise reading fails with an
+`InvalidContentLengthException` as soon as the limit is exceeded.
 
-- When using a `ResponseHandler`, methods like `.orElseThrow()` will throw a `ResponseException`. The cause of this
-  exception will be the `InvalidContentLengthException`.
+- When using a `ResponseHandler`, the handler's code is 502, and methods like `.orElseThrow()` throw a
+  `ResponseException` whose cause is the `InvalidContentLengthException`.
+- When using `Response#readEntity(...)`, it throws a `ResponseBodyProcessingException` whose cause is the
+  `InvalidContentLengthException`.
 
 **Important:** Even when this limit is exceeded, the underlying HTTP connection is **never leaked**: it is either
 drained and returned to the pool for reuse, or closed with its pool slot freed — see
@@ -709,26 +742,18 @@ drained and returned to the pool for reuse, or closed with its pool slot freed �
 ```java
 // Configure a client with a 1KB limit
 HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
-                .setMaxResponseBodySizeBytes(1024)
-                .build();
+        .setMaxResponseBodySizeBytes(1024)
+        .build();
 
-// This endpoint returns a 2KB response
-server.stubFor(get(urlEqualTo("/large-response"))
-        .willReturn(aResponse().withStatus(200).withBody("a".repeat(2048))));
-
-try{
-    httpRequest.target(httpUri("/large-response"))
-        .get(String.class)
-        .orElseThrow();
-
-}catch(ResponseException e){
-        System.out.println("Correctly caught expected exception: "+e.getClass().getName());
-
-        // Check the cause to see if it was due to the size limit
-        if(e.getCause() instanceof InvalidContentLengthException){
-            System.out.println("Cause was InvalidContentLengthException, as expected.");
-        // Handle the error appropriately
-        }
+try {
+    // Suppose this endpoint returns a 2KB body
+    String body = httpRequest.target("https://api.example.com/large-response")
+            .get(String.class)
+            .orElseThrow();
+} catch (ResponseException e) {
+    if (e.getCause() instanceof InvalidContentLengthException) {
+        // The response exceeded the limit
+    }
 }
 ```
 
@@ -757,7 +782,8 @@ reuse.
 
 **Compressed responses.** Apache HttpClient decodes `Content-Encoding: gzip`/`deflate` bodies transparently, so the
 size limit and both drain bounds count *decoded* bytes. Bytes a server sends after the end of the compressed data are
-not limited: HttpClient reads and discards them once the decoded body has ended.
+not bounded in size or time: HttpClient reads and discards them when the decoded body ends or the response is closed.
+This is a known limitation.
 
 Both bounds are configurable on the `HttpRequestBuilder` (`@Beta`). They require
 `setMaxResponseBodySizeBytes(...)` with a positive value — `build()` rejects drain options without the cap they belong
@@ -771,8 +797,8 @@ to.
 ```java
 // Defaults: salvages small remainders instantly, never waits on a slow peer
 HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
-                .setMaxResponseBodySizeBytes(1024 * 1024)
-                .build();
+        .setMaxResponseBodySizeBytes(1024 * 1024)
+        .build();
 
 // Throughput-tuned — trusted upstream on a fast internal network, reconnects are expensive
 // (TLS handshakes, proxies with connection limits): drain whatever the cap allows, wait up to 2s.
@@ -809,11 +835,16 @@ encoding.
 
 ```java
 httpRequest.target("https://api.example.com/search")
-    .setQueryCharset(StandardCharsets.UTF_8) // For query-string parameter encoding
-    .setBodyCharset(StandardCharsets.ISO_8859_1) // For request body
-    .addParameter("q","你好")
-    .post("some-body");
+        .setQueryCharset(StandardCharsets.UTF_8)     // For query-string parameter encoding
+        .setBodyCharset(StandardCharsets.ISO_8859_1) // For request body
+        .addParameter("q", "你好")
+        .post("some-body");
 ```
+
+`setCharset(...)` sets both at once. To change the default for every target, call `setDefaultQueryCharset(...)` /
+`setDefaultBodyCharset(...)` on the `HttpRequestBuilder`; both default to UTF-8. A `charset` declared on the request's
+`Content-Type` header takes precedence over the body charset, so the body bytes always match what the header
+advertises.
 
 #### Response decoding charset
 
@@ -841,8 +872,10 @@ model. None are enabled by default; enabling them is one method call each.
 If your service constructs request URIs from user-supplied input — even partially — an
 attacker can use that surface to scan internal networks, hit cloud-metadata endpoints
 (`169.254.169.254` on AWS / GCP / Azure exposes IAM credentials), or pivot into private
-subnets. Enable the SSRF guard to refuse every host that resolves to loopback,
-unspecified, link-local, RFC 1918 (private IPv4), or IPv6 unique-local addresses:
+subnets. Enable the SSRF guard (`@Beta`) to refuse every host that resolves into the IANA non-global address space —
+among others loopback, unspecified, link-local, RFC 1918 (private IPv4), IPv6 unique-local, carrier-grade NAT
+(`100.64.0.0/10`), `0.0.0.0/8`, `192.0.0.0/24`, the TEST-NETs, `198.18.0.0/15`, `240.0.0.0/4`, multicast, and IPv6
+addresses that embed a non-global IPv4 address (IPv4-mapped, NAT64):
 
 ```java
 CloseableHttpClient httpClient = ClientBuilder.create()
@@ -868,6 +901,13 @@ CloseableHttpClient httpClient = ClientBuilder.create()
 The predicate runs on every resolved address that would otherwise be blocked; returning
 `true` lets it through, `false` keeps the deny.
 
+The guard takes precedence over a DNS resolver set in a connection-manager customizer
+(`addDefaultConnectionManagerBuilderCustomizer(...)`); combining a custom resolver with the guard is
+not supported. It is a best-effort deny-list with known limits: with a proxy configured, the proxy
+resolves the target host, so the guard never sees that address; and the IPv4 address embedded in
+6to4 (`2002::/16`) and Teredo (`2001::/32`) addresses is not decoded. Combine it with network-layer
+egress filtering.
+
 #### URI scheme allow-list
 
 Lock the client to HTTP/HTTPS only — refuse `file://`, `jar://`, `data:` and other schemes
@@ -878,9 +918,7 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
         .allowHttpAndHttpsOnly()
         .build();
 
-httpRequest.
-
-target("file:///etc/passwd"); // throws IllegalArgumentException
+httpRequest.target("file:///etc/passwd"); // throws IllegalArgumentException
 ```
 
 #### HTTP/1.1 head-size limits
@@ -902,8 +940,9 @@ sets.
 #### Payload redaction for request logging
 
 When `enableRequestPayloadLogging()` is on, the library logs the outgoing request body at
-DEBUG. To prevent secrets (API keys, OAuth tokens, PII) from landing in those logs, register
-one or more redactors:
+DEBUG: `String` payloads as sent, `Object` payloads in their serialized (JSON/XML) form. Raw
+`HttpEntity` bodies are never logged. To prevent secrets (API keys, OAuth tokens, PII) from
+landing in those logs, register one or more redactors:
 
 ```java
 HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
@@ -941,6 +980,11 @@ HttpRequest httpRequest = HttpRequestBuilder.create(httpClient)
 > Pair this with `addPayloadRedactor(...)` (see [Security &amp; Hardening](#security--hardening))
 > when the body might carry credentials.
 
+The library logs through SLF4J under `com.jsunsoft.http`. DEBUG shows each request's outcome and timing; TRACE adds
+the request and result details, with `Authorization`, `Proxy-Authorization`, `Cookie` and `Set-Cookie` values masked
+as `<redacted>` and response bodies left out. Request URIs (query parameters included) and the error text of
+non-success responses are logged as they are, so keep secrets out of query strings.
+
 ## Why use http-request?
 
 While Apache HttpClient is a powerful and flexible library, `http-request` provides a higher-level, fluent API that
@@ -962,7 +1006,7 @@ HTTP client code.
 
 ## API Documentation
 
-Full API documentation is available [here](http://javadoc.io/doc/com.jsunsoft.http/http-request).
+Full API documentation is available [here](https://javadoc.io/doc/com.jsunsoft.http/http-request).
 
 Additional documentation:
 
@@ -973,9 +1017,9 @@ Additional documentation:
 
 Methods, types, and parameters annotated with `@com.jsunsoft.http.annotations.Beta` are
 explicitly **excluded** from the library's compatibility guarantees. Their signatures, default
-behavior, exception types, and even names may change between minor (3.x → 3.y) and patch
-(3.5.0 → 3.5.1) releases without a deprecation cycle. The annotation says nothing about quality
-or performance — only that the API is not yet "frozen."
+behavior, exception types, and even names may change in minor (x.y) and patch (x.y.z) releases
+without a deprecation cycle. The annotation says nothing about quality or performance — only
+that the API is not yet "frozen."
 
 It's generally safe for *applications* to depend on `@Beta` APIs, at the cost of some extra work
 during upgrades. It's generally inadvisable for *libraries* (whose users' classpaths are outside
