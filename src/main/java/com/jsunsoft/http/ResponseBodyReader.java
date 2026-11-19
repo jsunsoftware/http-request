@@ -44,7 +44,12 @@ import java.io.IOException;
  *   <li><b>Failure modes:</b> throw {@link ResponseBodyReaderException} for deserialization
  *       failures (the library will wrap it in {@link ResponseBodyProcessingException} for the
  *       lazy-API and surface it as a {@code 502 Bad Gateway} for the eager API). Throw plain
- *       {@link IOException} for I/O errors reading the stream.</li>
+ *       {@link IOException} for I/O errors reading the stream. A Jackson
+ *       {@code com.fasterxml.jackson.core.JsonProcessingException} or a
+ *       {@link java.io.CharConversionException} thrown from {@link #read} is treated as a
+ *       deserialization failure, unless it was caused by an {@link IOException} other than a
+ *       {@code CharConversionException}: that I/O error is then treated as if {@code read} had
+ *       thrown it.</li>
  * </ul>
  *
  * @param <T> the type produced by this reader
