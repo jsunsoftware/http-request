@@ -36,6 +36,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.UnaryOperator;
 
 import static com.jsunsoft.http.BasicConnectionFailureType.*;
@@ -233,7 +234,7 @@ class BasicWebTarget implements WebTarget {
 
     private ClassicHttpRequest resolveRequest(HttpMethod method) {
 
-        return httpUriRequestBuilder.setMethod(method.name()).setUri(getURI()).build();
+        return httpUriRequestBuilder.setMethod(method.name()).setUri(buildBareURI()).build();
     }
 
     private HttpHost resolveHttpHost(ClassicHttpRequest request) throws ClientProtocolException {
@@ -248,7 +249,7 @@ class BasicWebTarget implements WebTarget {
         try {
             return request.getUri();
         } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + getURIString() + "].", e);
+            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + uriBuilder + "].", e);
         }
     }
 
@@ -349,18 +350,39 @@ class BasicWebTarget implements WebTarget {
 
     @Override
     public URI getURI() {
-        URI uri;
-        try {
-            uri = uriBuilder.build().normalize();
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + getURIString() + "].", e);
+        URI bareUri = buildBareURI();
+
+        List<NameValuePair> parameters = httpUriRequestBuilder.getParameters();
+        if (parameters.isEmpty()) {
+            return bareUri;
         }
-        return uri;
+        try {
+            return new URIBuilder(bareUri, httpUriRequestBuilder.getCharset())
+                    .addParameters(parameters)
+                    .build();
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + uriBuilder + "].", e);
+        }
     }
 
     @Override
     public String getURIString() {
-        return uriBuilder.toString();
+        return getURI().toString();
+    }
+
+    /**
+     * URI without the pending query parameters held by the request builder. Request assembly and
+     * copy flows must use this form: {@link HttpUriRequestBuilder#build()} merges the parameters
+     * itself (into the query string, or a form body for entity-less POST/PUT), and copies carry
+     * the parameter list in the copied request builder — starting from the parameter-carrying
+     * {@link #getURI()} would send every parameter twice.
+     */
+    private URI buildBareURI() {
+        try {
+            return uriBuilder.build().normalize();
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("URI syntax is incorrect. URI: [" + uriBuilder + "].", e);
+        }
     }
 
     @Override
@@ -482,7 +504,7 @@ class BasicWebTarget implements WebTarget {
     }
 
     URIBuilder getUriBuilder() {
-        return new URIBuilder(getURI(), httpUriRequestBuilder.getCharset());
+        return new URIBuilder(buildBareURI(), httpUriRequestBuilder.getCharset());
     }
 
     HttpUriRequestBuilder getHttpUriRequestBuilder() {
